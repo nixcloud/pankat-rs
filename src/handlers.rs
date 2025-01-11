@@ -28,9 +28,7 @@ pub struct AuthResponse {
 
 /// Register a new user
 ///
-/// curl -X POST http://localhost:5000/api/auth/register \
-///   -H "Content-Type: application/json" \
-///   -d '{"username":"testuser","password":"testpass"}'
+/// curl -X POST http://localhost:5000/api/auth/register -H "Content-Type: application/json" -d '{"username":"testuser","password":"testpass"}'
 pub async fn register(
     State(pool): State<DbPool>,
     Json(req): Json<AuthRequest>,
@@ -100,10 +98,10 @@ pub async fn protected(headers: HeaderMap) -> Result<Json<&'static str>, AppErro
     // Validate JWT token
     match validate_token(auth_header) {
         Ok(token_data) => {
-            let level = token_data.claims.level;
-            let uid = token_data.claims.user_id;
-            Ok(Json("Welcome '{uid}' to protected route with '{level}'!"))
+            let _level = token_data.claims.level;
+            let _uid = token_data.claims.user_id;
+            Ok(Json("Welcome '{_uid}' to protected route with '{_level}'!"))
         }
-        Err(e) => return Err(AppError::AuthError),
+        Err(_) => return Err(AppError::AuthError),
     }
 }

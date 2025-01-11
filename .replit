@@ -1,4 +1,4 @@
-modules = ["rust", "postgresql-16"]
+modules = ["rust"]
 
 [nix]
 channel = "stable-24_05"
@@ -6,3 +6,18 @@ channel = "stable-24_05"
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[workflows]
+runButton = "pankat-rs"
+
+[[workflows.workflow]]
+name = "pankat-rs"
+mode = "parallel"
+author = "agent"
+
+[deployment]
+run = [
+  "sh",
+  "-c",
+  "mkdir -p documents && echo 'test content' > documents/test.txt && sleep 2 && rm documents/test.txt",
+]
