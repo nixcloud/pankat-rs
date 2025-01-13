@@ -6,6 +6,7 @@ channel = "stable-24_05"
 [[ports]]
 localPort = 5000
 externalPort = 80
+exposeLocalhost = true
 
 [workflows]
 runButton = "pankat-rs"

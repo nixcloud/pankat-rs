@@ -1,9 +1,9 @@
+use crate::render::render_file;
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc, Mutex};
 use tokio::task::JoinHandle;
-use crate::render::render_file;
 
 const DEFAULT_CHANNEL_CAPACITY: usize = 100;
 
@@ -30,8 +30,6 @@ pub fn spawn_async_monitor(
     let watcher_cleanup = Arc::new(Mutex::new(watcher));
     let cleanup_watcher = watcher_cleanup.clone();
 
-
-    
     // Spawn monitoring task
     let handle = tokio::spawn(async move {
         println!("File monitor started...");
@@ -63,15 +61,9 @@ pub fn spawn_async_monitor(
 
 fn handle_event(event: &Event) {
     let event_type = match event.kind {
-        EventKind::Create(_) => {
-            "📝 created"
-        }
-        EventKind::Modify(_) => {
-            "✏️ modified"
-        }
-        EventKind::Remove(_) => {
-            "🗑️ removed"
-        }
+        EventKind::Create(_) => "📝 created",
+        EventKind::Modify(_) => "✏️ modified",
+        EventKind::Remove(_) => "🗑️ removed",
         _ => return, // Ignore other events
     };
 
@@ -81,7 +73,7 @@ fn handle_event(event: &Event) {
                 if let Ok(relative_path) = path.strip_prefix(std::env::current_dir().unwrap()) {
                     println!("  📍 Path: {} was {}", relative_path.display(), event_type);
                     let path_string = path.to_string_lossy().into_owned();
-                    render_file(path_string.clone());
+                    let _ = render_file(path_string.clone());
                 }
             }
         }

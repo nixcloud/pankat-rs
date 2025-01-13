@@ -51,6 +51,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     // Create router
     let app = Router::new()
+        .route("/", get(handlers::serve_static))
+        .route("/*path", get(handlers::serve_static))
         .route("/api/auth/register", post(handlers::register))
         .route("/api/auth/login", post(handlers::login))
         .route("/api/protected", get(handlers::protected))

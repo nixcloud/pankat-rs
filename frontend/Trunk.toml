@@ -1,0 +1,10 @@
+#[build]
+#target = "."
+
+[serve]
+# The directory where Trunk will serve files from
+public_url = "/"
+
+[output]
+# The directory where Trunk outputs build files
+dist = "dist"
