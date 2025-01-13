@@ -61,22 +61,22 @@ pub fn spawn_async_monitor(
 fn handle_event(event: &Event) {
     let event_type = match event.kind {
         EventKind::Create(_) => {
-            println!("📝 New file created:");
-            "created"
+            "📝 created"
         }
         EventKind::Modify(_) => {
-            println!("✏️ File modified:");
-            "modified"
+            "✏️ modified"
         }
         EventKind::Remove(_) => {
-            println!("🗑️ File removed:");
-            "removed"
+            "🗑️ removed"
         }
         _ => return, // Ignore other events
     };
 
     for path in &event.paths {
-        println!("  📍 Path: {} was {}", path.display(), event_type);
+        if let Some(extension) = path.extension() {
+            if extension == "md" {
+                println!("  📍 Path: {} was {}", path.display(), event_type);
+            }
+        }
     }
-    println!("------------------");
 }
