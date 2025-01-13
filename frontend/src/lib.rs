@@ -35,7 +35,7 @@ pub fn main_js() -> Result<(), JsValue> {
     }) as Box<dyn FnMut(_)>);
 
     // Set up a periodic update every 2 seconds (2000 milliseconds)
-    window.set_interval_with_callback_and_timeout_and_args(
+    window.set_interval_with_callback_and_timeout_and_arguments(
         closure.as_ref().unchecked_ref(),
         2000,
         0,
