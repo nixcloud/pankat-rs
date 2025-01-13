@@ -3,7 +3,7 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc, Mutex};
 use tokio::task::JoinHandle;
-use render::render_file;
+use crate::render::render_file;
 
 const DEFAULT_CHANNEL_CAPACITY: usize = 100;
 
@@ -80,7 +80,8 @@ fn handle_event(event: &Event) {
             if extension == "md" {
                 if let Ok(relative_path) = path.strip_prefix(std::env::current_dir().unwrap()) {
                     println!("  📍 Path: {} was {}", relative_path.display(), event_type);
-                    render_file(&path);
+                    let path_string = path.to_string_lossy().into_owned();
+                    render_file(path_string.clone());
                 }
             }
         }
