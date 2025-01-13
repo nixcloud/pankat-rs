@@ -4,6 +4,7 @@ mod error;
 mod file_monitor;
 mod handlers;
 mod schema;
+mod render;
 
 use axum::{
     routing::{get, post},

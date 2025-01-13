@@ -3,6 +3,7 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc, Mutex};
 use tokio::task::JoinHandle;
+use render::render_file;
 
 const DEFAULT_CHANNEL_CAPACITY: usize = 100;
 
@@ -29,6 +30,8 @@ pub fn spawn_async_monitor(
     let watcher_cleanup = Arc::new(Mutex::new(watcher));
     let cleanup_watcher = watcher_cleanup.clone();
 
+
+    
     // Spawn monitoring task
     let handle = tokio::spawn(async move {
         println!("File monitor started...");
@@ -75,7 +78,10 @@ fn handle_event(event: &Event) {
     for path in &event.paths {
         if let Some(extension) = path.extension() {
             if extension == "md" {
-                println!("  📍 Path: {} was {}", path.display(), event_type);
+                if let Ok(relative_path) = path.strip_prefix(std::env::current_dir().unwrap()) {
+                    println!("  📍 Path: {} was {}", relative_path.display(), event_type);
+                    render_file(&path);
+                }
             }
         }
     }
