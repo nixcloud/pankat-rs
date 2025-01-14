@@ -6,8 +6,8 @@ use virtual_dom_rs::prelude::*;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
-use web_sys::js_sys;
-use web_sys::{Element, MessageEvent, WebSocket};
+use web_sys::{js_sys, Element, MessageEvent, WebSocket};
+
 #[wasm_bindgen(start)]
 pub fn main_js() -> Result<(), JsValue> {
     // Initialize logging
