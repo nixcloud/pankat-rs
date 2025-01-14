@@ -56,6 +56,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .route("/api/auth/register", post(handlers::register))
         .route("/api/auth/login", post(handlers::login))
         .route("/api/protected", get(handlers::protected))
+        .route("/ws", get(handlers::websocket_route))
         .layer(CorsLayer::permissive())
         .with_state(pool);
 
