@@ -66,8 +66,8 @@ pub fn main_js() -> Result<(), JsValue> {
                 };
                 div.as_velement_mut()
                     .unwrap()
-                    .special_attributes
-                    .dangerous_inner_html = Some(input);
+                    .attrs
+                    .insert("innerHTML".to_string(), input);
 
                 let div: Element = div.create_dom_node().node.unchecked_into();
 
