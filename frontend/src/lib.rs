@@ -44,11 +44,10 @@ pub fn main_js() -> Result<(), JsValue> {
         let body_clone = body.clone();
         let on_message = Closure::wrap(Box::new(move |e: MessageEvent| {
             if let Ok(data) = e.data().dyn_into::<js_sys::JsString>() {
-                let input: String = data.as_string().unwrap_or_default();
-                //let input: String = "<p>asdf</p>".to_string();
+                //let input: String = data.as_string().unwrap_or_default();
+                let input: String = "<p>asdf XXX</p>".to_string();
                 // https://chinedufn.github.io/percy/html-macro/setting-inner-html/index.html
                 // let vdiv = html! {
-
                 //     <div> {input.clone()} </div>
                 // };
                 // let vdiv = html! {
@@ -62,12 +61,12 @@ pub fn main_js() -> Result<(), JsValue> {
                 // };
                 // let div: Element = vdiv.create_dom_node().node.unchecked_into::<Element>();
                 let mut div: VirtualNode = html! {
-                <div></div>
+                <div>--asdf</div>
                 };
                 div.as_velement_mut()
                     .unwrap()
-                    .attrs
-                    .insert("innerHTML".to_string(), input);
+                    .special_attributes
+                    .dangerous_inner_html = Some(input.to_string());
 
                 let div: Element = div.create_dom_node().node.unchecked_into();
 
