@@ -2,7 +2,10 @@ use crate::auth::{create_token, validate_token, UserLevel};
 use crate::db::{create_user, get_user_by_username};
 use crate::error::AppError;
 use axum::{
-    extract::State,
+    extract::{
+        ws::{WebSocket, WebSocketUpgrade},
+        State,
+    },
     http::header::{HeaderMap, AUTHORIZATION},
     Json,
 };
@@ -132,25 +135,34 @@ pub async fn serve_static(uri: axum::http::Uri) -> Result<Response, AppError> {
     }
 }
 
-pub async fn websocket_route(uri: axum::http::Uri) -> Result<Response, AppError> {
-    use axum::extract::ws::{WsUpgrade, WebSocket};
+pub async fn websocket_route(ws: WebSocketUpgrade) -> Response {
+    ws.on_upgrade(handle_socket)
+}
+
+async fn handle_socket(mut socket: WebSocket) {
     use futures::{sink::SinkExt, stream::StreamExt};
+    use rand::Rng;
     use std::time::Duration;
     use tokio::time::interval;
-    use rand::Rng;
 
-    Ok(WsUpgrade::new()
-        .on_upgrade(|mut socket: WebSocket| async move {
-            let mut interval = interval(Duration::from_secs(5));
-            let mut rng = rand::thread_rng();
+    let mut interval = interval(Duration::from_secs(5));
+    let mut rng = rand::thread_rng();
 
-            while let Some(_) = socket.next().await {
-                interval.tick().await;
-                let message = if rng.gen_bool(0.5) { "<p>hi</p>" } else { "<p>yes</p>" };
-                if socket.send(axum::extract::ws::Message::Text(message.to_string())).await.is_err() {
-                    break;
-                }
-            }
-        })
-        .into_response())
+    while let Some(msg) = socket.recv().await {
+        let msg = if let Ok(msg) = msg {
+            msg
+        } else {
+            return; // client disconnected
+        };
+
+        let message = if rng.gen_bool(0.5) {
+            "<p>hi</p>"
+        } else {
+            "<p>yes</p>"
+        };
+
+        if socket.send(msg).await.is_err() {
+            return; // client disconnected
+        }
+    }
 }
