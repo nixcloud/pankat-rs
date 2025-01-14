@@ -140,21 +140,20 @@ pub async fn websocket_route(ws: WebSocketUpgrade) -> Response {
 }
 
 async fn handle_socket(mut socket: WebSocket) {
-    use futures::stream::StreamExt;
     use rand::Rng;
     use std::time::Duration;
     use tokio::time::interval;
 
     let mut interval = interval(Duration::from_secs(5));
 
-    while let Some(msg) = socket.recv().await {
-        let message = if rand::thread_rng().gen_bool(0.5) {
+    while let Some(Ok(msg)) = socket.recv().await {
+        let response = if rand::thread_rng().gen_bool(0.5) {
             "<p>hi</p>"
         } else {
             "<p>yes</p>"
         };
 
-        if socket.send(msg).await.is_err() {
+        if socket.send(axum::extract::ws::Message::Text(response.to_string())).await.is_err() {
             return;
         }
     }
