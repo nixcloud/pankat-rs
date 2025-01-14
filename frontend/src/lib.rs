@@ -1,5 +1,6 @@
 extern crate web_sys;
 use log::info;
+use percy_dom::event::VirtualEvents;
 use percy_dom::prelude::*;
 use std::cell::Cell;
 use std::rc::Rc;
@@ -44,11 +45,8 @@ pub fn main_js() -> Result<(), JsValue> {
         let body_clone = body.clone();
         let on_message = Closure::wrap(Box::new(move |e: MessageEvent| {
             if let Ok(data) = e.data().dyn_into::<js_sys::JsString>() {
-                //let input: String = data.as_string().unwrap_or_default();
-                let input: String = "<p>asdf XXX</p>".to_string();
-
-                let mut div: VirtualNode = html! {
-                <div>--asdf</div>
+                let input: String = data.as_string().unwrap_or_default();
+                let mut div: VirtualNode = html! {<div>here will be your message</div>
                 };
                 div.as_velement_mut()
                     .unwrap()
@@ -56,13 +54,14 @@ pub fn main_js() -> Result<(), JsValue> {
                     .dangerous_inner_html = Some(input.to_string());
 
                 let mut events = VirtualEvents::new();
-                let div: Element = div.create_dom_node(&mut events).0.unchecked_into();
-
-                div.set_id("nested-div");
-
-                body_clone
-                    .append_child(&div)
-                    .expect("Failed to append child");
+                let new_div: Element = div.create_dom_node(&mut events).0.unchecked_into();
+                new_div.set_attribute("id", "ws-div").expect("Failed to set id attribute");
+                let old_div = body_clone.query_selector("#ws-div").unwrap();
+                if let Some(old_div) = old_div {
+                    body_clone.replace_child(&new_div, &old_div).unwrap();
+                } else {
+                    body_clone.append_child(&new_div).unwrap();
+                }
             }
         }) as Box<dyn FnMut(_)>);
 

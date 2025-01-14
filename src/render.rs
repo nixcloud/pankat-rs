@@ -35,7 +35,7 @@ pub fn render_file(
     if output.status.success() {
           let stdout = String::from_utf8_lossy(&output.stdout).to_string();
           println!("\n{}", stdout);
-            println!("-- Rendering file done --");
+          println!("-- Rendering file done --");
         
         Ok(output_str)
     } else {

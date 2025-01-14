@@ -136,17 +136,15 @@ pub async fn serve_static(uri: axum::http::Uri) -> Result<Response, AppError> {
 }
 
 pub async fn websocket_route(ws: WebSocketUpgrade) -> Response {
-    println!("WS action");
     ws.on_upgrade(handle_socket)
 }
 
 async fn handle_socket(mut socket: WebSocket) {
-    println!("WS action after upgrade");
     use rand::Rng;
     use std::time::Duration;
     use tokio::time::interval;
 
-    let mut interval = interval(Duration::from_secs(5));
+    let mut interval = interval(Duration::from_secs(2));
 
     loop {
         interval.tick().await;
@@ -154,9 +152,8 @@ async fn handle_socket(mut socket: WebSocket) {
         let response = if rand::thread_rng().gen_bool(0.5) {
             "<p>hi</p>"
         } else {
-            "<p>yes</p>"
+            "<b>yes</b>"
         };
-        println!("WS action: sending {}", response);
 
         if socket
             .send(axum::extract::ws::Message::Text(response.to_string()))
