@@ -8,8 +8,8 @@ serde = "1.0"
 reqwest = { version = "0.11", features = ["json"] }
 web-sys = { version = "0.3", features = ["WebSocket", "console", "MessageEvent", "Window", "Location"] } 
 wasm-bindgen = "0.2.100"
-virtual-dom-rs = "=0.6.12"
-virtual-node = "=0.2.7"
+percy-dom = "=0.10.0"
+virtual-node = "=0.5"
 log = "0.4.25"
 
 [lib]

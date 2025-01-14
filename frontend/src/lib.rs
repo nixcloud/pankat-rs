@@ -1,8 +1,8 @@
 extern crate web_sys;
 use log::info;
+use percy_dom::prelude::*;
 use std::cell::Cell;
 use std::rc::Rc;
-use virtual_dom_rs::prelude::*;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
@@ -46,20 +46,7 @@ pub fn main_js() -> Result<(), JsValue> {
             if let Ok(data) = e.data().dyn_into::<js_sys::JsString>() {
                 //let input: String = data.as_string().unwrap_or_default();
                 let input: String = "<p>asdf XXX</p>".to_string();
-                // https://chinedufn.github.io/percy/html-macro/setting-inner-html/index.html
-                // let vdiv = html! {
-                //     <div> {input.clone()} </div>
-                // };
-                // let vdiv = html! {
-                //     <button
-                //       onclick=move|_event: web_sys::MouseEvent| {
-                //         web_sys::console::log_1(&"clicked!".into());
-                //       }
-                //     >
-                //       Click me!
-                //     </button>
-                // };
-                // let div: Element = vdiv.create_dom_node().node.unchecked_into::<Element>();
+
                 let mut div: VirtualNode = html! {
                 <div>--asdf</div>
                 };
