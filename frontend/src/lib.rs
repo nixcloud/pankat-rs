@@ -55,7 +55,8 @@ pub fn main_js() -> Result<(), JsValue> {
                     .special_attributes
                     .dangerous_inner_html = Some(input.to_string());
 
-                let div: Element = div.create_dom_node().node.unchecked_into();
+                let mut events = VirtualEvents::new();
+                let div: Element = div.create_dom_node(&mut events).0.unchecked_into();
 
                 div.set_id("nested-div");
 
