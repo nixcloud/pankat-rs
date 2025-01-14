@@ -21,12 +21,16 @@ pub fn main_js() -> Result<(), JsValue> {
     let ws_clone = ws.clone();
 
     let connect = Rc::new(move || {
-        let location = window.location();
-        let protocol = if location.protocol().unwrap() == "https:" { "wss:" } else { "ws:" };
+        let location = web_sys::window().unwrap().location();
+        let protocol = if location.protocol().unwrap() == "https:" {
+            "wss:"
+        } else {
+            "ws:"
+        };
         let host = location.host().unwrap();
         let websocket_address = format!("{}/ws", host);
         let ws = WebSocket::new(&format!("{}//{}", protocol, websocket_address))
-        .expect("Failed to create WebSocket");
+            .expect("Failed to create WebSocket");
 
         // Handle WebSocket open
         let on_open = Closure::wrap(Box::new(move || {
