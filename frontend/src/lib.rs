@@ -12,6 +12,7 @@ use web_sys::{js_sys, Element, MessageEvent, WebSocket};
 pub fn main_js() -> Result<(), JsValue> {
     // Initialize logging
     //console_log::init_with_level(log::Level::Info).expect("error initializing log");
+    info!("WASM hello world");
 
     let window = web_sys::window().expect("no global `window` exists");
     let document = window.document().expect("should have a document on window");
@@ -27,7 +28,9 @@ pub fn main_js() -> Result<(), JsValue> {
         } else {
             "ws:"
         };
+
         let host = location.host().unwrap();
+        //let host = "6dc6bb52-21ae-4297-9f17-1d299d118e3a-00-37bkydd25elf9.kirk.replit.dev";
         let websocket_address = format!("{}/ws", host);
         let ws = WebSocket::new(&format!("{}//{}", protocol, websocket_address))
             .expect("Failed to create WebSocket");

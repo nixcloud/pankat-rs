@@ -6,7 +6,9 @@ channel = "stable-24_05"
 [[ports]]
 localPort = 5000
 externalPort = 80
-exposeLocalhost = true
+
+[[ports]]
+localPort = 5001
 
 [workflows]
 runButton = "pankat-rs"
@@ -16,9 +18,5 @@ name = "pankat-rs"
 mode = "parallel"
 author = "agent"
 
-[deployment]
-run = [
-  "sh",
-  "-c",
-  "mkdir -p documents && echo 'test content' > documents/test.txt && sleep 2 && rm documents/test.txt",
-]
+[run]
+args = ["just", "run"]
