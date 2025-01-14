@@ -139,18 +139,18 @@ pub async fn websocket_route(uri: axum::http::Uri) -> Result<Response, AppError>
     use tokio::time::interval;
     use rand::Rng;
 
-    Ok(Response::new(axum::response::IntoResponse::into_response(WsUpgrade::new().on_upgrade(
-        |mut socket: WebSocket| async move {
+    Ok(WsUpgrade::new()
+        .on_upgrade(|mut socket: WebSocket| async move {
             let mut interval = interval(Duration::from_secs(5));
             let mut rng = rand::thread_rng();
 
             while let Some(_) = socket.next().await {
                 interval.tick().await;
                 let message = if rng.gen_bool(0.5) { "<p>hi</p>" } else { "<p>yes</p>" };
-                if socket.send(axum::http::header::HeaderValue::from_str(message).unwrap()).await.is_err() {
+                if socket.send(axum::extract::ws::Message::Text(message.to_string())).await.is_err() {
                     break;
                 }
             }
-        },
-    )))?)
+        })
+        .into_response())
 }
