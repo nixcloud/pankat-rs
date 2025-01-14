@@ -21,6 +21,8 @@ libsqlite3-sys = "0.26.0"
 notify = { version = "6.1", features = ["serde"] }
 futures = "0.3"
 mime_guess = "2.0.4"
+virtual-dom-rs = "=0.6.12"
+virtual-node = "=0.2.7"
 
 [build-dependencies]
 diesel_cli = { version = "2.1.0", default-features = false, features = ["sqlite"] }
