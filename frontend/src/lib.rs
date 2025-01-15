@@ -60,9 +60,14 @@ pub fn main_js() -> Result<(), JsValue> {
                 let old_div = body_clone.query_selector("#ws-div").unwrap().unwrap();
 
                 let mut events = VirtualEvents::new();
-                let old_vnode = VirtualNode::from(&old_div);
+                let old_vnode = VirtualNode::from(old_div.clone());
                 let patches = percy_dom::diff(&old_vnode, &div);
-                percy_dom::patch(&old_div as &web_sys::Node, &old_vnode, &mut events, &patches);
+                percy_dom::patch(
+                    &old_div as &web_sys::Node,
+                    &old_vnode,
+                    &mut events,
+                    &patches,
+                );
             }
         }) as Box<dyn FnMut(_)>);
 
