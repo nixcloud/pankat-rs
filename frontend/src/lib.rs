@@ -61,8 +61,8 @@ pub fn main_js() -> Result<(), JsValue> {
 
                 let mut events = VirtualEvents::new();
                 let old_vnode = VirtualNode::from(&old_div);
-                let patches = percy_dom::diff(&old_div, &new_div);
-                percy_dom::patch(old_div.unchecked_ref(), &old_vnode, &mut events, &patches);
+                let patches = percy_dom::diff(&old_vnode, &div);
+                percy_dom::patch(&old_div as &web_sys::Node, &old_vnode, &mut events, &patches);
             }
         }) as Box<dyn FnMut(_)>);
 
