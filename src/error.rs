@@ -1,7 +1,7 @@
 use axum::{http::StatusCode, response::IntoResponse, Json};
+use diesel::result::Error as DieselError;
 use serde_json::json;
 use thiserror::Error;
-use diesel::result::Error as DieselError;
 
 #[derive(Error, Debug)]
 pub enum AppError {
@@ -17,9 +17,10 @@ impl IntoResponse for AppError {
     fn into_response(self) -> axum::response::Response {
         let (status, error_message) = match self {
             AppError::AuthError => (StatusCode::UNAUTHORIZED, self.to_string()),
-            AppError::DatabaseError(_) => {
-                (StatusCode::INTERNAL_SERVER_ERROR, "Database error".to_string())
-            }
+            AppError::DatabaseError(_) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Database error".to_string(),
+            ),
             AppError::InternalError => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal server error".to_string(),

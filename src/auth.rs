@@ -1,4 +1,4 @@
-use jsonwebtoken::{encode, decode, Header, EncodingKey, DecodingKey, Validation, TokenData};
+use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, Validation};
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -18,21 +18,25 @@ pub struct Claims {
     pub exp: u64,
 }
 
-const JWT_SECRET: &[u8] = b"your-secret-key";  // In production, this should be an environment variable
+const JWT_SECRET: &[u8] = b"your-secret-key"; // In production, this should be an environment variable
 
 /// Create a new JWT token for a user
-/// 
+///
 /// # Arguments
 /// * `user_id` - The user's ID
 /// * `level` - The user's access level
-/// 
+///
 /// # Returns
 /// * `Result<String, jsonwebtoken::errors::Error>` - The JWT token if successful
-pub fn create_token(user_id: String, level: UserLevel) -> Result<String, jsonwebtoken::errors::Error> {
+pub fn create_token(
+    user_id: String,
+    level: UserLevel,
+) -> Result<String, jsonwebtoken::errors::Error> {
     let expiration = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
-        .as_secs() + 86400; // 24 hours
+        .as_secs()
+        + 86400; // 24 hours
 
     let claims = Claims {
         user_id,
@@ -48,10 +52,10 @@ pub fn create_token(user_id: String, level: UserLevel) -> Result<String, jsonweb
 }
 
 /// Validate and decode a JWT token
-/// 
+///
 /// # Arguments
 /// * `token` - The JWT token to validate
-/// 
+///
 /// # Returns
 /// * `Result<TokenData<Claims>, jsonwebtoken::errors::Error>` - The decoded claims if valid
 pub fn validate_token(token: &str) -> Result<TokenData<Claims>, jsonwebtoken::errors::Error> {
