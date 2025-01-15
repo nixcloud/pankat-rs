@@ -46,8 +46,7 @@ pub fn main_js() -> Result<(), JsValue> {
         let on_message = Closure::wrap(Box::new(move |e: MessageEvent| {
             if let Ok(data) = e.data().dyn_into::<js_sys::JsString>() {
                 let input: String = data.as_string().unwrap_or_default();
-                let mut div: VirtualNode = html! {<div>here will be your message</div>
-                };
+                let mut div: VirtualNode = html! {<div>here will be your message</div>};
                 div.as_velement_mut()
                     .unwrap()
                     .special_attributes
@@ -55,13 +54,13 @@ pub fn main_js() -> Result<(), JsValue> {
 
                 let mut events = VirtualEvents::new();
                 let new_div: Element = div.create_dom_node(&mut events).0.unchecked_into();
-                new_div.set_attribute("id", "ws-div").expect("Failed to set id attribute");
-                let old_div = body_clone.query_selector("#ws-div").unwrap();
-                if let Some(old_div) = old_div {
-                    body_clone.replace_child(&new_div, &old_div).unwrap();
-                } else {
-                    body_clone.append_child(&new_div).unwrap();
-                }
+                new_div
+                    .set_attribute("id", "ws-div")
+                    .expect("Failed to set id attribute");
+                let old_div = body_clone.query_selector("#ws-div").unwrap().unwrap();
+
+                let patches = percy_dom::diff(&old_div, &new_div);
+                percy_dom::patch(old_div.unchecked_ref(), &patches);
             }
         }) as Box<dyn FnMut(_)>);
 
