@@ -59,8 +59,10 @@ pub fn main_js() -> Result<(), JsValue> {
                     .expect("Failed to set id attribute");
                 let old_div = body_clone.query_selector("#ws-div").unwrap().unwrap();
 
+                let mut events = VirtualEvents::new();
+                let old_vnode = VirtualNode::from(&old_div);
                 let patches = percy_dom::diff(&old_div, &new_div);
-                percy_dom::patch(old_div.unchecked_ref(), &patches);
+                percy_dom::patch(old_div.unchecked_ref(), &old_vnode, &mut events, &patches);
             }
         }) as Box<dyn FnMut(_)>);
 
