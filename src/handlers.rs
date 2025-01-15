@@ -92,7 +92,6 @@ use axum::response::Response;
 use std::path::PathBuf;
 use tokio::fs;
 
-/// Serve index.html or static files
 pub async fn serve_static(uri: axum::http::Uri) -> Result<Response, AppError> {
     let mut path = PathBuf::from("documents");
 
@@ -141,17 +140,10 @@ pub async fn websocket_route(ws: WebSocketUpgrade) -> Response {
 }
 
 async fn handle_socket(mut socket: WebSocket) {
-    use rand::Rng;
-    use std::time::Duration;
-    use tokio::time::interval;
-
-    // let mut interval = interval(Duration::from_secs(2));
     let news_receiver = PubSubRegistry::instance().register_receiver("news".to_string());
-
     loop {
         match news_receiver.recv() {
             Ok(message) => {
-                println!("Received: {}", message);
                 if socket
                     .send(axum::extract::ws::Message::Text(message.to_string()))
                     .await
@@ -163,21 +155,4 @@ async fn handle_socket(mut socket: WebSocket) {
             Err(_) => return,
         }
     }
-    // loop {
-    //     interval.tick().await;
-
-    //     let response = if rand::thread_rng().gen_bool(0.5) {
-    //         "<p>hi</p>"
-    //     } else {
-    //         "<b>yes</b>"
-    //     };
-
-    //     if socket
-    //         .send(axum::extract::ws::Message::Text(response.to_string()))
-    //         .await
-    //         .is_err()
-    //     {
-    //         return;
-    //     }
-    // }
 }
