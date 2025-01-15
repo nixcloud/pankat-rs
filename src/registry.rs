@@ -1,29 +1,32 @@
 use std::collections::{HashMap, HashSet};
-use std::hash::{Hash, Hasher};
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex, OnceLock};
+use std::hash::{Hash, Hasher};
 
-// Implement required traits for Sender
-impl<T> Hash for Sender<T> {
+// Custom wrapper to make Sender hashable
+#[derive(Clone)]
+struct HashableSender<T>(Sender<T>);
+
+impl<T> Hash for HashableSender<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        let addr = self as *const _ as usize;
+        let addr = &self.0 as *const _ as usize;
         addr.hash(state);
     }
 }
 
-impl<T> PartialEq for Sender<T> {
+impl<T> PartialEq for HashableSender<T> {
     fn eq(&self, other: &Self) -> bool {
-        let addr1 = self as *const _ as usize;
-        let addr2 = other as *const _ as usize;
+        let addr1 = &self.0 as *const _ as usize;
+        let addr2 = &other.0 as *const _ as usize;
         addr1 == addr2
     }
 }
 
-impl<T> Eq for Sender<T> {}
+impl<T> Eq for HashableSender<T> {}
 
 #[derive(Clone)]
 pub struct PubSubRegistry {
-    channels: Arc<Mutex<HashMap<String, HashSet<Sender<String>>>>>,
+    channels: Arc<Mutex<HashMap<String, HashSet<HashableSender<String>>>>>,
 }
 
 impl PubSubRegistry {
@@ -42,20 +45,20 @@ impl PubSubRegistry {
 
     /// Register a client as a receiver for a specific channel
     pub fn register_receiver(&self, channel: String) -> Receiver<String> {
-        let (tx, rx) = channel();
+        let (tx, rx) = mpsc::channel();
         let mut channels = self.channels.lock().unwrap();
-        channels.entry(channel).or_default().insert(tx);
+        channels.entry(channel).or_default().insert(HashableSender(tx));
         rx
     }
 
     /// Register a client as a sender for a specific channel
     pub fn register_sender(&self, channel: String) -> Sender<String> {
         let registry = self.clone();
-        let (tx, rx) = channel();
+        let (tx, rx) = mpsc::channel();
 
         // Spawn a thread to listen for messages and broadcast them
         std::thread::spawn(move || {
-            for message in rx {
+            while let Ok(message) = rx.recv() {
                 registry.broadcast(&channel, message);
             }
         });
@@ -65,11 +68,10 @@ impl PubSubRegistry {
 
     /// Broadcast a message to all receivers of the channel
     fn broadcast(&self, channel: &str, message: String) {
-        let channels = self.channels.lock().unwrap();
-        if let Some(receivers) = channels.get(channel) {
-            for receiver in receivers {
-                let _ = receiver.send(message.clone());
-            }
+        let mut channels = self.channels.lock().unwrap();
+        if let Some(receivers) = channels.get_mut(channel) {
+            // Remove disconnected receivers and send to connected ones
+            receivers.retain(|receiver| receiver.0.send(message.clone()).is_ok());
         }
     }
 }
