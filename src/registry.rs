@@ -1,6 +1,25 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::mpsc::{self, Receiver, Sender};
+use std::hash::{Hash, Hasher};
+use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex, OnceLock};
+
+// Implement required traits for Sender
+impl<T> Hash for Sender<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        let addr = self as *const _ as usize;
+        addr.hash(state);
+    }
+}
+
+impl<T> PartialEq for Sender<T> {
+    fn eq(&self, other: &Self) -> bool {
+        let addr1 = self as *const _ as usize;
+        let addr2 = other as *const _ as usize;
+        addr1 == addr2
+    }
+}
+
+impl<T> Eq for Sender<T> {}
 
 #[derive(Clone)]
 pub struct PubSubRegistry {
@@ -23,7 +42,7 @@ impl PubSubRegistry {
 
     /// Register a client as a receiver for a specific channel
     pub fn register_receiver(&self, channel: String) -> Receiver<String> {
-        let (tx, rx) = mpsc::channel();
+        let (tx, rx) = channel();
         let mut channels = self.channels.lock().unwrap();
         channels.entry(channel).or_default().insert(tx);
         rx
@@ -32,7 +51,7 @@ impl PubSubRegistry {
     /// Register a client as a sender for a specific channel
     pub fn register_sender(&self, channel: String) -> Sender<String> {
         let registry = self.clone();
-        let (tx, rx) = mpsc::channel();
+        let (tx, rx) = channel();
 
         // Spawn a thread to listen for messages and broadcast them
         std::thread::spawn(move || {
