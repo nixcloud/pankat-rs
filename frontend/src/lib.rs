@@ -63,7 +63,7 @@ pub fn main_js() -> Result<(), JsValue> {
                 let old_vnode = VirtualNode::from(old_div.clone());
                 let patches = percy_dom::diff(&old_vnode, &div);
                 percy_dom::patch(
-                    &old_div as &web_sys::Node,
+                    old_div.as_ref(),
                     &old_vnode,
                     &mut events,
                     &patches,
