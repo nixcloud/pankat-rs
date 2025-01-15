@@ -1,6 +1,7 @@
 use crate::auth::{create_token, validate_token, UserLevel};
 use crate::db::{create_user, get_user_by_username};
 use crate::error::AppError;
+use crate::registry::*;
 use axum::{
     extract::{
         ws::{WebSocket, WebSocketUpgrade},
@@ -144,23 +145,36 @@ async fn handle_socket(mut socket: WebSocket) {
     use std::time::Duration;
     use tokio::time::interval;
 
-    let mut interval = interval(Duration::from_secs(2));
+    // let mut interval = interval(Duration::from_secs(2));
+    let news_receiver = PubSubRegistry::instance().register_receiver("news".to_string());
 
     loop {
-        interval.tick().await;
-
-        let response = if rand::thread_rng().gen_bool(0.5) {
-            "<p>hi</p>"
-        } else {
-            "<b>yes</b>"
-        };
-
-        if socket
-            .send(axum::extract::ws::Message::Text(response.to_string()))
-            .await
-            .is_err()
-        {
-            return;
+        for message in news_receiver {
+            println!("Received: {}", message);
+            if socket
+                .send(axum::extract::ws::Message::Text(message.to_string()))
+                .await
+                .is_err()
+            {
+                return;
+            }
         }
     }
+    // loop {
+    //     interval.tick().await;
+
+    //     let response = if rand::thread_rng().gen_bool(0.5) {
+    //         "<p>hi</p>"
+    //     } else {
+    //         "<b>yes</b>"
+    //     };
+
+    //     if socket
+    //         .send(axum::extract::ws::Message::Text(response.to_string()))
+    //         .await
+    //         .is_err()
+    //     {
+    //         return;
+    //     }
+    // }
 }

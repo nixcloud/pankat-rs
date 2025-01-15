@@ -3,8 +3,9 @@ mod db;
 mod error;
 mod file_monitor;
 mod handlers;
-mod schema;
+mod registry;
 mod render;
+mod schema;
 
 use axum::{
     routing::{get, post},

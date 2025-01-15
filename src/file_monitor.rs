@@ -1,6 +1,8 @@
+use crate::registry::PubSubRegistry;
 use crate::render::render_file;
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::Path;
+use std::sync::mpsc::Sender;
 use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc, Mutex};
 use tokio::task::JoinHandle;
@@ -30,6 +32,8 @@ pub fn spawn_async_monitor(
     let watcher_cleanup = Arc::new(Mutex::new(watcher));
     let cleanup_watcher = watcher_cleanup.clone();
 
+    let news_sender = PubSubRegistry::instance().register_sender("news".to_string());
+
     // Spawn monitoring task
     let handle = tokio::spawn(async move {
         println!("File monitor started...");
@@ -38,7 +42,7 @@ pub fn spawn_async_monitor(
             _ = async {
                 while let Some(event) = rx.recv().await {
                     match event {
-                        Ok(event) => handle_event(&event),
+                        Ok(event) => handle_event(&event, &news_sender),
                         Err(e) => eprintln!("Watch error: {:?}", e),
                     }
                 }
@@ -59,7 +63,7 @@ pub fn spawn_async_monitor(
     Ok(handle)
 }
 
-fn handle_event(event: &Event) {
+fn handle_event(event: &Event, news_sender: &Sender<String>) {
     let event_type = match event.kind {
         EventKind::Create(_) => "📝 created",
         EventKind::Modify(_) => "✏️ modified",
@@ -73,7 +77,12 @@ fn handle_event(event: &Event) {
                 if let Ok(relative_path) = path.strip_prefix(std::env::current_dir().unwrap()) {
                     println!("  📍 Path: {} was {}", relative_path.display(), event_type);
                     let path_string = path.to_string_lossy().into_owned();
-                    let _ = render_file(path_string.clone());
+                    match render_file(path_string.clone()) {
+                        Ok(message) => {
+                            news_sender.send(message);
+                        }
+                        Err(_) => {}
+                    }
                 }
             }
         }

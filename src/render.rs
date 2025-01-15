@@ -4,7 +4,7 @@ use std::io::Write;
 pub fn render_file(path: String) -> Result<String, Box<dyn Error>> {
     let article_markdown = std::fs::read_to_string(&path)?;
 
-    let luafile = std::path::Path::new("documents/pandoc-lua/shifted-numbered-headings.lua"); // Use the Path::new method correctly.
+    let luafile = std::path::Path::new("documents/pandoc-lua/shifted-numbered-headings.lua");
     let mut pandoc_process = std::process::Command::new("pandoc")
         .arg("--lua-filter")
         .arg(luafile)
@@ -29,14 +29,10 @@ pub fn render_file(path: String) -> Result<String, Box<dyn Error>> {
     }
 
     let output = pandoc_process.wait_with_output()?;
-    let output_str = String::from_utf8(output.stdout.clone())?;
 
     if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-        //println!("\n{}", stdout);
-        //println!("-- Rendering file done --");
-
-        Ok(output_str)
+        Ok(stdout)
     } else {
         Err("Pandoc process failed".into())
     }

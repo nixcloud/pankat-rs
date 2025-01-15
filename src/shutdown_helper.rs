@@ -1,10 +1,12 @@
 use std::sync::Arc;
 use tokio::sync::{broadcast, Mutex};
+use tokio::task::JoinHandle;
 
-/// Singleton for managing the shutdown signal.
+/// Singleton for managing the shutdown signal and internal handles.
 #[derive(Clone)]
 pub struct ShutdownHelper {
     shutdown_tx: broadcast::Sender<()>,
+    handles: Arc<Mutex<Vec<JoinHandle<()>>>>,
 }
 
 impl ShutdownHelper {
@@ -16,7 +18,10 @@ impl ShutdownHelper {
         unsafe {
             ONCE.call_once(|| {
                 let (shutdown_tx, _) = broadcast::channel::<()>(1);
-                INSTANCE = Some(Arc::new(ShutdownHelper { shutdown_tx }));
+                INSTANCE = Some(Arc::new(ShutdownHelper {
+                    shutdown_tx,
+                    handles: Arc::new(Mutex::new(Vec::new())),
+                }));
             });
 
             INSTANCE.clone().unwrap()
@@ -25,12 +30,25 @@ impl ShutdownHelper {
 
     /// Sends the shutdown signal.
     pub fn shutdown(&self) {
-        // It's fine to ignore the result since receivers may have already been dropped.
-        let _ = self.shutdown_tx.send(());
+        let _ = self.shutdown_tx.send(()); // Ignore errors if no receivers are present.
     }
 
     /// Subscribes to the shutdown signal.
     pub fn subscribe(&self) -> broadcast::Receiver<()> {
         self.shutdown_tx.subscribe()
+    }
+
+    /// Registers a handle to be tracked.
+    pub fn register_handle(&self, handle: JoinHandle<()>) {
+        let mut handles = self.handles.lock().unwrap();
+        handles.push(handle);
+    }
+
+    /// Awaits all tracked handles to finish.
+    pub async fn await_handles(&self) {
+        let mut handles = self.handles.lock().unwrap();
+        while let Some(handle) = handles.pop() {
+            let _ = handle.await; // Await each handle, ignoring its result.
+        }
     }
 }
