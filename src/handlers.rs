@@ -149,15 +149,18 @@ async fn handle_socket(mut socket: WebSocket) {
     let news_receiver = PubSubRegistry::instance().register_receiver("news".to_string());
 
     loop {
-        for message in news_receiver {
-            println!("Received: {}", message);
-            if socket
-                .send(axum::extract::ws::Message::Text(message.to_string()))
-                .await
-                .is_err()
-            {
-                return;
+        match news_receiver.recv() {
+            Ok(message) => {
+                println!("Received: {}", message);
+                if socket
+                    .send(axum::extract::ws::Message::Text(message.to_string()))
+                    .await
+                    .is_err()
+                {
+                    return;
+                }
             }
+            Err(_) => return,
         }
     }
     // loop {
