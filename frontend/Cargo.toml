@@ -11,6 +11,10 @@ wasm-bindgen = "0.2.100"
 percy-dom = "=0.10.0"
 virtual-node = "=0.5"
 log = "0.4.25"
+gloo-net = "0.6.0"
+gloo-utils = "0.2.0"
+futures = "0.3.31"
+wasm-bindgen-futures = "0.4.50"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
