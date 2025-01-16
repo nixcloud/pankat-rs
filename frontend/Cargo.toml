@@ -15,6 +15,7 @@ gloo-net = "0.6.0"
 gloo-utils = "0.2.0"
 futures = "0.3.31"
 wasm-bindgen-futures = "0.4.50"
+console_log = "1.0.0"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
