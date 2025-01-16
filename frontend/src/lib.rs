@@ -2,7 +2,7 @@ extern crate web_sys;
 use log::info;
 
 use percy_dom::event::VirtualEvents;
-use percy_dom::patch;
+//use percy_dom::patch;
 use percy_dom::prelude::*;
 use std::cell::Cell;
 use std::rc::Rc;
@@ -15,7 +15,8 @@ use web_sys::{js_sys, MessageEvent, WebSocket};
 #[wasm_bindgen(start)]
 pub fn main_js() -> Result<(), JsValue> {
     // Initialize logging
-    //console_log::init_with_level(log::Level::Info).expect("error initializing log");
+    console_log::init_with_level(log::Level::Info).expect("error initializing log");
+    
     info!("WASM hello world");
 
     let window = web_sys::window().expect("no global `window` exists");
@@ -49,6 +50,9 @@ pub fn main_js() -> Result<(), JsValue> {
         let on_message = Closure::wrap(Box::new(move |e: MessageEvent| {
             if let Ok(data) = e.data().dyn_into::<js_sys::JsString>() {
                 let input: String = data.as_string().unwrap_or_default();
+
+                // --------------compiles, no effect-----------------------
+
                 // let mut div: VirtualNode = html! {<div>here will be your message</div>};
                 // div.as_velement_mut()
                 //     .unwrap()
@@ -56,59 +60,59 @@ pub fn main_js() -> Result<(), JsValue> {
                 //     .dangerous_inner_html = Some(input.to_string());
 
                 // let mut events = VirtualEvents::new();
-                // let new_div: Element = div.create_dom_node(&mut events).0.unchecked_into();
-                // new_div
-                //     .set_attribute("id", "ws-div")
-                //     .expect("Failed to set id attribute");
-                // let old_div = body_clone.query_selector("#ws-div").unwrap().unwrap();
+                // let mut old_div: VirtualNode = html! {<div>here will be your essage</div>}; 
+                
+                // let (root_node, enode) = old_div.create_dom_node(&mut events);
+                // events.set_root(enode);
 
-                // let mut events = VirtualEvents::new();
-                // let old_vnode = VirtualNode::from(old_div.clone());
+                // let old_vnode: VirtualNode = VirtualNode::from(old_div);
                 // let patches = percy_dom::diff(&old_vnode, &div);
-                // percy_dom::patch(old_div.as_ref(), &old_vnode, &mut events, &patches);
+                // percy_dom::patch(root_node, &old_vnode, &mut events, &patches);
 
-                // -------------------------------------
+                // -------------- compiles and updates document -----------------------
 
-                // This is the initial HTML content we want to replace
-                //let input: String = "<div><p>bar</p></div>".to_string();
+                // // Initialize a div with id `ws-div` in the DOM
+                // let mut initial_div: VirtualNode = html! {<div id="ws-div">{"bar"}</div>};
 
-                // Initialize a div with id `ws-div` in the DOM
-                let mut initial_div: VirtualNode = html! {<div id="ws-div">{"bar"}</div>};
-                //initial_div.attrs.insert("id".into(), "ws-div".into());
-                //.with_attribute("id", "ws-div")
-                // .with_text("here will be your message");
-
-                //let mut initial_div = VirtualNode::element("div");
-
-                // Mount the initial VirtualNode to the actual DOM
-                let root_node = web_sys::window()
-                    .unwrap()
-                    .document()
-                    .unwrap()
-                    .get_element_by_id("ws-div")
-                    .expect("`app` div not found in the DOM");
-                let mut percy_dom_root_node = PercyDom::new_replace_mount(initial_div, root_node);
-
-                // Render a new VirtualNode with the updated HTML
-                let mut updated_div: VirtualNode = html! {<div id="ws-div">{"bar"}</div>};
-                updated_div
-                    .as_velement_mut()
-                    .unwrap()
-                    .special_attributes
-                    .dangerous_inner_html = Some(input);
-
-                // Patch the existing DOM with the new VirtualNode
-                percy_dom_root_node.update(updated_div);
-
-                // -------------------------------------
-
-                // let document = web_sys::window().unwrap().document().unwrap();
-                // let real_div = document
+                // // Mount the initial VirtualNode to the actual DOM
+                // let root_node = web_sys::window()
+                //     .unwrap()
+                //     .document()
+                //     .unwrap()
                 //     .get_element_by_id("ws-div")
-                //     .expect("No element with id `ws-div` found in the DOM");
+                //     .expect("`app` div not found in the DOM");
+                // let mut percy_dom_root_node = PercyDom::new_replace_mount(initial_div, root_node);
 
-                // // Create a VirtualNode from the current inner HTML of the #ws-div element
-                // let initial_html = real_div.inner_html();
+                // // Render a new VirtualNode with the updated HTML
+                // let mut updated_div: VirtualNode = html! {<div id="ws-div"></div>};
+                // updated_div
+                //     .as_velement_mut()
+                //     .unwrap()
+                //     .special_attributes
+                //     .dangerous_inner_html = Some(input);
+
+                // // Patch the existing DOM with the new VirtualNode
+                // percy_dom_root_node.update(updated_div);
+
+                // --------------experiment-----------------------
+
+                let document = web_sys::window().unwrap().document().unwrap();
+                let real_div: Element = document
+                    .get_element_by_id("ws-div")
+                    .expect("No element with id `ws-div` found in the DOM");
+
+                let real_div_html: String = real_div.inner_html();
+
+                let mut real_div_virtual_node: VirtualNode = html! {<div id="ws-div"></div>};
+
+                    real_div_virtual_node
+                        .as_velement_mut()
+                        .unwrap()
+                        .special_attributes
+                        .dangerous_inner_html = Some(real_div_html.clone());
+                
+                log::info!("real_div_html: {}", real_div_html);
+
                 // let initial_node =
                 //     VirtualNode::from(&format!("<div id='ws-div'>{}</div>", initial_html))
                 //         .expect("Failed to create initial VirtualNode");
