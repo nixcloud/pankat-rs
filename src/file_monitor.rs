@@ -31,9 +31,7 @@ pub fn spawn_async_monitor(
     // Spawn a cleanup task to handle shutdown signal
     let watcher_cleanup = Arc::new(Mutex::new(watcher));
     let cleanup_watcher = watcher_cleanup.clone();
-
-    let news_sender = PubSubRegistry::instance().register_sender("news".to_string());
-
+    
     // Spawn monitoring task
     let handle = tokio::spawn(async move {
         println!("File monitor started...");
@@ -42,7 +40,7 @@ pub fn spawn_async_monitor(
             _ = async {
                 while let Some(event) = rx.recv().await {
                     match event {
-                        Ok(event) => handle_event(&event, &news_sender),
+                        Ok(event) => handle_event(&event),
                         Err(e) => eprintln!("Watch error: {:?}", e),
                     }
                 }
@@ -63,7 +61,7 @@ pub fn spawn_async_monitor(
     Ok(handle)
 }
 
-fn handle_event(event: &Event, news_sender: &Sender<String>) {
+fn handle_event(event: &Event) {
     let event_type = match event.kind {
         EventKind::Create(_) => "📝 created",
         EventKind::Modify(_) => "✏️ modified",
@@ -77,25 +75,25 @@ fn handle_event(event: &Event, news_sender: &Sender<String>) {
                 if let Ok(relative_path) = path.strip_prefix(std::env::current_dir().unwrap()) {
                     println!("  📍 Path: {} was {}", relative_path.display(), event_type);
                     let path_string = path.to_string_lossy().into_owned();
-                    debounce(path_string, &news_sender);
+                    debounce(path_string);
                 }
             }
         }
     }
 }
 
-fn debounce(input: String, news_sender: &Sender<String>) {
+fn debounce(input: String) {
     // Debounce logic
     use std::collections::HashMap;
     use std::sync::Mutex;
     use std::time::Instant;
     use tokio::time::{sleep, Duration};
-
+    let news_sender = PubSubRegistry::instance().register_sender("news".to_string());
     lazy_static::lazy_static! {
         static ref EVENT_CACHE: Mutex<HashMap<String, Instant>> = Mutex::new(HashMap::new());
     }
 
-    const DEBOUNCE_DURATION: Duration = Duration::from_millis(5000);
+    const DEBOUNCE_DURATION: Duration = Duration::from_millis(50);
 
     {
         let mut cache = EVENT_CACHE.lock().unwrap();
@@ -108,7 +106,8 @@ fn debounce(input: String, news_sender: &Sender<String>) {
         loop {
             let next_event = {
                 let cache = EVENT_CACHE.lock().unwrap();
-                cache.iter()
+                cache
+                    .iter()
                     .min_by_key(|&(_, &instant)| instant)
                     .map(|(k, &v)| (k.clone(), v))
             };
@@ -135,12 +134,4 @@ fn debounce(input: String, news_sender: &Sender<String>) {
             }
         }
     });
-
-    // println!("Dispatching event for: {}", input);
-    // match render_file(input.clone()) {
-    //     Ok(result) => {
-    //         news_sender.send(result);
-    //     }
-    //     Err(_) => {}
-    // }
 }
