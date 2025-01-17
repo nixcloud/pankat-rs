@@ -77,14 +77,73 @@ fn handle_event(event: &Event, news_sender: &Sender<String>) {
                 if let Ok(relative_path) = path.strip_prefix(std::env::current_dir().unwrap()) {
                     println!("  📍 Path: {} was {}", relative_path.display(), event_type);
                     let path_string = path.to_string_lossy().into_owned();
-                    match render_file(path_string.clone()) {
-                        Ok(message) => {
-                            news_sender.send(message);
-                        }
-                        Err(_) => {}
-                    }
+                    debounce(path_string, &news_sender);
                 }
             }
         }
     }
+}
+
+fn debounce(input: String, news_sender: &Sender<String>) {
+    // Debounce logic
+    use std::collections::HashMap;
+    use std::sync::Mutex;
+    use std::time::Instant;
+    use tokio::time::{sleep, Duration};
+
+    lazy_static::lazy_static! {
+        static ref EVENT_CACHE: Mutex<HashMap<String, Instant>> = Mutex::new(HashMap::new());
+    }
+
+    const DEBOUNCE_DURATION: Duration = Duration::from_millis(5000);
+
+    {
+        let mut cache = EVENT_CACHE.lock().unwrap();
+        if !cache.contains_key(&input) {
+            cache.insert(input.clone(), Instant::now() + DEBOUNCE_DURATION);
+        }
+    }
+
+    tokio::spawn(async move {
+        loop {
+            // Acquire lock to access EVENT_CACHE
+            let mut cache = EVENT_CACHE.lock().unwrap();
+
+            // Determine the shortest duration to sleep
+            if let Some((&ref key, &instant)) = cache.iter().min_by_key(|&(_, &instant)| instant) {
+                let now = Instant::now();
+
+                // If the time has passed, remove the entry and proceed to handle it
+                if instant <= now {
+                    cache.remove(&key.clone());
+                    println!("Processing cached event for: {}", key);
+
+                    // Placeholder for processing logic
+                    if let Ok(result) = render_file(key.clone()) {
+                        let _ = news_sender.send(result);
+                    }
+                } else {
+                    // Calculate sleep duration
+                    let duration = instant.duration_since(now);
+
+                    // Release the lock before sleeping
+                    drop(cache);
+
+                    // Sleep for the calculated duration
+                    sleep(duration).await;
+                }
+            } else {
+                // If EVENT_CACHE is empty, break out of the loop
+                break;
+            }
+        }
+    });
+
+    // println!("Dispatching event for: {}", input);
+    // match render_file(input.clone()) {
+    //     Ok(result) => {
+    //         news_sender.send(result);
+    //     }
+    //     Err(_) => {}
+    // }
 }
