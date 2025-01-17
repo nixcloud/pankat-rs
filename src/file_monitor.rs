@@ -106,35 +106,32 @@ fn debounce(input: String, news_sender: &Sender<String>) {
 
     tokio::spawn(async move {
         loop {
-            // Acquire lock to access EVENT_CACHE
-            let mut cache = EVENT_CACHE.lock().unwrap();
+            let next_event = {
+                let cache = EVENT_CACHE.lock().unwrap();
+                cache.iter()
+                    .min_by_key(|&(_, &instant)| instant)
+                    .map(|(k, &v)| (k.clone(), v))
+            };
 
-            // Determine the shortest duration to sleep
-            if let Some((&ref key, &instant)) = cache.iter().min_by_key(|&(_, &instant)| instant) {
-                let now = Instant::now();
-
-                // If the time has passed, remove the entry and proceed to handle it
-                if instant <= now {
-                    cache.remove(&key.clone());
-                    println!("Processing cached event for: {}", key);
-
-                    // Placeholder for processing logic
-                    if let Ok(result) = render_file(key.clone()) {
-                        let _ = news_sender.send(result);
+            match next_event {
+                Some((key, instant)) => {
+                    let now = Instant::now();
+                    if instant <= now {
+                        // Remove the entry
+                        {
+                            let mut cache = EVENT_CACHE.lock().unwrap();
+                            cache.remove(&key);
+                        }
+                        println!("Processing cached event for: {}", key);
+                        if let Ok(result) = render_file(key) {
+                            let _ = news_sender.send(result);
+                        }
+                    } else {
+                        let duration = instant.duration_since(now);
+                        sleep(duration).await;
                     }
-                } else {
-                    // Calculate sleep duration
-                    let duration = instant.duration_since(now);
-
-                    // Release the lock before sleeping
-                    drop(cache);
-
-                    // Sleep for the calculated duration
-                    sleep(duration).await;
                 }
-            } else {
-                // If EVENT_CACHE is empty, break out of the loop
-                break;
+                None => break,
             }
         }
     });
