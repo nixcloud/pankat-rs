@@ -1,13 +1,11 @@
 /* tslint:disable */
 /* eslint-disable */
-export function foo(): void;
 export function main_js(): void;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
   readonly memory: WebAssembly.Memory;
-  readonly foo: () => void;
   readonly main_js: () => void;
   readonly __wbindgen_exn_store: (a: number) => void;
   readonly __externref_table_alloc: () => number;
@@ -15,10 +13,13 @@ export interface InitOutput {
   readonly __wbindgen_malloc: (a: number, b: number) => number;
   readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
   readonly __wbindgen_export_5: WebAssembly.Table;
-  readonly _dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__h7f431e4829a9f2d7: (a: number, b: number) => void;
-  readonly closure16_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure103_externref_shim: (a: number, b: number, c: any) => void;
-  readonly closure186_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure29_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure129_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure194_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure215_externref_shim: (a: number, b: number, c: any) => void;
+  readonly _dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__h38f1dbf5c1fb39ad: (a: number, b: number) => void;
+  readonly closure213_externref_shim: (a: number, b: number, c: any) => void;
+  readonly closure209_externref_shim: (a: number, b: number, c: any) => void;
   readonly __wbindgen_start: () => void;
 }
 

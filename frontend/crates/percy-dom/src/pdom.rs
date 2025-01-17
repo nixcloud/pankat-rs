@@ -78,26 +78,15 @@ impl PercyDom {
     /// Then use that diff to patch the real DOM in the user's browser so that they are
     /// seeing the latest state of the application.
     pub fn update(&mut self, new_vdom: VirtualNode) {
-        console_log::init_with_level(log::Level::Info).expect("error initializing log");
-
-        log::info!("patch diff");
-
         let patches = diff(&self.current_vdom, &new_vdom);
 
-        log::info!("patch before");
-        match patch(
+        patch(
             self.root_node.clone(),
             &new_vdom,
             &mut self.events,
             &patches,
-        ) {
-            Ok(o) => {}
-            Err(e) => {
-                log::info!("patch error");
-                return;
-            }
-        }
-        log::info!("patch after");
+        )
+        .unwrap();
 
         self.current_vdom = new_vdom;
     }
