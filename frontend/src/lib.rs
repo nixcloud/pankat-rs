@@ -12,19 +12,60 @@ use wasm_bindgen::JsValue;
 use web_sys::Element;
 use web_sys::{js_sys, MessageEvent, WebSocket};
 
+#[wasm_bindgen]
+pub fn foo() {
+    static INIT: std::sync::Once = std::sync::Once::new();
+    static mut PERCY_DOM_ROOT_NODE: Option<PercyDom> = None;
+
+    INIT.call_once(|| {
+        info!("WASM hello world foo");
+
+        // Initialize a div with id `ws-div` in the DOM
+        let initial_div: VirtualNode = html! {<div id="ws-div"></div>};
+
+        // Mount the initial VirtualNode to the actual DOM
+        let root_node: Element = web_sys::window()
+            .unwrap()
+            .document()
+            .unwrap()
+            .get_element_by_id("ws-div")
+            .expect("`app` div not found in the DOM");
+        let percy_dom_root_node = PercyDom::new_replace_mount(initial_div, root_node);
+
+        unsafe {
+            PERCY_DOM_ROOT_NODE = Some(percy_dom_root_node);
+        }
+    });
+
+    unsafe {
+        if let Some(percy_dom_root_node) = &mut PERCY_DOM_ROOT_NODE {
+            info!("updating");
+
+            let input2 = "<div>Hello World</div><div>this is fine, yeah, srly!!!</div>".to_string();
+            let mut updated_div2: VirtualNode = html! {<div id="ws-div"></div>};
+            updated_div2
+                .as_velement_mut()
+                .unwrap()
+                .special_attributes
+                .dangerous_inner_html = Some(input2);
+            percy_dom_root_node.update(updated_div2);
+        }
+    }
+}
+
 #[wasm_bindgen(start)]
 pub fn main_js() -> Result<(), JsValue> {
     // Initialize logging
     console_log::init_with_level(log::Level::Info).expect("error initializing log");
-    
+
     info!("WASM hello world");
 
     let window = web_sys::window().expect("no global `window` exists");
     let document = window.document().expect("should have a document on window");
     let body = document.body().expect("document should have a body");
+    let body_clone = body.clone();
 
-    let ws = Rc::new(Cell::new(None));
-    let ws_clone = ws.clone();
+    ////////// test begin
 
     // Initialize a div with id `ws-div` in the DOM
     let mut initial_div: VirtualNode = html! {<div id="ws-div"></div>};
@@ -37,150 +78,183 @@ pub fn main_js() -> Result<(), JsValue> {
         .get_element_by_id("ws-div")
         .expect("`app` div not found in the DOM");
     let mut percy_dom_root_node = PercyDom::new_replace_mount(initial_div, root_node);
-    
-    let connect = Rc::new(move || {
-        let location = web_sys::window().unwrap().location();
-        let protocol = if location.protocol().unwrap() == "https:" {
-            "wss:"
-        } else {
-            "ws:"
-        };
 
-        let host = location.host().unwrap();
-        //let host = "6dc6bb52-21ae-4297-9f17-1d299d118e3a-00-37bkydd25elf9.kirk.replit.dev";
-        let websocket_address = format!("{}/ws", host);
-        let ws = WebSocket::new(&format!("{}//{}", protocol, websocket_address))
-            .expect("Failed to create WebSocket");
+    let mut input: String = "<div>Hello World</div><div>this is fine!</div>".to_string();
+    // Render a new VirtualNode with the updated HTML
+    let mut updated_div: VirtualNode = html! {<div id="ws-div"></div>};
+    updated_div
+        .as_velement_mut()
+        .unwrap()
+        .special_attributes
+        .dangerous_inner_html = Some(input);
 
-        // Handle WebSocket open
-        let on_open = Closure::wrap(Box::new(move || {
-            info!("WebSocket opened");
-        }) as Box<dyn FnMut()>);
+    // Patch the existing DOM with the new VirtualNode
+    percy_dom_root_node.update(updated_div);
 
-        
-        
-        // Handle WebSocket message
-        let body_clone = body.clone();
-        let on_message = Closure::wrap(Box::new(move |e: MessageEvent| {
-            if let Ok(data) = e.data().dyn_into::<js_sys::JsString>() {
-                let input: String = data.as_string().unwrap_or_default();
-                // Render a new VirtualNode with the updated HTML
-                let mut updated_div: VirtualNode = html! {<div id="ws-div"></div>};
-                updated_div
-                    .as_velement_mut()
-                    .unwrap()
-                    .special_attributes
-                    .dangerous_inner_html = Some(input);
+    let input2 = "<div>Hello World</div><div>this is fine, yeah, srly!</div>".to_string();
+    //std::thread::sleep(std::time::Duration::from_secs(2));
+    let mut updated_div2: VirtualNode = html! {<div id="ws-div"></div>};
+    updated_div2
+        .as_velement_mut()
+        .unwrap()
+        .special_attributes
+        .dangerous_inner_html = Some(input2);
 
-                // Patch the existing DOM with the new VirtualNode
-                percy_dom_root_node.update(updated_div);
-            }
-        }) as Box<dyn FnMut(_)>);
+    // Patch the existing DOM with the new VirtualNode
+    percy_dom_root_node.update(updated_div2);
+    ////////// test end
 
+    // let ws = Rc::new(Cell::new(None));
+    // let ws_clone = ws.clone();
 
-        // --------------compiles, no effect-----------------------
+    // let connect = Rc::new(move || {
+    //     let location = web_sys::window().unwrap().location();
+    //     let protocol = if location.protocol().unwrap() == "https:" {
+    //         "wss:"
+    //     } else {
+    //         "ws:"
+    //     };
 
-        // let mut div: VirtualNode = html! {<div>here will be your message</div>};
-        // div.as_velement_mut()
-        //     .unwrap()
-        //     .special_attributes
-        //     .dangerous_inner_html = Some(input.to_string());
+    //     let host = location.host().unwrap();
+    //     //let host = "6dc6bb52-21ae-4297-9f17-1d299d118e3a-00-37bkydd25elf9.kirk.replit.dev";
+    //     let websocket_address = format!("{}/ws", host);
+    //     let ws = WebSocket::new(&format!("{}//{}", protocol, websocket_address))
+    //         .expect("Failed to create WebSocket");
 
-        // let mut events = VirtualEvents::new();
-        // let mut old_div: VirtualNode = html! {<div>here will be your essage</div>}; 
+    //     // Handle WebSocket open
+    //     let on_open = Closure::wrap(Box::new(move || {
+    //         info!("WebSocket opened");
+    //     }) as Box<dyn FnMut()>);
 
-        // let (root_node, enode) = old_div.create_dom_node(&mut events);
-        // events.set_root(enode);
+    //     // Handle WebSocket message
 
-        // let old_vnode: VirtualNode = VirtualNode::from(old_div);
-        // let patches = percy_dom::diff(&old_vnode, &div);
-        // percy_dom::patch(root_node, &old_vnode, &mut events, &patches);
+    //     let on_message = Closure::wrap(Box::new(move |e: MessageEvent| {
+    //         if let Ok(data) = e.data().dyn_into::<js_sys::JsString>() {
+    //             // // Initialize a div with id `ws-div` in the DOM
+    //             // let mut initial_div: VirtualNode = html! {<div id="ws-div"></div>};
 
-        // -------------- compiles and updates document -----------------------
+    //             // // Mount the initial VirtualNode to the actual DOM
+    //             // let root_node: Element = web_sys::window()
+    //             //     .unwrap()
+    //             //     .document()
+    //             //     .unwrap()
+    //             //     .get_element_by_id("ws-div")
+    //             //     .expect("`app` div not found in the DOM");
+    //             // let mut percy_dom_root_node = PercyDom::new_replace_mount(initial_div, root_node);
+    //             // let input: String = data.as_string().unwrap_or_default();
+    //             // // Render a new VirtualNode with the updated HTML
+    //             // let mut updated_div: VirtualNode = html! {<div id="ws-div"></div>};
+    //             // updated_div
+    //             //     .as_velement_mut()
+    //             //     .unwrap()
+    //             //     .special_attributes
+    //             //     .dangerous_inner_html = Some(input);
 
-        // // Initialize a div with id `ws-div` in the DOM
-        // let mut initial_div: VirtualNode = html! {<div id="ws-div">{"bar"}</div>};
+    //             // // Patch the existing DOM with the new VirtualNode
+    //             // percy_dom_root_node.update(updated_div);
+    //         }
+    //     }) as Box<dyn FnMut(_)>);
 
-        // // Mount the initial VirtualNode to the actual DOM
-        // let root_node: Element = web_sys::window()
-        //     .unwrap()
-        //     .document()
-        //     .unwrap()
-        //     .get_element_by_id("ws-div")
-        //     .expect("`app` div not found in the DOM");
-        // let mut percy_dom_root_node = PercyDom::new_replace_mount(initial_div, root_node);
+    //     // --------------compiles, no effect-----------------------
 
-        // // Render a new VirtualNode with the updated HTML
-        // let mut updated_div: VirtualNode = html! {<div id="ws-div"></div>};
-        // updated_div
-        //     .as_velement_mut()
-        //     .unwrap()
-        //     .special_attributes
-        //     .dangerous_inner_html = Some(input);
+    //     // let mut div: VirtualNode = html! {<div>here will be your message</div>};
+    //     // div.as_velement_mut()
+    //     //     .unwrap()
+    //     //     .special_attributes
+    //     //     .dangerous_inner_html = Some(input.to_string());
 
-        // // Patch the existing DOM with the new VirtualNode
-        // percy_dom_root_node.update(updated_div);
+    //     // let mut events = VirtualEvents::new();
+    //     // let mut old_div: VirtualNode = html! {<div>here will be your essage</div>};
 
-        // --------------compiles, applies changes to dom but looes selection -----------------------
+    //     // let (root_node, enode) = old_div.create_dom_node(&mut events);
+    //     // events.set_root(enode);
 
-        // let document = web_sys::window().unwrap().document().unwrap();
-        // let real_div: Element = document
-        //     .get_element_by_id("ws-div")
-        //     .expect("No element with id `ws-div` found in the DOM");
+    //     // let old_vnode: VirtualNode = VirtualNode::from(old_div);
+    //     // let patches = percy_dom::diff(&old_vnode, &div);
+    //     // percy_dom::patch(root_node, &old_vnode, &mut events, &patches);
 
-        // let real_div_html: String = real_div.inner_html();
+    //     // -------------- compiles and updates document -----------------------
 
-        // let mut real_div_virtual_node: VirtualNode = html! {<div id="ws-div"></div>};
-        // real_div_virtual_node
-        //         .as_velement_mut()
-        //         .unwrap()
-        //         .special_attributes
-        //         .dangerous_inner_html = Some(real_div_html.clone());
-        // //log::info!("real_div_html: {}", real_div_html);
+    //     // // Initialize a div with id `ws-div` in the DOM
+    //     // let mut initial_div: VirtualNode = html! {<div id="ws-div">{"bar"}</div>};
 
-        // let mut new_div_virtual_node: VirtualNode = html! {<div id="ws-div"></div>};
-        // new_div_virtual_node
-        //     .as_velement_mut()
-        //     .unwrap()
-        //     .special_attributes
-        //     .dangerous_inner_html = Some(input);
+    //     // // Mount the initial VirtualNode to the actual DOM
+    //     // let root_node: Element = web_sys::window()
+    //     //     .unwrap()
+    //     //     .document()
+    //     //     .unwrap()
+    //     //     .get_element_by_id("ws-div")
+    //     //     .expect("`app` div not found in the DOM");
+    //     // let mut percy_dom_root_node = PercyDom::new_replace_mount(initial_div, root_node);
 
-        // let mut events = VirtualEvents::new();
-        // let (root_node, enode) = real_div_virtual_node.create_dom_node(&mut events);
-        // events.set_root(enode);
+    //     // // Render a new VirtualNode with the updated HTML
+    //     // let mut updated_div: VirtualNode = html! {<div id="ws-div"></div>};
+    //     // updated_div
+    //     //     .as_velement_mut()
+    //     //     .unwrap()
+    //     //     .special_attributes
+    //     //     .dangerous_inner_html = Some(input);
 
-        // let patches = percy_dom::diff(&real_div_virtual_node, &new_div_virtual_node);
-        // percy_dom::patch(root_node, &real_div_virtual_node, &mut events, &patches);
+    //     // // Patch the existing DOM with the new VirtualNode
+    //     // percy_dom_root_node.update(updated_div);
 
-        // let mut percy_dom_root_node = PercyDom::new_replace_mount(real_div_virtual_node, real_div);
-        // percy_dom_root_node.update(new_div_virtual_node);
+    //     // --------------compiles, applies changes to dom but looes selection -----------------------
 
-        // --------------experiment -----------------------
+    //     // let document = web_sys::window().unwrap().document().unwrap();
+    //     // let real_div: Element = document
+    //     //     .get_element_by_id("ws-div")
+    //     //     .expect("No element with id `ws-div` found in the DOM");
 
+    //     // let real_div_html: String = real_div.inner_html();
 
+    //     // let mut real_div_virtual_node: VirtualNode = html! {<div id="ws-div"></div>};
+    //     // real_div_virtual_node
+    //     //         .as_velement_mut()
+    //     //         .unwrap()
+    //     //         .special_attributes
+    //     //         .dangerous_inner_html = Some(real_div_html.clone());
+    //     // //log::info!("real_div_html: {}", real_div_html);
 
-        
-        // Handle WebSocket close
-        // let connect_clone = connect.clone();
-        // let on_close = Closure::wrap(Box::new(move |_| {
-        //     info!("WebSocket closed, reconnecting...");
-        //     ws_clone.set(Some((connect_clone)()));
-        // }) as Box<dyn FnMut(_)>);
+    //     // let mut new_div_virtual_node: VirtualNode = html! {<div id="ws-div"></div>};
+    //     // new_div_virtual_node
+    //     //     .as_velement_mut()
+    //     //     .unwrap()
+    //     //     .special_attributes
+    //     //     .dangerous_inner_html = Some(input);
 
-        // Set event listeners
-        ws.set_onopen(Some(on_open.as_ref().unchecked_ref()));
-        ws.set_onmessage(Some(on_message.as_ref().unchecked_ref()));
-        //ws.set_onclose(Some(on_close.as_ref().unchecked_ref()));
+    //     // let mut events = VirtualEvents::new();
+    //     // let (root_node, enode) = real_div_virtual_node.create_dom_node(&mut events);
+    //     // events.set_root(enode);
 
-        // Forget closures to keep them alive
-        on_open.forget();
-        on_message.forget();
-        //on_close.forget();
+    //     // let patches = percy_dom::diff(&real_div_virtual_node, &new_div_virtual_node);
+    //     // percy_dom::patch(root_node, &real_div_virtual_node, &mut events, &patches);
 
-        ws
-    });
+    //     // let mut percy_dom_root_node = PercyDom::new_replace_mount(real_div_virtual_node, real_div);
+    //     // percy_dom_root_node.update(new_div_virtual_node);
 
-    ws.set(Some(connect()));
+    //     // --------------experiment -----------------------
+
+    //     // Handle WebSocket close
+    //     // let connect_clone = connect.clone();
+    //     // let on_close = Closure::wrap(Box::new(move |_| {
+    //     //     info!("WebSocket closed, reconnecting...");
+    //     //     ws_clone.set(Some((connect_clone)()));
+    //     // }) as Box<dyn FnMut(_)>);
+
+    //     // Set event listeners
+    //     ws.set_onopen(Some(on_open.as_ref().unchecked_ref()));
+    //     ws.set_onmessage(Some(on_message.as_ref().unchecked_ref()));
+    //     //ws.set_onclose(Some(on_close.as_ref().unchecked_ref()));
+
+    //     // Forget closures to keep them alive
+    //     on_open.forget();
+    //     on_message.forget();
+    //     //on_close.forget();
+
+    //     ws
+    // });
+
+    // ws.set(Some(connect()));
 
     Ok(())
 }

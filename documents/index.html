@@ -7,14 +7,22 @@
     <link rel="icon" href="favicon.ico" type="image/x-icon">
 </head>
 <script type="module">
-    import init from './pkg/frontend.js';
-    init({});
-    console.log("Hello World!");
+    import init, { foo } from './pkg/frontend.js';
+
+    async function run() {
+        await init(); // Initialize the WASM module
+        console.log("Hello World from module init context!");
+        window.foo = foo; // Make `foo` accessible from the console
+        //foo(); // Call the `foo` function
+    }
+
+    run();
 </script>
 <body>
     <h1>Hello, World!</h1>
     <div><i>Some header text</i></div>
-    <div id="ws-div"><b>boak</b></div>
+    <button onclick="foo()">asdf</button>
+    <div id="ws-div"><div>xxx</div></div>
     <div><b>Some footer text</b></div>
 </body>
 </html>
