@@ -4,11 +4,12 @@ use crate::diff::diff;
 use crate::event::VirtualEvents;
 use crate::patch::patch;
 use std::collections::HashMap;
+use std::error::Error;
 use virtual_node::VirtualNode;
 use wasm_bindgen::JsValue;
 use web_sys::{Element, Node};
-
 mod events;
+use log::info;
 
 /// Used for keeping a real DOM node up to date based on the current VirtualNode
 /// and a new incoming VirtualNode that represents our latest DOM state.
@@ -77,15 +78,26 @@ impl PercyDom {
     /// Then use that diff to patch the real DOM in the user's browser so that they are
     /// seeing the latest state of the application.
     pub fn update(&mut self, new_vdom: VirtualNode) {
+        console_log::init_with_level(log::Level::Info).expect("error initializing log");
+
+        log::info!("patch diff");
+
         let patches = diff(&self.current_vdom, &new_vdom);
 
-        patch(
+        log::info!("patch before");
+        match patch(
             self.root_node.clone(),
             &new_vdom,
             &mut self.events,
             &patches,
-        )
-        .unwrap();
+        ) {
+            Ok(o) => {}
+            Err(e) => {
+                log::info!("patch error");
+                return;
+            }
+        }
+        log::info!("patch after");
 
         self.current_vdom = new_vdom;
     }

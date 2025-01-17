@@ -83,22 +83,30 @@ pub fn main_js() -> Result<(), JsValue> {
         let on_message = Closure::wrap(Box::new(move |e: MessageEvent| {
             if let Ok(message) = e.data().dyn_into::<js_sys::JsString>() {
                 if let Some(message_str) = message.as_string() {
+                    let message_str = "<div>hi</div>".to_string();
                     log::info!("Handle message");
                     let initial_node = html! { <div id="ws-id">{ "Hello world!" }</div> };
+                    log::info!("Handle message1");
                     let root_node: Element = web_sys::window()
                         .unwrap()
                         .document()
                         .unwrap()
                         .get_element_by_id("ws-div")
                         .expect("`app` div not found in the DOM");
+                    log::info!("Handle message2");
                     let mut vdom = PercyDom::new_replace_mount(initial_node, root_node);
+                    log::info!("Handle message3");
                     let mut new_node = html! { <div id="ws-id"></div> };
-                    new_node
-                        .as_velement_mut()
-                        .unwrap()
-                        .special_attributes
-                        .dangerous_inner_html = Some(message_str);
-                    //log::debug!("{new_node:?}");
+                    log::info!("Handle message4");
+                    log::info!("message: {message_str}");
+                    if let Some(velement) = new_node.as_velement_mut() {
+                        velement.special_attributes.dangerous_inner_html =
+                            Some(message_str.clone());
+                    } else {
+                        log::error!("Failed to unwrap new_node as VElement");
+                        return;
+                    }
+                    log::debug!("before update");
                     vdom.update(new_node);
                 } else {
                     log::error!("Failed to convert JsString to String");

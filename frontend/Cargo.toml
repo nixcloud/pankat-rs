@@ -8,7 +8,7 @@ serde = "1.0"
 reqwest = { version = "0.11", features = ["json"] }
 web-sys = { version = "0.3", features = ["WebSocket", "console", "MessageEvent", "Window", "Location"] } 
 wasm-bindgen = "0.2.100"
-percy-dom = { version = "=0.10.0", path = "crates/percy-dom" }
+percy-dom = { path = "crates/percy-dom" }
 virtual-node = "=0.5"
 log = "0.4.25"
 futures = "0.3.31"

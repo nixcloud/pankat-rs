@@ -6,7 +6,7 @@
 [[!img media/nlnet-logo.gif class="noFancy" style="float: right"]]
 [[!img posts/libnix/Nix_snowflake_windows.svg class="noFancy" style="float: right" width="200px"]]
 
-# motivation222212212131111
+# motivation2222122121311111111d32331d
 
 status of **native windows nix using MinGW** from my series [libnix](https://lastlog.de/blog/timeline.html?filter=series::libnix)
 
