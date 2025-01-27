@@ -1,5 +1,5 @@
 build-frontend:
-  cd frontend && wasm-pack build --target web --debug
+  cd frontend && wasm-pack build --target web --release
 
 serve-frontend:
   cd frontend && trunk serve --port 5001

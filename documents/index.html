@@ -7,17 +7,19 @@
     <link rel="icon" href="favicon.ico" type="image/x-icon">
 </head>
 <script type="module">
-    import init from './pkg/frontend.js';
+    import init, { foo } from './pkg/frontend.js';
     async function run() {
         await init();
         console.log("Hello World from module init context!");
     }
+    window.foo = foo;
     run();
 </script>
 <body>
     <h1>Hello, World!</h1>
     <div><i>Some header text</i></div>
-    <div id="ws-div"><div>xxx</div></div>
-    <div><b>Some footer text</b></div>
+    <button id="button" onclick="foo()">Execute Foo</button>
+    <div id="ws-div"></div>
+<div><b>Some footer text</b></div>
 </body>
 </html>

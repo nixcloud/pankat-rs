@@ -5,9 +5,13 @@ pub fn render_file(path: String) -> Result<String, Box<dyn Error>> {
     let article_markdown = std::fs::read_to_string(&path)?;
 
     let luafile = std::path::Path::new("documents/pandoc-lua/shifted-numbered-headings.lua");
+    let luafile2 = std::path::Path::new("documents/pandoc-lua/remove-data-header.lua");
+
     let mut pandoc_process = std::process::Command::new("pandoc")
         .arg("--lua-filter")
         .arg(luafile)
+        //.arg("--lua-filter")
+        //.arg(luafile2)
         .arg("-f")
         .arg("markdown")
         .arg("-t")
