@@ -109,37 +109,49 @@ pub fn main_js() -> Result<(), JsValue> {
     console_log::init_with_level(log::Level::Debug).expect("error initializing log");
     log::info!("WASM hello world");
 
-    let location = window().location();
-    let protocol = if location.protocol().unwrap() == "https:" {
-        "wss"
-    } else {
-        "ws"
-    };
-
-    let host = location.host().unwrap();
-    let websocket_address = format!("{protocol}://{host}/ws");
-    let ws = WebSocket::open(&websocket_address).expect("Failed to create WebSocket");
-
-    let (_write, mut read) = ws.split();
-
     spawn_local({
         async move {
             let id: String = "ws-div".to_string();
             let mut dom_updater: DomUpdater = DomUpdater::new(id.clone());
-            while let Some(Ok(msg)) = read.next().await {
-                match msg {
-                    Message::Text(message) => {
-                        log::info!("Received WS message");
-                        //log::debug!("Handle message: {message:?}");
 
-                        dom_updater.update(format!("<div>{}</div>", message));
+            loop {
+                let location = window().location();
+                let protocol = if location.protocol().unwrap() == "https:" {
+                    "wss"
+                } else {
+                    "ws"
+                };
+
+                let host = location.host().unwrap();
+                let websocket_address = format!("{protocol}://{host}/ws");
+                
+                match WebSocket::open(&websocket_address) {
+                    Ok(ws) => {
+                        log::info!("WebSocket connected");
+                        let (_write, mut read) = ws.split();
+                        
+                        while let Some(Ok(msg)) = read.next().await {
+                            match msg {
+                                Message::Text(message) => {
+                                    log::info!("Received WS message");
+                                    dom_updater.update(format!("<div>{}</div>", message));
+                                }
+                                Message::Bytes(_) => {
+                                    log::warn!("Binary messages are not supported yet");
+                                }
+                            }
+                        }
+                        log::info!("WebSocket disconnected, attempting to reconnect in 1 second...");
                     }
-                    Message::Bytes(_) => {
-                        log::warn!("Binary messages are not supported yet");
+                    Err(e) => {
+                        log::error!("Failed to connect: {}", e);
+                        log::info!("Retrying connection in 1 second...");
                     }
                 }
+
+                // Wait 1 second before reconnecting
+                gloo_timers::future::sleep(std::time::Duration::from_secs(1)).await;
             }
-            log::info!("WebSocket Closed")
         }
     });
 
