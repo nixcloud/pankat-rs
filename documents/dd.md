@@ -1,151 +1,46 @@
-[[!meta date="2024-07-19 14:33"]]
-[[!tag nix nixos libnix fixPath]]
-[[!series libnix]]
-[[!summary libnix roadmap]]
-
-[[!img media/nlnet-logo.gif class="noFancy" style="float: right"]]
-[[!img posts/libnix/Nix_snowflake_windows.svg class="noFancy" style="float: right" width="200px"]]
+[[!meta date="2015-06-03 16:58"]]
+[[!tag nixos go webkit gtk]]
+[[!summary webloop on nixos porting attempt]]
+[[!img media/nixos-lores.png alt="" style="float: right" class="noFancy"]]
 
 # motivation
+i wanted to package webloop on nixos and since the software is kind of broken i can't complete that task but if someone wants to look into it, here is what i've done so far.
 
-status of **native windows nix using MinGW** from my series [libnix](https://lastlog.de/blog/timeline.html?filter=series::libnix)
+# current status
+on [1] i've packaged the following software:
 
-we also cover these topics:
+* webkitgtk-2.8.3
+* gojs
+* gotk2
+* go-webkit2
 
-* libnix: **why we picked MinGW** vs. other solutions
-* general roadmap
+the main issue i'm facing right now is that i'm forcing gojs/go-webkit2:
 
-# libnix: MinGW vs. other solutions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ {.bash}
+gojs:
+sed -i 's,javascriptcoregtk-3.0,javascriptcoregtk-4.0,g'  go/src/github.com/sqs/gojs/base.go
 
-making **nix work native on windows** there are a few options, here are a few updates reaching out to these communities:
+go-webkit2:
+sed -i 's,webkit2gtk-3.0,webkit2gtk-4.0,g' go/src/github.com/sourcegraph/go-webkit2/webkit2/webview.go
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-## Tvix
+into using javascriptcoregtk-4.0 and webkit2gtk-4.0 for which they were not designed. it might be not much work to update gojs / go-webkit2 to make proper use of these libraries but i can't do that at the moment.
 
-[tvix](https://tvix.dev/) is a rust reimplementation of the c++ nix implementation, recent news:
+the bug report is at [2].
 
-* **store implementation** since [last update](https://tvl.fyi/blog/tvix-update-february-24)
-* **nix evaluation** comes close to upstream c++ nix, however, still effort to get to 100%
-* not all **builtins** are supported yet
-* no builders yet
-* could be used to **replace the tour of nix emscripten based backend** but not much more
+# conclusion
+some final works on go on nixos: i'm loving it:
 
-<div class="alert alert-warning" role="alert">
-**too early for considering tvix to 'building software using nix' on windows**. tvix is amazing, i hope one day this code base replaces the c++ one.
-</div>
+* **go makes vast use of git repositories** (altough i would wish authors to create more releases/tags instead of just using any random git revision number)
+* **go only requires GOPATH**
+* **go emphasises unit tests** and has a very clean and easy to use methology
+* **go 1.3 and 1.4** are already packaged for nixos and are very usable already
 
-## cosmopolitan
+**i would recommend everyone to look into go on nixos** as it seems to be a great fit on nixos. this holds also true if you use nix on other POSIX platforms like mac os x or basically any other linux.
 
-[cosmopolitan](https://justine.lol/cosmopolitan/) developers on discord mentioned to me that they had tried porting nix with cosmopolitan:
+thanks to lethalman as he was helping me so much with getting into go packaging!
 
-> ariel nunez: Bash on windows was only possible last year, after a lot of work by jart and contributors, and now Windows Terminal Preview can use it.
-> I read my logs and last attempt to compile Nix was on August 2023, at that point in time we found out Nix used Boost and that was a blocker at the time.
+# links
 
-<div class="alert alert-warning" role="alert">
-the **cosmopolitan idea** has a lot of potential. i'm uncertain of OS specific traits and how well they map to this POSIX generalization. for instance, when normalizing paths with
-std::filesystem it is decided on compile time for which platform the paths resolve. cosmopolitan runs on all systems, so std::filesystem would have to make this choice a runtime resolution instead.
-
-**but for now i probably follow the john ericson / volth path with MinGW.**
-</div>
-
-## MinGW
-
-[MinGW](https://en.wikipedia.org/wiki/MinGW) cross compiler setup:
-
-* using `mingw cross compiler from nixos-wsl` to build nix for windows
-* john ericson's MinGW contributions are ongoing and promising ~early 2024
-
-<div class="alert alert-warning" role="alert">
-the <https://www.mingw-w64.org/> toolchain is neatly done! in particular we want to use <https://github.com/mstorsjo/llvm-mingw> instead of gcc/ld.
-
-so **lld/clang** will be used:
-
-* to build nix
-* nixpkgs toolchain to build c/c++ programs for windows
-</div>
-
-# libnix: general roadmap
-
-here is a list of things which need to be done still, see <https://github.com/NixOS/nix/labels/windows> for detailed tickets.
-
-## 1. meson build system
-
-* in order to build nix on windows natively, we need a build system which is not tied to bash. therefore meson is a good candidate for this and there have been a couple of patches already.
-
-## 2. create test suite for nix on windows
-
-* adapt unix specific tests to work on windows
-* write windows specific tests for symlinks / path length / permissions and such
-* run them in [wine](https://winehq.org) / docker windows <https://www.youtube.com/watch?v=xhGYobuG508>
-
-## 3. assemble prototype windows bootstrap system
-
-* make `nix` evaluate on windows use the store on `c:\` and
-* get `runProgram` working to execute tools like `git` for `fetchUrl`
-* use third-party built tools from MSYS2 (not built by nix)
-
-## 4. build 'hello world' nixpkgs-win
-
-* minimal nixpkgs like abstraction
-
-  * instead of trying to adapt nixpkgs we should start small with our own `stdenv` with `mingw` to show how to use it
-
-## 5. make nix + toolchain build from windows
-
-* use the prototype toolchain to built itself
-* adapt `bash` and unix favoring build systems into a windows world
-
-## 6. nix installer / channel
-
- * create an **installer for nix**
-
-    <https://nixos.org/manual/nix/stable/installation/upgrading>
-
-* create a nix **channel**
-
-  * create a channel for windows
-
-## 7. cargo with nix support
-
-* we start with `rust/cargo` on linux to make it work with nix as backend, see <https://github.com/NixOS/nix/pull/8699> for this
-
-
-# libnix: future nix work
-
-these items need to be done outside of the [libnix](https://nlnet.nl/project/libnix/) funding but are still worth mentioning.
-
-## 1. sandboxing
-
-* process isolation in windows, for sandboxing `nix-build`, see <https://learn.microsoft.com/de-de/virtualization/windowscontainers/manage-containers/hyperv-container#process-isolation>
-
-## 2. user environments (pure powershell environment)
-
-* `source $HOME/.nix-profile/etc/profile.d/nix.sh` for powershell
-
-## 3. nix-daemon & multi user mode
-
-* nix-daemon
-
-  * calls `nix-build` (with different UID/GID)
-  * windows **unix domain socket support** can be used
-
-## 4. nixos module system `systemd` like windows abstraction
-
-* the nixos module system creates `systemd` targets on linux and it would be nice if we had something similar for windows, see [systemd equivalent on windows](https://www.reddit.com/r/selfhosted/comments/8ijs26/systemdlike_to_create_windows_services_from/)
-
-## 5. store interoperability
-
-* think `/nix/store` vs. `c:\nix\store`
-* <https://github.com/NixOS/nix/issues/9205> - Use std::filesystem::path for Path
-* <https://github.com/NixOS/nix/issues/3197> - Encoding store Paths on Windows and Unix
-
-## 6. usability & documentation
-
-* support `nix repl`
-* support `man pages` in `nix build --help`
-* ...
-
-# summary
-
-this is a **short summary of libnix topics what we are aiming for till the end of 2024**.
-
-additional we think that **llvm-mingw** is a potent toolchain for windows which enables us to use [fixPath](https://github.com/nixcloud/fixPath).
+* [1] <https://github.com/qknight/nixpkgs/tree/webloop>
+* [2] <https://github.com/sourcegraph/go-webkit2/issues/20>
