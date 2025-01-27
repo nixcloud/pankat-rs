@@ -116,8 +116,6 @@ pub fn main_js() -> Result<(), JsValue> {
         "ws"
     };
 
-    //-0--------- sync VDOM to DOM --------------------
-    //-0------------------------------------
     let host = location.host().unwrap();
     let websocket_address = format!("{protocol}://{host}/ws");
     let ws = WebSocket::open(&websocket_address).expect("Failed to create WebSocket");

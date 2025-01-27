@@ -10,8 +10,6 @@ pub fn render_file(path: String) -> Result<String, Box<dyn Error>> {
     let mut pandoc_process = std::process::Command::new("pandoc")
         .arg("--lua-filter")
         .arg(luafile)
-        //.arg("--lua-filter")
-        //.arg(luafile2)
         .arg("-f")
         .arg("markdown")
         .arg("-t")
@@ -22,14 +20,13 @@ pub fn render_file(path: String) -> Result<String, Box<dyn Error>> {
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::inherit())
         .spawn()?;
-
     {
         // Correct mutable borrow and method call
         let stdin = pandoc_process
             .stdin
             .as_mut()
             .ok_or("Failed to open stdin")?;
-        stdin.write_all(article_markdown.as_bytes())?; // Correct byte conversion
+        stdin.write_all(article_markdown.as_bytes())?;
     }
 
     let output = pandoc_process.wait_with_output()?;
