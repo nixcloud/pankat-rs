@@ -4,13 +4,15 @@ mod error;
 mod file_monitor;
 mod handlers;
 mod registry;
-mod render;
+mod renderer;
 mod schema;
+mod articles;
 
 use axum::{
     routing::{get, post},
     Router,
 };
+
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use std::fs;
 use std::net::SocketAddr;

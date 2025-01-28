@@ -1,0 +1,11 @@
+{{if not .SpecialPage}}
+  <div id="headerContainer">
+    <header class="header">{{.TitleNAV}}</header>
+  </div>
+  {{.SeriesNAV}}
+{{end}}
+  <div class="article">
+    <h1 id="SiteTitle">{{.Title}}</h1>
+    {{.TimeString}}
+    {{.Body}}
+  </div>

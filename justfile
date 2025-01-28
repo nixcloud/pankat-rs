@@ -1,11 +1,8 @@
 build-frontend:
   cd frontend && wasm-pack build --target web --release
 
-serve-frontend:
-  cd frontend && trunk serve --port 5001
-
 copy-frontend:
-  mkdir -p documents/pkg && cp -R frontend/pkg/* documents/pkg
+  mkdir -p documents/static/wasm && cp -R frontend/pkg/* documents/static/wasm
 
 build:
   cargo build

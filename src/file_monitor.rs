@@ -1,5 +1,5 @@
 use crate::registry::PubSubRegistry;
-use crate::render::render_file;
+use crate::renderer::pandoc::render_file;
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::Path;
 use std::sync::mpsc::Sender;
@@ -124,6 +124,7 @@ fn debounce(input: String) {
                         println!("Processing cached event for: {}", key);
                         if let Ok(result) = render_file(key) {
                             let _ = news_sender.send(result);
+                            
                         }
                     } else {
                         let duration = instant.duration_since(now);

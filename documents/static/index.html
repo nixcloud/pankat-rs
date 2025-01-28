@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hello World</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+</head>
+<script type="module">
+    import init from './pkg/frontend.js';
+    async function run() {
+        await init();
+        console.log("Hello World from module init context!");
+    }
+    run();
+</script>
+<body>
+    <h1>Hello, World!</h1>
+    <div><i>Some header text</i></div>
+    <div id="ws-div"></div>
+<div><b>Some footer text</b></div>
+</body>
+</html>
