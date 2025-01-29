@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
+use std::hash::{Hash, Hasher};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex, OnceLock};
-use std::hash::{Hash, Hasher};
 
 // Custom wrapper to make Sender hashable
 #[derive(Clone)]
@@ -47,7 +47,10 @@ impl PubSubRegistry {
     pub fn register_receiver(&self, channel: String) -> Receiver<String> {
         let (tx, rx) = mpsc::channel();
         let mut channels = self.channels.lock().unwrap();
-        channels.entry(channel).or_default().insert(HashableSender(tx));
+        channels
+            .entry(channel)
+            .or_default()
+            .insert(HashableSender(tx));
         rx
     }
 

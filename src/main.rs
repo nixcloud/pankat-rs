@@ -13,12 +13,11 @@ use axum::{
     Router,
 };
 
-use clap::{App, Arg};
+use clap::{Arg, Command};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use std::fs;
 use std::net::SocketAddr;
-use std::path::Path;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tokio::signal;
 use tokio::sync::broadcast;
 use tower_http::cors::CorsLayer;
@@ -27,65 +26,53 @@ pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    // Initialize logging
     tracing_subscriber::fmt::init();
 
-    let matches = App::new("My CLI")
-        .version("1.0")
-        .author("Author Name <author@example.com>")
-        .about("Does awesome things")
+    let matches = Command::new("pankat cli")
+        .version(env!("CARGO_PKG_VERSION"))
+        .author("Joachim Schiele <js@lastlog.de")
+        .about("https://github.com/nixcloud/pankat - static site generator")
         .arg(
-            Arg::with_name("document")
+            Arg::new("document")
                 .short('d')
                 .long("document")
-                .value_name("FILE")
+                .value_name("PATH")
                 .help("Sets a document path")
-                .takes_value(true),
+                .required(true),
         )
         .arg(
-            Arg::with_name("blog")
+            Arg::new("blog")
                 .short('b')
                 .long("blog")
-                .value_name("FILE")
-                .help("Sets a blog path")
-                .takes_value(true),
+                .value_name("PATH")
+                .help("Sets a blog path (relative to the document path)")
+                .required(true),
         )
         .arg(
-            Arg::with_name("port")
+            Arg::new("port")
                 .short('p')
                 .long("port")
                 .value_name("PORT")
                 .help("Sets the port number, default is 23")
-                .takes_value(true),
+                .default_value("5000"),
         )
         .get_matches();
 
-    let document_path = matches.value_of("document");
-    if document_path.is_none() {
-        eprintln!("Error: The `-d` or `--document` argument is required.");
-        std::process::exit(1);
-    }
-    let documents_path: &Path = Path::new(document_path.unwrap());
-
-    let blog_path = matches.value_of("blog");
-    if blog_path.is_none() {
-        eprintln!("Error: The `-b` or `--blog` argument is required.");
-        std::process::exit(1);
-    }
-    let blog_path: &Path = Path::new(blog_path.unwrap());
-
-    let port_value = matches
-        .value_of("port")
-        .map(|v| v.parse::<u32>().expect("Failed to parse port number"));
-    let port_number: u32 = port_value.unwrap_or(23);
+    let documents_path = PathBuf::from(matches.get_one::<String>("document").unwrap());
+    let blog_path = PathBuf::from(matches.get_one::<String>("blog").unwrap());
+    let port_number: u32 = matches
+        .get_one::<String>("port")
+        .unwrap()
+        .parse()
+        .unwrap_or(5000);
 
     println!("Documents Path: {:?}", documents_path);
     println!("Blog Path: {:?}", blog_path);
     println!("Port Number: {}", port_number);
 
     // Create documents directory if it doesn't exist
-    if !documents_arg.exists() {
-        fs::create_dir_all(&documents_arg)?;
+    if !documents_path.exists() {
+        fs::create_dir_all(&documents_path)?;
     }
 
     // Setup broadcast channel for shutdown coordination
@@ -93,8 +80,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let shutdown_rx = shutdown_tx.subscribe();
 
     // Initialize file monitoring
-    let path = Path::new(documents_path);
-    let monitor_handle = file_monitor::spawn_async_monitor(path, shutdown_rx)
+    let monitor_handle = file_monitor::spawn_async_monitor(documents_path.clone(), shutdown_rx)
         .map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(e))?;
 
     // Initialize SQLite database with Diesel
@@ -122,7 +108,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Start server
     let addr = SocketAddr::from(([0, 0, 0, 0], 5000));
     println!("Server running on {}", addr);
-    println!("Monitoring directory: {}", documents_path);
+    println!(
+        "Monitoring directory: {}",
+        documents_path.display().to_string()
+    );
 
     // Create a listener with retry logic
     let listener = match tokio::net::TcpListener::bind(addr).await {

@@ -31,7 +31,7 @@ pub fn spawn_async_monitor(
     // Spawn a cleanup task to handle shutdown signal
     let watcher_cleanup = Arc::new(Mutex::new(watcher));
     let cleanup_watcher = watcher_cleanup.clone();
-    
+
     // Spawn monitoring task
     let handle = tokio::spawn(async move {
         println!("File monitor started...");
@@ -124,7 +124,6 @@ fn debounce(input: String) {
                         println!("Processing cached event for: {}", key);
                         if let Ok(result) = render_file(key) {
                             let _ = news_sender.send(result);
-                            
                         }
                     } else {
                         let duration = instant.duration_since(now);

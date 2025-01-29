@@ -1,5 +1,5 @@
-use tokio::sync::{mpsc, Mutex};
 use std::collections::HashMap;
+use tokio::sync::{mpsc, Mutex};
 use tokio::task;
 
 struct Article {

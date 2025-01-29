@@ -16,7 +16,7 @@ pub fn create_html_from_article_template() -> Result<String, Box<dyn Error>> {
 
     // Step 4: Get content
     let navtitlearticlesource = create_html_blah().unwrap_or("".to_string());
-    
+
     // Step 5: Define data for the template
     let data = json!({
         "Title": "Sample Title",
