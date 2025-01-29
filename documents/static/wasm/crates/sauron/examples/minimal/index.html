@@ -1,0 +1,12 @@
+<html>
+  <head>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
+    <title>Minimal sauron app</title>
+  </head>
+  <body>
+    <script type=module>
+      import init from './pkg/minimal.js';
+      await init().catch(console.error);
+    </script>
+  </body>
+</html>

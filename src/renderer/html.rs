@@ -1,8 +1,9 @@
 use handlebars::Handlebars;
 use serde_json::json;
 use std::fs;
+use std::error::Error;
 
-fn main() {
+pub fn create_html_from_article_template() -> Result<String, dyn Error> {
     // Step 1: Create a new Handlebars registry
     let mut handlebars = Handlebars::new();
 

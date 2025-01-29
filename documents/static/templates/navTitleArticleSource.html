@@ -1,11 +1,11 @@
-{{if not .SpecialPage}}
+{{#if SpecialPage}}
   <div id="headerContainer">
-    <header class="header">{{.TitleNAV}}</header>
+    <header class="header">{{TitleNAV}}</header>
   </div>
-  {{.SeriesNAV}}
+  {{SeriesNAV}}
 {{end}}
   <div class="article">
-    <h1 id="SiteTitle">{{.Title}}</h1>
-    {{.TimeString}}
-    {{.Body}}
+    <h1 id="SiteTitle">{{Title}}</h1>
+    {{TimeString}}
+    {{Body}}
   </div>

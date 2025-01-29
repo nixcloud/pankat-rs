@@ -1,0 +1,103 @@
+[package]
+name = "sauron"
+version = "0.61.9"
+authors = [ "Jovansonlee Cesar <ivanceras@gmail.com>" ]
+license = "MIT"
+description = "A versatile web framework and library for building client-side and/or server-side web applications"
+repository = "https://github.com/ivanceras/sauron"
+documentation = "https://docs.rs/sauron"
+readme = "README.md"
+keywords = ["html", "dom", "web"]
+edition = "2021"
+
+[badges]
+maintenance = { status = "actively-developed" }
+
+[dependencies]
+sauron-core = { version = "0.61", path = "crates/core" }
+sauron-macro = { version = "0.61", path = "crates/macro", optional = true }
+sauron-html-parser = { version = "0.61", path = "crates/html-parser", optional = true }
+
+[features]
+default = ["with-dom", "with-node-macro", "with-interning", "with-jss"]
+with-dom = ["sauron-core/with-dom"]
+with-lookup = ["sauron-core/with-lookup"]
+with-ric = ["sauron-core/with-ric"]
+with-raf = ["sauron-core/with-raf"]
+with-interning = ["sauron-core/with-interning"]
+with-jss = ["sauron-macro", "with-lookup"] #enable use of jss (css style in json format)
+
+# shows telemetry such as duration it took to update the dom
+with-measure = ["sauron-core/with-measure"]
+# log debug patches
+with-debug = ["sauron-core/with-debug"]
+log-patches = ["with-debug", "sauron-core/log-patches"]
+test-fixtures = ["sauron-core/test-fixtures"] #include the test-fixtures for updating the program with the supplied vdom
+with-trace = ["sauron-core/with-trace"]
+
+# lets you use node! macro to write html like code in the view
+with-node-macro = ["sauron-macro"]
+html-parser = ["sauron-html-parser"]
+use-skipdiff = ["sauron-core/use-skipdiff"]
+
+
+[dev-dependencies]
+console_error_panic_hook = "0.1.7"
+console_log = "1.0"
+log = "0.4"
+wasm-bindgen-test = "0.3"
+wasm-bindgen-futures = "0.4.31"
+regex = "1"
+sauron-html-parser = { path = "crates/html-parser" }
+sauron = { path = ".", features = ["test-fixtures", "html-parser", "log-patches"] }
+doc-comment = "0.3.3"
+
+[dev-dependencies.web-sys]
+version = "0.3"
+features = [
+    "DomTokenList",
+    "HtmlInputElement",
+    "Event",
+    "MouseEvent",
+    "InputEvent",
+    "console",
+    "Performance",
+]
+
+
+[workspace]
+members = [
+    "crates/*",
+    "examples/*",
+]
+
+# progressive-rendering example has its own workspace
+exclude = [
+    "examples/custom-element",
+    "examples/progressive-rendering",
+]
+
+
+
+[patch.crates-io]
+#mt-dom = { git = "https://github.com/ivanceras/mt-dom.git", branch = "master" }
+#mt-dom = { path = "../mt-dom" }
+#jss = { git = "https://github.com/ivanceras/jss.git", branch = "master" }
+#jss = { path = "../jss" }
+
+[dev-dependencies.criterion]
+version = "0.5.1"
+default-features = false
+
+[package.metadata.docs.rs]
+all-features = true
+default-target = "wasm32-unknown-unknown"
+
+
+[[bench]]
+name = "nodes_benchmark"
+harness = false
+
+[[bench]]
+name = "bench_view_performance"
+harness = false
