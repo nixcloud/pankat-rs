@@ -1,3 +1,4 @@
+mod articles;
 mod auth;
 mod db;
 mod error;
@@ -6,16 +7,17 @@ mod handlers;
 mod registry;
 mod renderer;
 mod schema;
-mod articles;
 
 use axum::{
     routing::{get, post},
     Router,
 };
 
+use clap::{App, Arg};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use std::fs;
 use std::net::SocketAddr;
+use std::path::Path;
 use std::path::Path;
 use tokio::signal;
 use tokio::sync::broadcast;
@@ -28,9 +30,63 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Initialize logging
     tracing_subscriber::fmt::init();
 
+    let matches = App::new("My CLI")
+        .version("1.0")
+        .author("Author Name <author@example.com>")
+        .about("Does awesome things")
+        .arg(
+            Arg::with_name("document")
+                .short('d')
+                .long("document")
+                .value_name("FILE")
+                .help("Sets a document path")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("blog")
+                .short('b')
+                .long("blog")
+                .value_name("FILE")
+                .help("Sets a blog path")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("port")
+                .short('p')
+                .long("port")
+                .value_name("PORT")
+                .help("Sets the port number, default is 23")
+                .takes_value(true),
+        )
+        .get_matches();
+
+    let document_path = matches.value_of("document");
+    if document_path.is_none() {
+        eprintln!("Error: The `-d` or `--document` argument is required.");
+        std::process::exit(1);
+    }
+    let documents_path: &Path = Path::new(document_path.unwrap());
+
+    let blog_path = matches.value_of("blog");
+    if blog_path.is_none() {
+        eprintln!("Error: The `-b` or `--blog` argument is required.");
+        std::process::exit(1);
+    }
+    let blog_path: &Path = Path::new(blog_path.unwrap());
+
+    let port_value = matches
+        .value_of("port")
+        .map(|v| v.parse::<u32>().expect("Failed to parse port number"));
+    let port_number: u32 = port_value.unwrap_or(23);
+
+    println!("Documents Path: {:?}", documents_path);
+    println!("Blog Path: {:?}", blog_path);
+    println!("Port Number: {}", port_number);
+
     // Create documents directory if it doesn't exist
-    let documents_path = "documents";
-    fs::create_dir_all(documents_path)?;
+    if !documents_arg.exists() {
+        fs::create_dir_all(&documents_arg)?;
+    }
 
     // Setup broadcast channel for shutdown coordination
     let (shutdown_tx, _) = broadcast::channel::<()>(1);

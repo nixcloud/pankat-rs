@@ -4,4 +4,6 @@ the roadmap is here:
 
 https://github.com/nixcloud/pankat/issues/7
 
+# architecture
 
+![architecture](internals.svg)
