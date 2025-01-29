@@ -29,6 +29,7 @@ gloo-timers = { version = "0.3.0", features = ["futures"] }
 handlebars = "6.3.0"
 clap = "4.5.27"
 path = "0.8.2"
+mowl = { version = "2.1.0" }
 
 [build-dependencies]
 diesel_cli = { version = "2.1.0", default-features = false, features = ["sqlite"] }
