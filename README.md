@@ -4,6 +4,10 @@ the roadmap is here:
 
 https://github.com/nixcloud/pankat/issues/7
 
+# run
+
+pankat --input documents/blog.lastlog.de --output documents/output --assets documents/assets
+
 # architecture
 
 ![architecture](internals.svg)

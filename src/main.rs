@@ -17,7 +17,7 @@ use clap::{Arg, Command};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use std::fs;
 use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use tokio::signal;
 use tokio::sync::broadcast;
 use tower_http::cors::CorsLayer;
@@ -62,26 +62,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .short('p')
                 .long("port")
                 .value_name("PORT")
-                .help(format!("Sets the port number, default is {}", default_port))
+                .help("Port number where pankat listens for incoming connections for browser connections")
                 .default_value(default_port.to_string()),
         )
         .get_matches();
 
-    let documents_path = PathBuf::from(matches.get_one::<String>("document").unwrap());
-    let blog_path = PathBuf::from(matches.get_one::<String>("blog").unwrap());
-    let port_number: u32 = matches
+    let input_path = PathBuf::from(matches.get_one::<String>("input").unwrap());
+    let output_path = PathBuf::from(matches.get_one::<String>("output").unwrap());
+    let assets_path = PathBuf::from(matches.get_one::<String>("assets").unwrap());
+    let port_number: u16 = matches
         .get_one::<String>("port")
         .unwrap()
         .parse()
-        .unwrap_or(5000);
+        .unwrap_or(default_port);
 
-    println!("Documents Path: {:?}", documents_path);
-    println!("Blog Path: {:?}", blog_path);
+    println!("-------------------------------------------------");
+    println!("Input Path: {:?}", input_path);
+    println!("Output Path: {:?}", output_path);
+    println!("Assets Path: {:?}", assets_path);
     println!("Port Number: {}", port_number);
+    println!("-------------------------------------------------");
 
     // Create documents directory if it doesn't exist
-    if !documents_path.exists() {
-        fs::create_dir_all(&documents_path)?;
+    if !input_path.exists() {
+        fs::create_dir_all(&input_path)?;
     }
 
     // Setup broadcast channel for shutdown coordination
@@ -89,7 +93,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let shutdown_rx = shutdown_tx.subscribe();
 
     // Initialize file monitoring
-    let monitor_handle = file_monitor::spawn_async_monitor(documents_path.clone(), shutdown_rx)
+    let monitor_handle = file_monitor::spawn_async_monitor(input_path.clone(), shutdown_rx)
         .map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(e))?;
 
     // Initialize SQLite database with Diesel
@@ -115,21 +119,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .with_state(pool);
 
     // Start server
-    let addr = SocketAddr::from(([0, 0, 0, 0], 5000));
+    let addr = SocketAddr::from(([0, 0, 0, 0], port_number));
     println!("Server running on {}", addr);
-    println!(
-        "Monitoring directory: {}",
-        documents_path.display().to_string()
-    );
+    println!("Monitoring directory: {}", input_path.display().to_string());
 
     // Create a listener with retry logic
     let listener = match tokio::net::TcpListener::bind(addr).await {
         Ok(listener) => {
-            println!("Successfully bound to port 5000");
+            println!("Successfully bound to port {}", port_number);
             listener
         }
         Err(e) => {
-            eprintln!("Failed to bind to port 5000: {}", e);
+            eprintln!("Failed to bind to port {}: {}", port_number, e);
             // If port is in use, try to clean up and exit
             println!("Initiating cleanup sequence...");
             if let Err(send_err) = shutdown_tx.send(()) {
