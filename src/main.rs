@@ -63,7 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .long("port")
                 .value_name("PORT")
                 .help(format!("Sets the port number, default is {}", default_port))
-                .default_value(format!("{}", default_port)),
+                .default_value(default_port.to_string()),
         )
         .get_matches();
 
