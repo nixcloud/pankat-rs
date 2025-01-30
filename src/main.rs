@@ -27,25 +27,34 @@ pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     tracing_subscriber::fmt::init();
+    let default_port: u16 = 5000;
 
     let matches = Command::new("pankat cli")
         .version(env!("CARGO_PKG_VERSION"))
         .author("Joachim Schiele <js@lastlog.de")
         .about("https://github.com/nixcloud/pankat - static site generator")
         .arg(
-            Arg::new("document")
+            Arg::new("input")
                 .short('d')
-                .long("document")
+                .long("input")
                 .value_name("PATH")
-                .help("Sets a document path")
+                .help("An absolute input path, i.e. where the *.md files of your blog are")
                 .required(true),
         )
         .arg(
-            Arg::new("blog")
-                .short('b')
-                .long("blog")
+            Arg::new("output")
+                .short('o')
+                .long("output")
                 .value_name("PATH")
-                .help("Sets a blog path (relative to the document path)")
+                .help("An absolute output path, where pankat stores the generated html files")
+                .required(true),
+        )
+        .arg(
+            Arg::new("assets")
+                .short('a')
+                .long("assets")
+                .value_name("PATH")
+                .help("An absolute assets path, where js/wasm/css/... files are stored")
                 .required(true),
         )
         .arg(
@@ -53,8 +62,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .short('p')
                 .long("port")
                 .value_name("PORT")
-                .help("Sets the port number, default is 23")
-                .default_value("5000"),
+                .help(format!("Sets the port number, default is {}", default_port))
+                .default_value(format!("{}", default_port)),
         )
         .get_matches();
 

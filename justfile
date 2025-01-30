@@ -1,11 +1,11 @@
-build-frontend:
-  cd frontend && wasm-pack build --target web --release
+build-pankat-wasm:
+  cd pankat-wasm && wasm-pack build --target web --release
 
-copy-frontend:
-  mkdir -p documents/static/wasm && cp -R frontend/pkg/* documents/static/wasm
+copy-pankat-wasm:
+  mkdir -p documents/assets/pankat-wasm && cp -R pankat-wasm/pkg/* documents/assets/pankat-wasm
 
 build:
   cargo build
 
-run: build-frontend copy-frontend build
-  cargo run
+run: build-pankat-wasm copy-pankat-wasm build
+  cargo run -- --input documents/blog.lastlog.de --output documents/output --assets documents/assets
