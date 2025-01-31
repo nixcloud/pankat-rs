@@ -26,7 +26,6 @@ pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     tracing_subscriber::fmt::init();
-    let default_port: u16 = 5000;
 
     let matches = Command::new("pankat cli")
         .version(env!("CARGO_PKG_VERSION"))
@@ -70,7 +69,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .long("port")
                 .value_name("PORT")
                 .help("Port number where pankat listens for incoming connections for browser connections")
-                .default_value(default_port.to_string()),
+                .default_value("5000"),
         )
         .get_matches();
 
@@ -84,7 +83,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             .get_one::<String>("port")
             .unwrap()
             .parse()
-            .unwrap_or(default_port),
+            .unwrap(),
     );
     let config = config_singleton.instance();
 
@@ -129,7 +128,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Start server
     let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
     println!("Server running on {}", addr);
-    println!("Monitoring directory: {}", config.input.display());
 
     // Create a listener with retry logic
     let listener = match tokio::net::TcpListener::bind(addr).await {

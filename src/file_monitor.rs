@@ -12,9 +12,11 @@ pub fn spawn_async_monitor(
     path: impl AsRef<Path>,
     mut shutdown_rx: broadcast::Receiver<()>,
 ) -> Result<JoinHandle<()>, Box<dyn std::error::Error + Send + Sync>> {
+    println!("Monitoring directory: {}", path.as_ref().display());
+
     // Store the path for cleanup
     let watch_path = path.as_ref().to_owned();
-
+    
     // Create a Watcher instance
     let (tx, mut rx) = mpsc::channel::<Result<Event, notify::Error>>(DEFAULT_CHANNEL_CAPACITY);
     let mut watcher = RecommendedWatcher::new(
@@ -70,7 +72,7 @@ fn handle_event(event: &Event) {
 
     for path in &event.paths {
         if let Some(extension) = path.extension() {
-            if extension == "md" {
+            if extension == "mdwn" {
                 if let Ok(relative_path) = path.strip_prefix(std::env::current_dir().unwrap()) {
                     println!("  📍 Path: {} was {}", relative_path.display(), event_type);
                     let path_string = path.to_string_lossy().into_owned();

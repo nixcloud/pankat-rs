@@ -8,4 +8,4 @@ build:
   cargo build
 
 run: build-pankat-wasm copy-pankat-wasm build
-  cargo run -- --input documents/blog.lastlog.de/. --output documents/output/ --assets documents/assets/ --database documents/
+  cargo run -- --input documents/blog.lastlog.de --output documents/output/ --assets documents/assets/ --database documents/

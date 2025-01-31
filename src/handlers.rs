@@ -93,7 +93,7 @@ use std::path::PathBuf;
 use tokio::fs;
 
 pub async fn serve_static(uri: axum::http::Uri) -> Result<Response, AppError> {
-    let mut path = PathBuf::from("documents/dynamic");
+    let mut path = PathBuf::from("documents/output");
 
     let path_str = uri.path();
     if path_str == "/" {
