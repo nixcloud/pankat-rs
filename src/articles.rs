@@ -1,7 +1,3 @@
-use std::collections::HashMap;
-use tokio::sync::{mpsc, Mutex};
-use tokio::task;
-
 struct Article {
     id: u32,
     src_file_name: String,

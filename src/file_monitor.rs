@@ -2,7 +2,6 @@ use crate::registry::PubSubRegistry;
 use crate::renderer::pandoc::render_file;
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::Path;
-use std::sync::mpsc::Sender;
 use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc, Mutex};
 use tokio::task::JoinHandle;

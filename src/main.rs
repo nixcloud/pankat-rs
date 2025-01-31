@@ -1,5 +1,6 @@
 mod articles;
 mod auth;
+mod config;
 mod db;
 mod error;
 mod file_monitor;
@@ -15,9 +16,7 @@ use axum::{
 
 use clap::{Arg, Command};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
-use std::fs;
 use std::net::SocketAddr;
-use std::path::PathBuf;
 use tokio::signal;
 use tokio::sync::broadcast;
 use tower_http::cors::CorsLayer;
@@ -35,10 +34,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .about("https://github.com/nixcloud/pankat - static site generator")
         .arg(
             Arg::new("input")
-                .short('d')
+                .short('i')
                 .long("input")
                 .value_name("PATH")
-                .help("An absolute input path, i.e. where the *.md files of your blog are")
+                .help("Absolute path where the media/ and posts/*.md files of your blog are located")
                 .required(true),
         )
         .arg(
@@ -46,7 +45,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .short('o')
                 .long("output")
                 .value_name("PATH")
-                .help("An absolute output path, where pankat stores the generated html files")
+                .help("Absolute path, where pankat stores the generated html files")
                 .required(true),
         )
         .arg(
@@ -55,6 +54,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .long("assets")
                 .value_name("PATH")
                 .help("An absolute assets path, where js/wasm/css/... files are stored")
+                .required(true),
+        )
+        .arg(
+            Arg::new("database")
+                .short('d')
+                .long("database")
+                .value_name("PATH")
+                .help("An absolute path where the database is stored")
                 .required(true),
         )
         .arg(
@@ -67,33 +74,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         )
         .get_matches();
 
-    let input_path = PathBuf::from(matches.get_one::<String>("input").unwrap());
-    let output_path = PathBuf::from(matches.get_one::<String>("output").unwrap());
-    let assets_path = PathBuf::from(matches.get_one::<String>("assets").unwrap());
-    let port_number: u16 = matches
-        .get_one::<String>("port")
-        .unwrap()
-        .parse()
-        .unwrap_or(default_port);
+    let config_singleton = config::Singleton::new();
+    config_singleton.initialize(
+        matches.get_one::<String>("input").unwrap().to_string(),
+        matches.get_one::<String>("output").unwrap().to_string(),
+        matches.get_one::<String>("assets").unwrap().to_string(),
+        matches.get_one::<String>("database").unwrap().to_string(),
+        matches
+            .get_one::<String>("port")
+            .unwrap()
+            .parse()
+            .unwrap_or(default_port),
+    );
+    let config = config_singleton.instance();
 
     println!("-------------------------------------------------");
-    println!("Input Path: {:?}", input_path);
-    println!("Output Path: {:?}", output_path);
-    println!("Assets Path: {:?}", assets_path);
-    println!("Port Number: {}", port_number);
+    println!("Input Path: {:?}", config.input);
+    println!("Output Path: {:?}", config.output);
+    println!("Assets Path: {:?}", config.assets);
+    println!("Database Path: {:?}", config.database);
+    println!("Port Number: {}", config.port);
     println!("-------------------------------------------------");
-
-    // Create documents directory if it doesn't exist
-    if !input_path.exists() {
-        fs::create_dir_all(&input_path)?;
-    }
 
     // Setup broadcast channel for shutdown coordination
     let (shutdown_tx, _) = broadcast::channel::<()>(1);
     let shutdown_rx = shutdown_tx.subscribe();
 
     // Initialize file monitoring
-    let monitor_handle = file_monitor::spawn_async_monitor(input_path.clone(), shutdown_rx)
+    let monitor_handle = file_monitor::spawn_async_monitor(config.input.clone(), shutdown_rx)
         .map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(e))?;
 
     // Initialize SQLite database with Diesel
@@ -119,18 +127,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .with_state(pool);
 
     // Start server
-    let addr = SocketAddr::from(([0, 0, 0, 0], port_number));
+    let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
     println!("Server running on {}", addr);
-    println!("Monitoring directory: {}", input_path.display().to_string());
+    println!("Monitoring directory: {}", config.input.to_string());
 
     // Create a listener with retry logic
     let listener = match tokio::net::TcpListener::bind(addr).await {
         Ok(listener) => {
-            println!("Successfully bound to port {}", port_number);
+            println!("Successfully bound to port {}", config.port);
             listener
         }
         Err(e) => {
-            eprintln!("Failed to bind to port {}: {}", port_number, e);
+            eprintln!("Failed to bind to port {}: {}", config.port, e);
             // If port is in use, try to clean up and exit
             println!("Initiating cleanup sequence...");
             if let Err(send_err) = shutdown_tx.send(()) {

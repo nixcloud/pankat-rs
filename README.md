@@ -6,7 +6,7 @@ https://github.com/nixcloud/pankat/issues/7
 
 # run
 
-pankat --input documents/blog.lastlog.de --output documents/output --assets documents/assets
+cargo run -- --input documents/blog.lastlog.de/. --output documents/output/ --assets documents/assets/ --database documents/
 
 # architecture
 
