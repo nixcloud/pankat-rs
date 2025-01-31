@@ -1,22 +1,23 @@
+
 use std::path::Path;
 use std::process;
 use std::sync::{Arc, Mutex, Once};
 
-pub struct Config<'a> {
-    pub input: &'a Path,
-    pub output: &'a Path,
-    pub assets: &'a Path,
-    pub database: &'a Path,
+pub struct Config {
+    pub input: std::path::PathBuf,
+    pub output: std::path::PathBuf,
+    pub assets: std::path::PathBuf,
+    pub database: std::path::PathBuf,
     pub port: u16,
 }
 
-pub struct Singleton<'a> {
-    config: Mutex<Option<Arc<Config<'a>>>>,
+pub struct Singleton {
+    config: Mutex<Option<Arc<Config>>>,
     init: Once,
 }
 
-impl Singleton<'_> {
-    pub fn new() -> Singleton<'static> {
+impl Singleton {
+    pub fn new() -> Singleton {
         Singleton {
             config: Mutex::new(None),
             init: Once::new(),
@@ -38,10 +39,10 @@ impl Singleton<'_> {
             ensure_paths_exist(&database).unwrap();
 
             let config = Config {
-                input: input.clone(),
-                output: output.clone(),
-                assets: assets.clone(),
-                database: database.clone(),
+                input: input.to_path_buf(),
+                output: output.to_path_buf(),
+                assets: assets.to_path_buf(),
+                database: database.to_path_buf(),
                 port,
             };
             *self.config.lock().unwrap() = Some(Arc::new(config));
