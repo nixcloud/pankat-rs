@@ -1,22 +1,22 @@
+use std::path::Path;
 use std::process;
 use std::sync::{Arc, Mutex, Once};
-use std::fs;
 
-pub struct Config {
-    pub input: String,
-    pub output: String,
-    pub assets: String,
-    pub database: String,
+pub struct Config<'a> {
+    pub input: &'a Path,
+    pub output: &'a Path,
+    pub assets: &'a Path,
+    pub database: &'a Path,
     pub port: u16,
 }
 
-pub struct Singleton {
-    config: Mutex<Option<Arc<Config>>>,
+pub struct Singleton<'a> {
+    config: Mutex<Option<Arc<Config<'a>>>>,
     init: Once,
 }
 
-impl Singleton {
-    pub fn new() -> Singleton {
+impl Singleton<'_> {
+    pub fn new() -> Singleton<'static> {
         Singleton {
             config: Mutex::new(None),
             init: Once::new(),
@@ -25,23 +25,23 @@ impl Singleton {
 
     pub fn initialize(
         &self,
-        input: String,
-        output: String,
-        assets: String,
-        database: String,
+        input: &Path,
+        output: &Path,
+        assets: &Path,
+        database: &Path,
         port: u16,
     ) {
         self.init.call_once(|| {
-            ensure_paths_exist(input.clone()).unwrap();
-            ensure_paths_exist(output.clone()).unwrap();
-            ensure_paths_exist(assets.clone()).unwrap();
-            ensure_paths_exist(database.clone()).unwrap();
+            ensure_paths_exist(&input).unwrap();
+            ensure_paths_exist(&output).unwrap();
+            ensure_paths_exist(&assets).unwrap();
+            ensure_paths_exist(&database).unwrap();
 
             let config = Config {
-                input,
-                output,
-                assets,
-                database,
+                input: input.clone(),
+                output: output.clone(),
+                assets: assets.clone(),
+                database: database.clone(),
                 port,
             };
             *self.config.lock().unwrap() = Some(Arc::new(config));
@@ -58,8 +58,8 @@ impl Singleton {
     }
 }
 
-fn ensure_paths_exist(path: String) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    if !fs::metadata(path.clone()).is_ok() {
+fn ensure_paths_exist(path: &Path) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    if !path.exists() {
         return Err(Box::<dyn std::error::Error + Send + Sync>::from(format!(
             "Path does not exist: {:?}",
             path

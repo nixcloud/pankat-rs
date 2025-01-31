@@ -76,10 +76,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let config_singleton = config::Singleton::new();
     config_singleton.initialize(
-        matches.get_one::<String>("input").unwrap().to_string(),
-        matches.get_one::<String>("output").unwrap().to_string(),
-        matches.get_one::<String>("assets").unwrap().to_string(),
-        matches.get_one::<String>("database").unwrap().to_string(),
+        std::path::Path::new(matches.get_one::<String>("input").unwrap()),
+        std::path::Path::new(matches.get_one::<String>("output").unwrap()),
+        std::path::Path::new(matches.get_one::<String>("assets").unwrap()),
+        std::path::Path::new(matches.get_one::<String>("database").unwrap()),
         matches
             .get_one::<String>("port")
             .unwrap()
@@ -129,7 +129,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Start server
     let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
     println!("Server running on {}", addr);
-    println!("Monitoring directory: {}", config.input.to_string());
+    println!("Monitoring directory: {}", config.input.display());
 
     // Create a listener with retry logic
     let listener = match tokio::net::TcpListener::bind(addr).await {
