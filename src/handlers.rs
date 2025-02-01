@@ -1,4 +1,5 @@
 use crate::auth::{create_token, validate_token, UserLevel};
+use crate::config;
 use crate::db::{create_user, get_user_by_username};
 use crate::error::AppError;
 use crate::registry::*;
@@ -93,7 +94,8 @@ use std::path::PathBuf;
 use tokio::fs;
 
 pub async fn serve_static(uri: axum::http::Uri) -> Result<Response, AppError> {
-    let mut path = PathBuf::from("documents/output");
+    let cfg = config::Config::get();
+    let mut path = PathBuf::from(cfg.output.clone());
 
     let path_str = uri.path();
     if path_str == "/" {
@@ -119,7 +121,7 @@ pub async fn serve_static(uri: axum::http::Uri) -> Result<Response, AppError> {
                 return Err(AppError::InternalError);
             }
 
-            let file_path = PathBuf::from("documents/dynamic/index.html");
+            let file_path = PathBuf::from(cfg.output.clone()).join("index.html");
             let html = fs::read_to_string(file_path)
                 .await
                 .map_err(|_| AppError::InternalError)?;

@@ -32,7 +32,7 @@ pub fn render_file(path: String) -> Result<String, Box<dyn Error>> {
 
     if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-        crate::renderer::html::create_html_from_article_template();
+        let _ = crate::renderer::html::create_html_from_article_template(); // FIXME
         Ok(stdout)
     } else {
         Err("Pandoc process failed".into())

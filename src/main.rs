@@ -73,26 +73,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         )
         .get_matches();
 
-    let config_singleton = config::Singleton::new();
-    config_singleton.initialize(
-        std::path::Path::new(matches.get_one::<String>("input").unwrap()),
-        std::path::Path::new(matches.get_one::<String>("output").unwrap()),
-        std::path::Path::new(matches.get_one::<String>("assets").unwrap()),
-        std::path::Path::new(matches.get_one::<String>("database").unwrap()),
-        matches
-            .get_one::<String>("port")
-            .unwrap()
-            .parse()
-            .unwrap(),
+    let config = config::Config::new(
+        std::path::Path::new(matches.get_one::<String>("input").unwrap()).into(),
+        std::path::Path::new(matches.get_one::<String>("output").unwrap()).into(),
+        std::path::Path::new(matches.get_one::<String>("assets").unwrap()).into(),
+        std::path::Path::new(matches.get_one::<String>("database").unwrap()).into(),
+        matches.get_one::<String>("port").unwrap().parse().unwrap(),
     );
-    let config = config_singleton.instance();
+    config::Config::initialize(config).expect("Failed to initialize config");
+    let cfg = config::Config::get();
 
     println!("-------------------------------------------------");
-    println!("Input Path: {:?}", config.input);
-    println!("Output Path: {:?}", config.output);
-    println!("Assets Path: {:?}", config.assets);
-    println!("Database Path: {:?}", config.database);
-    println!("Port Number: {}", config.port);
+    println!("Input Path: {:?}", cfg.input);
+    println!("Output Path: {:?}", cfg.output);
+    println!("Assets Path: {:?}", cfg.assets);
+    println!("Database Path: {:?}", cfg.database);
+    println!("Port Number: {}", cfg.port);
     println!("-------------------------------------------------");
 
     // Setup broadcast channel for shutdown coordination
@@ -100,7 +96,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let shutdown_rx = shutdown_tx.subscribe();
 
     // Initialize file monitoring
-    let monitor_handle = file_monitor::spawn_async_monitor(config.input.clone(), shutdown_rx)
+    let monitor_handle = file_monitor::spawn_async_monitor(cfg.input.clone(), shutdown_rx)
         .map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(e))?;
 
     // Initialize SQLite database with Diesel
@@ -126,17 +122,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .with_state(pool);
 
     // Start server
-    let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
+    let addr = SocketAddr::from(([0, 0, 0, 0], cfg.port));
     println!("Server running on {}", addr);
 
     // Create a listener with retry logic
     let listener = match tokio::net::TcpListener::bind(addr).await {
         Ok(listener) => {
-            println!("Successfully bound to port {}", config.port);
+            println!("Successfully bound to port {}", cfg.port);
             listener
         }
         Err(e) => {
-            eprintln!("Failed to bind to port {}: {}", config.port, e);
+            eprintln!("Failed to bind to port {}: {}", cfg.port, e);
             // If port is in use, try to clean up and exit
             println!("Initiating cleanup sequence...");
             if let Err(send_err) = shutdown_tx.send(()) {

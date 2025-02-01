@@ -16,7 +16,7 @@ pub fn spawn_async_monitor(
 
     // Store the path for cleanup
     let watch_path = path.as_ref().to_owned();
-    
+
     // Create a Watcher instance
     let (tx, mut rx) = mpsc::channel::<Result<Event, notify::Error>>(DEFAULT_CHANNEL_CAPACITY);
     let mut watcher = RecommendedWatcher::new(
