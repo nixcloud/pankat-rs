@@ -6,10 +6,11 @@ use std::path::PathBuf;
 pub fn render_file(path: String) -> Result<String, Box<dyn Error>> {
     let cfg = config::Config::get();
     let article_markdown = std::fs::read_to_string(&path)?;
-    let mut assets: PathBuf = PathBuf::from(cfg.assets.clone());
-    assets.push("pandoc-lua/shifted-numbered-headings.lua");
-    let luafile = assets.as_path();
-    println!("luafile path: {:?}", luafile.clone());
+    let mut input_: PathBuf = PathBuf::from(cfg.input.clone());
+    input_.push("pandoc-lua/shifted-numbered-headings.lua");
+    
+    let luafile = std::path::Path::new(input_);
+
     let mut pandoc_process = std::process::Command::new("pandoc")
         .arg("--lua-filter")
         .arg(luafile)
@@ -36,11 +37,10 @@ pub fn render_file(path: String) -> Result<String, Box<dyn Error>> {
 
     if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-        let xxx: String = crate::renderer::html::create_html_from_standalone_template().unwrap();
+        let xxx: String = crate::renderer::html::create_html_from_article_template().unwrap(); // FIXME
         let mut path = PathBuf::from(cfg.output.clone());
 
         path.push("output.html");
-        println!("output path: {:?}", path.clone());
         std::fs::write(&path, xxx)?;
 
         Ok(stdout)

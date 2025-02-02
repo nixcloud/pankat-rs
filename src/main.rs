@@ -112,12 +112,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     // Create router
     let app = Router::new()
-        .route("/", get(handlers::serve_static))
-        .route("/*path", get(handlers::serve_static))
+        .route("/posts", get(handlers::serve_input))
+        .route("/media", get(handlers::serve_input))
+        .route("/assets", get(handlers::serve_assets))
         .route("/api/auth/register", post(handlers::register))
         .route("/api/auth/login", post(handlers::login))
         .route("/api/protected", get(handlers::protected))
-        .route("/ws", get(handlers::websocket_route))
+        .route("/api/ws", get(handlers::websocket_route))
+        .route("/", get(handlers::serve_output))
+        .route("/*path", get(handlers::serve_output))
         .layer(CorsLayer::permissive())
         .with_state(pool);
 
@@ -145,6 +148,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             return Err(Box::<dyn std::error::Error + Send + Sync>::from(e));
         }
     };
+
+    articles::scan_articles();
 
     // Start server with graceful shutdown
     println!("Press Ctrl+C to stop the server...");

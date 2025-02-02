@@ -102,7 +102,7 @@
 
 <a href="{{ArticleSourceCodeURL}}" title="{{ArticleSourceCodeFS}}">article source</a>
 </div>
-{{ end }}
+{{ /if }}
 </div>
 
 <div id="scrollUp">
@@ -155,7 +155,7 @@ $("#toc").hover(function() {
 </script>
 {{/if}}
 
-{{if not .SpecialPage}}
+{{#unless SpecialPage}}
 <script>
 
 var shifted = false;
@@ -178,7 +178,7 @@ $(window).keydown(function(event) {
   }
 });
 </script>
-{{/if}}
+{{/unless}}
 
 <script>
 // check if we got served from pankat-server

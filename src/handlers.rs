@@ -3,6 +3,8 @@ use crate::config;
 use crate::db::{create_user, get_user_by_username};
 use crate::error::AppError;
 use crate::registry::*;
+use axum::http::{header, StatusCode};
+use axum::response::Response;
 use axum::{
     extract::{
         ws::{WebSocket, WebSocketUpgrade},
@@ -15,6 +17,8 @@ use bcrypt::{hash, verify, DEFAULT_COST};
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::SqliteConnection;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+use tokio::fs;
 
 type DbPool = Pool<ConnectionManager<SqliteConnection>>;
 
@@ -88,12 +92,7 @@ pub async fn protected(headers: HeaderMap) -> Result<Json<&'static str>, AppErro
     }
 }
 
-use axum::http::{header, StatusCode};
-use axum::response::Response;
-use std::path::PathBuf;
-use tokio::fs;
-
-pub async fn serve_static(uri: axum::http::Uri) -> Result<Response, AppError> {
+pub async fn serve_output(uri: axum::http::Uri) -> Result<Response, AppError> {
     let cfg = config::Config::get();
     let mut path = PathBuf::from(cfg.output.clone());
 
@@ -134,6 +133,52 @@ pub async fn serve_static(uri: axum::http::Uri) -> Result<Response, AppError> {
 
             Ok(response)
         }
+    }
+}
+
+pub async fn serve_input(uri: axum::http::Uri) -> Result<Response, AppError> {
+    let cfg = config::Config::get();
+    let mut input = PathBuf::from(cfg.input.clone());
+
+    let path_str = uri.path();
+    input.push(&path_str[1..]);
+
+    match fs::read(&input).await {
+        Ok(contents) => {
+            let mime_type = mime_guess::from_path(&input).first_or_text_plain();
+
+            let response = Response::builder()
+                .status(StatusCode::OK)
+                .header(header::CONTENT_TYPE, mime_type.as_ref())
+                .body(contents.into())
+                .map_err(|_| AppError::InternalError)?;
+
+            Ok(response)
+        }
+        Err(_) => Err(AppError::InternalError),
+    }
+}
+
+pub async fn serve_assets(uri: axum::http::Uri) -> Result<Response, AppError> {
+    let cfg = config::Config::get();
+    let mut assets = PathBuf::from(cfg.assets.clone());
+
+    let path_str = uri.path();
+    assets.push(&path_str[1..]);
+
+    match fs::read(&assets).await {
+        Ok(contents) => {
+            let mime_type = mime_guess::from_path(&assets).first_or_text_plain();
+
+            let response = Response::builder()
+                .status(StatusCode::OK)
+                .header(header::CONTENT_TYPE, mime_type.as_ref())
+                .body(contents.into())
+                .map_err(|_| AppError::InternalError)?;
+
+            Ok(response)
+        }
+        Err(_) => Err(AppError::InternalError),
     }
 }
 

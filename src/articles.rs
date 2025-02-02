@@ -1,8 +1,13 @@
-struct Article {
+use std::path::PathBuf;
+use std::collections::HashMap;
+
+use crate::config;
+
+pub struct Article {
     id: u32,
-    src_file_name: String,
+    src_file_name: PathBuf,
     dst_file_name: String,
-    article_mdwn_source: Vec<u8>,
+    article_mdwn_source: PathBuf,
     title: String,
     modification_date: std::time::SystemTime,
     summary: String,
@@ -18,7 +23,7 @@ struct Article {
     live_updates: bool,
 }
 
-struct Tag {
+pub struct Tag {
     id: u32,
     tag_id: u32,
     name: String,
@@ -41,6 +46,67 @@ enum FileAction {
     Update,
     Del,
 }
+
+pub fn scan_articles() -> HashMap<PathBuf, Article> {
+    let mut articles: HashMap<PathBuf, Article> = HashMap::new();
+    let cfg = config::Config::get();
+    let input_path: PathBuf = cfg.input.clone();
+
+    fn traverse_and_collect_articles(dir: &PathBuf, articles: &mut HashMap<PathBuf, Article>) {
+        if dir.is_dir() {
+            if let Ok(entries) = std::fs::read_dir(dir) {
+                for entry in entries {
+                    if let Ok(entry) = entry {
+                        let path = entry.path();
+                        if path.is_dir() {
+                            traverse_and_collect_articles(&path, articles);
+                        } else if let Some(ext) = path.extension() {
+                            if ext == "mdwn" {
+                                match parse_article(&path) {
+                                    Ok(article) => { articles.insert(path, article); },
+                                    Err(_) => { /* Handle errors if necessary */ },
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    traverse_and_collect_articles(&input_path, &mut articles);
+    println!("articles: {:?}", articles.len());
+    articles
+}
+
+pub fn parse_article(article_path: &PathBuf) -> Result<Article, String>
+    {
+        let article: Article = Article {
+            id: 0,
+            src_file_name: article_path.clone(),
+            dst_file_name: String::from("bogus_dst.md"),
+            article_mdwn_source: PathBuf::from("bogus/path"),
+            title: String::from("Bogus Title"),
+            modification_date: std::time::SystemTime::now(),
+            summary: String::from("This is a bogus summary."),
+            tags: Vec::new(),
+            article_cache: ArticleCache {
+                id: 0,
+                article_cache_id: 0,
+                hash: Vec::new(),
+                generated_html: String::from("<html>"),
+            },
+            series: String::from("Bogus Series"),
+            special_page: false,
+            draft: false,
+            anchorjs: false,
+            tocify: false,
+            timeline: false,
+            show_source_link: false,
+            live_updates: false,
+        };
+        Ok(article)
+    }
 
 // async fn handle_articles() {
 //     let (tx, mut rx) = mpsc::channel::<ArticleItem>(32);
