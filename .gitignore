@@ -4,3 +4,4 @@ dist
 target
 auth.db
 documents/blog.lastlog.de
+documents/output

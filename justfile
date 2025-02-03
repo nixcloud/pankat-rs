@@ -4,8 +4,11 @@ build-pankat-wasm:
 copy-pankat-wasm:
   mkdir -p documents/assets/pankat-wasm && cp -R pankat-wasm/pkg/* documents/assets/pankat-wasm
 
-build:
+build-backend:
   cargo build
 
-run: build-pankat-wasm copy-pankat-wasm build
+run: build-backend
+  cargo run -- --input documents/blog.lastlog.de --output documents/output/ --assets documents/assets/ --database documents/
+
+run-all: build-pankat-wasm copy-pankat-wasm build-backend
   cargo run -- --input documents/blog.lastlog.de --output documents/output/ --assets documents/assets/ --database documents/

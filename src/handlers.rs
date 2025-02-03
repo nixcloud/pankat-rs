@@ -1,6 +1,6 @@
 use crate::auth::{create_token, validate_token, UserLevel};
 use crate::config;
-use crate::db::{create_user, get_user_by_username};
+use crate::db::users::{create_user, get_user_by_username};
 use crate::error::AppError;
 use crate::registry::*;
 use axum::http::{header, StatusCode};

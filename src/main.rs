@@ -7,7 +7,6 @@ mod file_monitor;
 mod handlers;
 mod registry;
 mod renderer;
-mod schema;
 
 use axum::{
     routing::{get, post},
