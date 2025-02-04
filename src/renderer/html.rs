@@ -5,11 +5,16 @@ use std::error::Error;
 use std::fs;
 use std::path::PathBuf;
 
+use crate::articles::Article;
+
 // https://docs.rs/handlebars/latest/handlebars/
 
-pub fn create_html_from_standalone_template() -> Result<String, Box<dyn Error>> {
+pub fn create_html_from_standalone_template(
+    article: Article,
+    html: String,
+) -> Result<String, Box<dyn Error>> {
     let cfg = config::Config::get();
-    
+
     // Step 1: Create a new Handlebars registry
     let mut handlebars = Handlebars::new();
 
@@ -22,14 +27,11 @@ pub fn create_html_from_standalone_template() -> Result<String, Box<dyn Error>> 
     // Step 3: Register the template with a name
     handlebars.register_template_string("welcome_html", &template_content)?;
 
-    // Step 4: Get content
-    let content_template = create_html_from_content_template().unwrap_or("".to_string());
-
     // Step 5: Define data for the template
     let data = json!({
-        "Title": "Sample Title",
+        "Title": article.title,
         "SiteBrandTitle": "Sample Brand",
-        "NavTitleArticleSource": content_template,
+        "NavTitleArticleSource": html,
         "ArticleSourceCodeURL": "http://example.com/source",
         "ArticleSourceCodeFS": "/local/path/to/source",
         "ArticleDstFileName": "roadmap.html",
@@ -48,7 +50,10 @@ pub fn create_html_from_standalone_template() -> Result<String, Box<dyn Error>> 
     Ok(result)
 }
 
-pub fn create_html_from_content_template() -> Result<String, Box<dyn Error>> {
+pub fn create_html_from_content_template(
+    article: Article,
+    html: String,
+) -> Result<String, Box<dyn Error>> {
     let cfg = config::Config::get();
 
     // Step 1: Create a new Handlebars registry
@@ -65,12 +70,12 @@ pub fn create_html_from_content_template() -> Result<String, Box<dyn Error>> {
 
     // Step 5: Define data for the template
     let data = json!({
-        "SpecialPage": true,
+        "SpecialPage": article.special_page,
         "TitleNAV": "Sample Title",
         "SeriesNAV": "Sample Title",
         "Title": "Sample Title",
         "TimeString": "Sample Brand",
-        "Body": "Sample Brand",
+        "Body": html,
     });
 
     // Step 6: Render the template with the data

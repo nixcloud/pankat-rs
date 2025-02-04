@@ -22,7 +22,9 @@ pub struct Claims {
 const JWT_SECRET: &[u8] = b"your-secret-key"; // In production, this should be an environment variable
 
 #[cfg(not(debug_assertions))]
-compile_error!("JWT_SECRET should not be hardcoded in release builds. Use an environment variable instead.");
+compile_error!(
+    "JWT_SECRET should not be hardcoded in release builds. Use an environment variable instead."
+);
 /// Create a new JWT token for a user
 ///
 /// # Arguments

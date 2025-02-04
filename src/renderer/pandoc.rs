@@ -36,13 +36,6 @@ pub fn render_file(path: String) -> Result<String, Box<dyn Error>> {
 
     if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-        let xxx: String = crate::renderer::html::create_html_from_standalone_template().unwrap();
-        let mut path = PathBuf::from(cfg.output.clone());
-
-        path.push("output.html");
-        println!("output path: {:?}", path.clone());
-        std::fs::write(&path, xxx)?;
-
         Ok(stdout)
     } else {
         Err("Pandoc process failed".into())

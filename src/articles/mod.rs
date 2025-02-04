@@ -1,4 +1,6 @@
 use chrono::NaiveDateTime;
+use chrono::TimeZone;
+use chrono::Utc;
 use regex::Regex;
 use std::collections::HashMap;
 use std::error::Error;
@@ -6,33 +8,36 @@ use std::path::PathBuf;
 use std::time::SystemTime;
 
 use crate::config;
-use crate::renderer::*;
+use crate::renderer::html::{
+    create_html_from_content_template, create_html_from_standalone_template,
+};
+use crate::renderer::pandoc::render_file;
 
-/// asdf
+#[derive(Debug, Clone)]
 pub struct Article {
     /// relative to $input
-    src_file_name: PathBuf,
+    pub src_file_name: PathBuf,
     /// relative to $input or flattened to single filename
-    dst_file_name: Option<PathBuf>,
-    article_mdwn_source: Option<String>,
-    draft: Option<bool>,
+    pub dst_file_name: Option<PathBuf>,
+    pub article_mdwn_source: Option<String>,
+    pub draft: Option<bool>,
 
     /// override for the title (derived from filename by default)
-    title: Option<String>,
-    modification_date: Option<std::time::SystemTime>,
-    summary: Option<String>,
+    pub title: Option<String>,
+    pub modification_date: Option<std::time::SystemTime>,
+    pub summary: Option<String>,
 
-    tags: Option<Vec<String>>,
-    series: Option<String>,
+    pub tags: Option<Vec<String>>,
+    pub series: Option<String>,
 
-    special_page: Option<bool>,
-    timeline: Option<bool>,
+    pub special_page: Option<bool>,
+    pub timeline: Option<bool>,
 
-    anchorjs: Option<bool>,
-    tocify: Option<bool>,
-    show_source_link: Option<bool>,
+    pub anchorjs: Option<bool>,
+    pub tocify: Option<bool>,
+    pub show_source_link: Option<bool>,
     /// register for live updates (default true)
-    live_updates: Option<bool>,
+    pub live_updates: Option<bool>,
 }
 
 pub fn scan_articles() -> HashMap<PathBuf, Article> {
@@ -71,6 +76,8 @@ pub fn scan_articles() -> HashMap<PathBuf, Article> {
     //println!("articles: {:?}", articles.len());
 
     for (_, article) in &articles {
+        //println!("article: {:?}", article);
+
         write_article_to_disk(article);
     }
 
@@ -84,14 +91,26 @@ fn write_article_to_disk(article: &Article) {
     let cfg = config::Config::get();
     let output_path: PathBuf = cfg.output.clone();
 
-    // let content = renderer::create_html_from_content_template(article);
-    // let html: String = renderer::create_html_from_standalone_template(article, content);
+    let xxx = article
+        .article_mdwn_source
+        .clone()
+        .unwrap_or("".to_string());
 
-    // if let Some(dst_file_name) = &article.dst_file_name {
-    //     let mut output_file = output_path.clone();
-    //     output_file.push(dst_file_name);
-    //     std::fs::write(output_file, html).expect("Unable to write HTML file");
-    // }
+    match render_file(xxx) {
+        Ok(mdwn_html) => {
+            let content: String =
+                create_html_from_content_template(article.clone(), mdwn_html).unwrap();
+            let html: String =
+                create_html_from_standalone_template(article.clone(), content).unwrap();
+
+            if let Some(dst_file_name) = &article.dst_file_name {
+                let mut output_file = output_path.clone();
+                output_file.push(dst_file_name);
+                std::fs::write(output_file, html).expect("Unable to write HTML file");
+            }
+        }
+        Err(e) => {}
+    }
 }
 
 fn parse_article(article_path: &PathBuf) -> Result<Article, Box<dyn Error>> {
@@ -119,7 +138,9 @@ fn parse_article(article_path: &PathBuf) -> Result<Article, Box<dyn Error>> {
 
     let article_mdwn_raw_string = std::fs::read_to_string(article_path).unwrap();
     match process_plugins(&article_mdwn_raw_string, &mut article) {
-        Ok(article_mdwn_source) => article.article_mdwn_source = Some(article_mdwn_source),
+        Ok(article_mdwn_refined_source) => {
+            article.article_mdwn_source = Some(article_mdwn_refined_source)
+        }
         Err(err) => {
             todo!()
         }
@@ -203,8 +224,8 @@ fn call_plugin(input: &str, article: &mut Article) -> Result<PluginResult, Box<d
                     if let Ok(parsed_time) =
                         NaiveDateTime::parse_from_str(mat.as_str(), "%Y-%m-%d %H:%M")
                     {
-                        let converted_time = SystemTime::from(parsed_time);
-                        article.modification_date = Some(converted_time);
+                        let system_time: SystemTime = Utc.from_utc_datetime(&parsed_time).into();
+                        article.modification_date = Some(system_time);
                         return Ok(PluginResult {
                             name: "meta".to_string(),
                             output: "".to_string(),
@@ -212,20 +233,10 @@ fn call_plugin(input: &str, article: &mut Article) -> Result<PluginResult, Box<d
                     } else {
                         Err("Argument contains invalid characters (newlines or tabs)".into())
                     }
-                }else {
+                } else {
                     Err("Argument contains invalid characters (newlines or tabs)".into())
                 }
             }
-            // "meta" => {
-            //     let re = Regex::new(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}").unwrap();
-            //     if let Some(mat) = re.find(&String::from_utf8_lossy(input)) {
-            //         if let Ok(parsed_time) =
-            //             chrono::NaiveDateTime::parse_from_str(mat.as_str(), "%Y-%m-%d %H:%M")
-            //         {
-            //             article.modification_date = SystemTime::from(parsed_time);
-            //         }
-            //     }
-            // }
             "series" => {
                 if argument.contains('\n') || argument.contains('\t') {
                     Err("Argument contains invalid characters (newlines or tabs)".into())
