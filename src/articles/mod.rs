@@ -1,11 +1,12 @@
+use chrono::NaiveDateTime;
+use regex::Regex;
 use std::collections::HashMap;
 use std::error::Error;
 use std::path::PathBuf;
-use regex::Regex;
 use std::time::SystemTime;
 
-use crate::renderer::*;
 use crate::config;
+use crate::renderer::*;
 
 /// asdf
 pub struct Article {
@@ -39,6 +40,8 @@ pub fn scan_articles() -> HashMap<PathBuf, Article> {
     let cfg = config::Config::get();
     let input_path: PathBuf = cfg.input.clone();
 
+    let start_time = std::time::Instant::now();
+
     fn traverse_and_collect_articles(dir: &PathBuf, articles: &mut HashMap<PathBuf, Article>) {
         if dir.is_dir() {
             if let Ok(entries) = std::fs::read_dir(dir) {
@@ -70,6 +73,9 @@ pub fn scan_articles() -> HashMap<PathBuf, Article> {
     for (_, article) in &articles {
         write_article_to_disk(article);
     }
+
+    let duration = start_time.elapsed();
+    println!("Time taken to execute: {:?}", duration);
 
     articles
 }
@@ -133,88 +139,157 @@ fn process_plugins(
     article_mdwn_raw_string: &String,
     article: &mut Article,
 ) -> Result<String, Box<dyn Error>> {
-    //     let mut processed_article = Vec::new();
-    //     let re = Regex::new(r"\[\[!(.*?)\]\]").unwrap();
-    //     let mut prev_pos = 0;
-    //     let mut found_plugins = Vec::new();
+    let mut processed_article = String::new();
+    let re = Regex::new(r"\[\[!(.*?)\]\]").unwrap();
+    let mut prev_pos = 0;
+    let mut found_plugins = Vec::new();
 
-    //     for mat in re.find_iter(article_bytes) {
-    //         if prev_pos != mat.start() {
-    //             processed_article.extend_from_slice(&article_bytes[prev_pos..mat.start()]);
-    //         }
-    //         let (plugin_output, name) = call_plugin(&article_bytes[mat.start()..mat.end()], article);
-    //         found_plugins.push(name);
-    //         processed_article.extend_from_slice(&plugin_output);
-    //         prev_pos = mat.end();
-    //     }
+    for mat in re.find_iter(article_mdwn_raw_string) {
+        if prev_pos != mat.start() {
+            processed_article.push_str(&article_mdwn_raw_string[prev_pos..mat.start()]);
+        }
+        match call_plugin(&article_mdwn_raw_string[mat.start()..mat.end()], article) {
+            Ok(res) => {
+                let PluginResult {
+                    name: plugin_name,
+                    output: plugin_output,
+                } = res;
+                found_plugins.push(plugin_name);
+                processed_article.push_str(&plugin_output);
+                prev_pos = mat.end();
+            }
+            Err(e) => {
+                //todo!()
+            }
+        }
+        processed_article.push_str(&article_mdwn_raw_string[prev_pos..]);
+    }
 
-    //     processed_article.extend_from_slice(&article_bytes[prev_pos..]);
-    //     println!("{} plugins: {:?}", article.dst_file_name, found_plugins);
-    //     processed_article
-    Ok("".to_string())
+    //println!("Plugins: {:?}", found_plugins);
+    Ok(processed_article)
 }
 
-// fn call_plugin(input: &String, article: &mut Article) -> (Vec<u8>, String) {
-//     // if input.len() < 5 {
-//     //     return (Vec::new(), String::new());
-//     // }
-//     // let content = &input[3..input.len() - 2];
-//     // let parts: Vec<&str> = String::from_utf8_lossy(content)
-//     //     .split_whitespace()
-//     //     .collect();
-//     // let name = parts.get(0).map(|s| s.to_lowercase()).unwrap_or_default();
-//     // let mut output = Vec::new();
+struct PluginResult {
+    name: String,
+    output: String,
+}
 
-//     match name.as_str() {
-//         //     "specialpage" => article.special_page = true,
-//         //     "draft" => article.draft = true,
-//         // "meta" => {
-//         //     let re = Regex::new(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}").unwrap();
-//         //     if let Some(mat) = re.find(&String::from_utf8_lossy(input)) {
-//         //         if let Ok(parsed_time) =
-//         //             chrono::NaiveDateTime::parse_from_str(mat.as_str(), "%Y-%m-%d %H:%M")
-//         //         {
-//         //             article.modification_date = SystemTime::from(parsed_time);
-//         //         }
-//         //     }
-//         // }
-//         // "series" => {
-//         //     if parts.len() > 1 {
-//         //         article.series = Some(parts[1..].join(" "));
-//         //     }
-//         // }
-//         // "tag" => {
-//         //     for tag in &parts[1..] {
-//         //         article.tags.push(Tag {
-//         //             name: tag.to_string(),
-//         //         });
-//         //     }
-//         // }
-//         // "img" => {
-//         //     if parts.len() > 1 {
-//         //         let img_tag = format!(
-//         //             "<a href=\"{}\"><img src=\"{}\"></a>",
-//         //             parts[1],
-//         //             parts[1..].join(" ")
-//         //         );
-//         //         output = img_tag.into_bytes();
-//         //     }
-//         // }
-//         // "summary" => {
-//         //     if parts.len() > 1 {
-//         //         article.summary = Some(parts[1..].join(" "));
-//         //     }
-//         // }
-//         // "title" => {
-//         //     if parts.len() > 1 {
-//         //         article.title = Some(parts[1..].join(" "));
-//         //     }
-//         // }
-//         _ => println!(
-//             "{}: plugin '{}' NOT supported",
-//             article.src_file_name.display(),
-//             name
-//         ),
-//     }
-//     (output, name)
-// }
+fn call_plugin(input: &str, article: &mut Article) -> Result<PluginResult, Box<dyn Error>> {
+    let pattern = r#"\[\[!([\w]+)(?:\s+(.*))?\]\]"#;
+    let re = Regex::new(pattern).unwrap();
+
+    if let Some(captures) = re.captures(input) {
+        let name = captures.get(1).unwrap().as_str();
+        let argument = captures.get(2).map_or("", |m| m.as_str()).trim();
+
+        match name {
+            "specialpage" => {
+                article.special_page = Some(true);
+                Ok(PluginResult {
+                    name: "specialpage".to_string(),
+                    output: "".to_string(),
+                })
+            }
+            "draft" => {
+                article.special_page = Some(true);
+                Ok(PluginResult {
+                    name: "draft".to_string(),
+                    output: "".to_string(),
+                })
+            }
+            "meta" => {
+                let re = Regex::new(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}").unwrap();
+                if let Some(mat) = re.find(&argument) {
+                    if let Ok(parsed_time) =
+                        NaiveDateTime::parse_from_str(mat.as_str(), "%Y-%m-%d %H:%M")
+                    {
+                        let converted_time = SystemTime::from(parsed_time);
+                        article.modification_date = Some(converted_time);
+                        return Ok(PluginResult {
+                            name: "meta".to_string(),
+                            output: "".to_string(),
+                        });
+                    } else {
+                        Err("Argument contains invalid characters (newlines or tabs)".into())
+                    }
+                }else {
+                    Err("Argument contains invalid characters (newlines or tabs)".into())
+                }
+            }
+            // "meta" => {
+            //     let re = Regex::new(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}").unwrap();
+            //     if let Some(mat) = re.find(&String::from_utf8_lossy(input)) {
+            //         if let Ok(parsed_time) =
+            //             chrono::NaiveDateTime::parse_from_str(mat.as_str(), "%Y-%m-%d %H:%M")
+            //         {
+            //             article.modification_date = SystemTime::from(parsed_time);
+            //         }
+            //     }
+            // }
+            "series" => {
+                if argument.contains('\n') || argument.contains('\t') {
+                    Err("Argument contains invalid characters (newlines or tabs)".into())
+                } else {
+                    let series = argument.to_string();
+                    article.series = Some(series);
+                    Ok(PluginResult {
+                        name: "series".to_string(),
+                        output: "".to_string(),
+                    })
+                }
+            }
+            "tag" => {
+                if argument.contains('\n') || argument.contains('\t') {
+                    Err("Argument contains invalid characters (newlines or tabs)".into())
+                } else {
+                    let tag = argument.to_string();
+                    article.tags = Some(tag.split_whitespace().map(|s| s.to_string()).collect());
+                    Ok(PluginResult {
+                        name: "tag".to_string(),
+                        output: "".to_string(),
+                    })
+                }
+            }
+            "img" => {
+                if argument.contains('\n') || argument.contains('\t') {
+                    Err("Argument contains invalid characters (newlines or tabs)".into())
+                } else {
+                    let mut parts = argument.split_whitespace();
+                    let img = parts.next().unwrap_or("").to_string();
+                    let subarg = parts.collect::<Vec<&str>>().join(" ");
+                    Ok(PluginResult {
+                        name: "img".to_string(),
+                        output: format!("<a href=\"{}\"><img src=\"{}\"></a>", img, subarg),
+                    })
+                }
+            }
+            "summary" => {
+                if argument.contains('\n') || argument.contains('\t') {
+                    Err("Argument contains invalid characters (newlines or tabs)".into())
+                } else {
+                    let summary = argument.to_string();
+                    article.summary = Some(summary);
+                    Ok(PluginResult {
+                        name: "summary".to_string(),
+                        output: "".to_string(),
+                    })
+                }
+            }
+            "title" => {
+                if argument.contains('\n') || argument.contains('\t') {
+                    Err("Argument contains invalid characters (newlines or tabs)".into())
+                } else {
+                    let title = argument.to_string();
+                    article.title = Some(title);
+                    Ok(PluginResult {
+                        name: "title".to_string(),
+                        output: "".to_string(),
+                    })
+                }
+            }
+            _ => Err("Plugin '{name}' is not supported".into()),
+        }
+    } else {
+        Err("Plugin couldn't be decoded".into())
+    }
+}
