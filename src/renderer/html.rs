@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 pub fn create_html_from_standalone_template() -> Result<String, Box<dyn Error>> {
     let cfg = config::Config::get();
-    cfg.assets.clone();
+    
     // Step 1: Create a new Handlebars registry
     let mut handlebars = Handlebars::new();
 
@@ -23,8 +23,7 @@ pub fn create_html_from_standalone_template() -> Result<String, Box<dyn Error>> 
     handlebars.register_template_string("welcome_html", &template_content)?;
 
     // Step 4: Get content
-    let content_template =
-        create_html_from_content_template().unwrap_or("".to_string());
+    let content_template = create_html_from_content_template().unwrap_or("".to_string());
 
     // Step 5: Define data for the template
     let data = json!({

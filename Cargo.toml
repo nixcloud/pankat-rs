@@ -28,6 +28,8 @@ lazy_static = "1.5.0"
 gloo-timers = { version = "0.3.0", features = ["futures"] }
 handlebars = "6.3.0"
 clap = { version = "4.5.27", features = ["string"] }
+regex = "1.11.1"
+chrono = "0.4.39"
 
 [build-dependencies]
 diesel_cli = { version = "2.1.0", default-features = false, features = ["sqlite"] }

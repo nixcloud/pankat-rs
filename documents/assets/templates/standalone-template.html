@@ -20,7 +20,7 @@
 
 {{#if LiveUpdates}}
 <script type="module">
-    import init from './pkg/frontend.js';
+    import init from './pkg/pankat_wasm.js';
     async function run() {
         await init();
         console.log("Hello World from module init context!");

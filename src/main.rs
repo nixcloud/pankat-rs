@@ -35,7 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .short('i')
                 .long("input")
                 .value_name("PATH")
-                .help("Absolute path where the media/ and posts/*.md files of your blog are located")
+                .help("Absolute path where the media/*.jpg and posts/*.md files of your blog are located")
                 .required(true),
         )
         .arg(
@@ -43,7 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .short('o')
                 .long("output")
                 .value_name("PATH")
-                .help("Absolute path, where pankat stores the generated html files")
+                .help("Absolute path, where pankat 'maintains' the generated html files")
                 .required(true),
         )
         .arg(
@@ -51,7 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .short('a')
                 .long("assets")
                 .value_name("PATH")
-                .help("An absolute assets path, where js/wasm/css/... files are stored")
+                .help("An absolute assets path, where js/wasm/css/templates/lua/... files are stored")
                 .required(true),
         )
         .arg(
@@ -59,7 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .short('d')
                 .long("database")
                 .value_name("PATH")
-                .help("An absolute path where the database is stored")
+                .help("An absolute path where 'only' the database is stored (don't put this into output!)")
                 .required(true),
         )
         .arg(
@@ -100,14 +100,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     // Initialize SQLite database with Diesel
     let pool = db::establish_connection_pool();
-
-    // Run migrations
-    let mut conn = pool
-        .get()
-        .map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(e))?;
-    if let Err(e) = conn.run_pending_migrations(MIGRATIONS) {
-        eprintln!("Migration error: {:?}", e);
-    }
 
     // Create router
     let app = Router::new()
