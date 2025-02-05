@@ -1,0 +1,288 @@
+[[!meta date="2024-04-17 20:53"]]
+[[!tag nix nixos libnix]]
+[[!series libnix]]
+[[!summary mingw nix - nix-instantiate.exe works on windows!]]
+
+[[!img media/nlnet-logo.gif class="noFancy" style="float: right"]]
+[[!img posts/libnix/Nix_snowflake_windows.svg class="noFancy" style="float: right" width="200px"]]
+
+# motivation
+
+status of **native windows nix using MinGW** from my series [libnix](https://lastlog.de/blog/timeline.html?filter=series::libnix)
+
+# status
+
+native nix on windows, using MinGW work from this branch: <https://github.com/NixOS/nix/pull/8901> i was able to:
+
+* **cross-compile nix.exe** from **nixos-wsl**
+* run **nix-instantiate.exe on windows** to compute **'2+2' -> 4**
+* **run unit tests on windows**, see the check output
+
+## build using nix build
+
+on [nixos-wsl](https://github.com/nix-community/NixOS-WSL), after you checked out the branch:
+
+```bash
+nix-repl
+:lf .
+:b packages.x86_64-linux.nix-x86_64-w64-mingw32
+```
+
+and you can build the software using the nix build command:
+
+```bash
+nix build .#packages.x86_64-linux.nix-x86_64-w64-mingw32 -v
+nix log .#packages.x86_64-linux.nix-x86_64-w64-mingw32
+```
+
+the result is this:
+```
+This derivation produced the following outputs:
+  check -> /nix/store/a09j2l5s1prx7hijjh347zrkykjdmlq7-nix-x86_64-w64-mingw32-2.22.0pre20240409_76b7331-check
+  dev -> /nix/store/2w7xn62vdf01g47kkjsm6195wl5gqy2n-nix-x86_64-w64-mingw32-2.22.0pre20240409_76b7331-dev
+  out -> /nix/store/l3isj28znw1gvpxzj9mmq57jspz12sgs-nix-x86_64-w64-mingw32-2.22.0pre20240409_76b7331
+```
+
+but **you need to copy the files to the windows machine in order to execute it**, for me this is **/mnt/c/Users/joschie/**.
+
+### verbose build
+
+``` diff
+diff --git a/package.nix b/package.nix
+index c9e50c399..0f8c5711e 100644
+--- a/package.nix
++++ b/package.nix
+@@ -313,6 +313,8 @@ in {
+   enableParallelBuilding = true;
+
+   makeFlags = "profiledir=$(out)/etc/profile.d PRECOMPILE_HEADERS=1";
++  NIX_CFLAGS_COMPILE = "-v";
++  NIX_LDFLAGS = "-v";
+```
+
+and run the build with:
+
+```bash
+nix build .#packages.x86_64-linux.nix-x86_64-w64-mingw32 -L
+```
+
+### copy the files to windows
+
+the the directory:
+
+```
+nix derivation show .#packages.x86_64-linux.nix-x86_64-w64-mingw32 | jq -r '.[] |  .outputs.out.path'
+/nix/store/l3isj28znw1gvpxzj9mmq57jspz12sgs-nix-x86_64-w64-mingw32-2.22.0pre20240409_76b7331
+```
+
+note: the dev-shell below is used to access the $LINK_DLL_FOLDERS variable to extract the dlls!
+
+```bash
+nix develop .#devShells.x86_64-linux.x86_64-w64-mingw32
+cd /nix/store/l3isj28znw1gvpxzj9mmq57jspz12sgs-nix-x86_64-w64-mingw32-2.22.0pre20240409_76b7331/bin
+rm -rf /tmp/copy-to-windows
+mkdir /tmp/copy-to-windows
+cp -rL *.{exe,dll} /tmp/copy-to-windows
+
+# _linkDLLs creates symlinks but doesn't copy them
+# meaning that recursive dependencies don't get copied!
+# For example, libhttp_parser.2.9.4.dll which libgit2 needs.
+for i in $(echo "$LINK_DLL_FOLDERS" | tr ':' ' '); do
+    for dll in $(find $i -name "*.dll"); do
+        if [ ! -e "/tmp/copy-to-windows/$(basename $dll)" ]; then
+           cp $dll /tmp/copy-to-windows/
+        fi
+    done
+done
+```
+
+and finally copy the files to the windows machine:
+
+```bash
+cp -r /tmp/copy-to-windows /mnt/c/Users/joschie/
+```
+
+in an admin power shell run this command:
+
+```
+cd C:\Users\joschie\copy-to-windows
+cmd /c mklink nix-build.exe nix.exe
+cmd /c mklink nix-channel.exe nix.exe
+cmd /c mklink nix-collect-garbage.exe nix.exe
+cmd /c mklink nix-copy-closure.exe nix.exe
+cmd /c mklink nix-daemon.exe nix.exe
+cmd /c mklink nix-env.exe nix.exe
+cmd /c mklink nix-hash.exe nix.exe
+cmd /c mklink nix-instantiate.exe nix.exe
+cmd /c mklink nix-prefetch-url.exe nix.exe
+cmd /c mklink nix-shell.exe nix.exe
+cmd /c mklink nix-store.exe nix.exe
+```
+
+the output should look like this:
+
+```
+(base) PS C:\Users\joschie\copy-to-windows> ls
+
+    Directory: C:\Users\joschie\copy-to-windows
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-ar--           17-Apr-24  2:13 PM          81299 capi.dll
+-ar--           17-Apr-24  2:13 PM         175006 legacy.dll
+-ar--           17-Apr-24  2:13 PM        1133001 libarchive-13.dll
+-ar--           17-Apr-24  2:13 PM          66371 libatomic-1.dll
+-ar--           17-Apr-24  2:13 PM         158587 libbrotlicommon.dll
+-ar--           17-Apr-24  2:13 PM          76247 libbrotlidec.dll
+-ar--           17-Apr-24  2:13 PM         745991 libbrotlienc.dll
+-ar--           17-Apr-24  2:13 PM         125885 libbz2-1.dll
+-ar--           17-Apr-24  2:13 PM          61588 libcharset-1.dll
+-ar--           17-Apr-24  2:13 PM         260067 libcpuid-16.dll
+-ar--           17-Apr-24  2:13 PM        4991360 libcrypto-3-x64.dll
+-ar--           17-Apr-24  2:13 PM         158103 libgcc_s_seh-1.dll
+-ar--           17-Apr-24  2:13 PM        1530891 libgit2.dll
+-ar--           17-Apr-24  2:13 PM          31313 libgmock_main.dll
+-ar--           17-Apr-24  2:13 PM         168524 libgmock.dll
+-ar--           17-Apr-24  2:13 PM          62990 libgtest_main.dll
+-ar--           17-Apr-24  2:13 PM         653348 libgtest.dll
+-ar--           17-Apr-24  2:13 PM          94169 libhistory8.dll
+-ar--           17-Apr-24  2:13 PM          56639 libhttp_parser.2.9.4.dll
+-ar--           17-Apr-24  2:13 PM        1036160 libiconv-2.dll
+-ar--           17-Apr-24  2:13 PM         292440 libidn2-0.dll
+-ar--           17-Apr-24  2:13 PM         232068 liblzma-5.dll
+-ar--           17-Apr-24  2:13 PM         242738 libnghttp2-14.dll
+-ar--           17-Apr-24  2:13 PM        1123300 libnixcmd.dll
+-ar--           17-Apr-24  2:13 PM        4040522 libnixexpr.dll
+-ar--           17-Apr-24  2:13 PM         397542 libnixexprc.dll
+-ar--           17-Apr-24  2:13 PM        1701921 libnixfetchers.dll
+-ar--           17-Apr-24  2:13 PM         419859 libnixmain.dll
+-ar--           17-Apr-24  2:13 PM        4974340 libnixstore.dll
+-ar--           17-Apr-24  2:13 PM          70372 libnixstorec.dll
+-ar--           17-Apr-24  2:13 PM        2425865 libnixutil.dll
+-ar--           17-Apr-24  2:13 PM         177556 libnixutilc.dll
+-ar--           17-Apr-24  2:13 PM         537482 libpcre-1.dll
+-ar--           17-Apr-24  2:13 PM         432213 libquadmath-0.dll
+-ar--           17-Apr-24  2:13 PM         902691 librapidcheck.dll
+-ar--           17-Apr-24  2:13 PM         359921 libreadline8.dll
+-ar--           17-Apr-24  2:13 PM         377154 libsodium-23.dll
+-ar--           17-Apr-24  2:13 PM        1444530 libsqlite3-0.dll
+-ar--           17-Apr-24  2:13 PM         361972 libssh2-1.dll
+-ar--           17-Apr-24  2:13 PM         819704 libssl-3-x64.dll
+-ar--           17-Apr-24  2:13 PM          38695 libssp-0.dll
+-ar--           17-Apr-24  2:13 PM        4263977 libstdc++-6.dll
+-ar--           17-Apr-24  2:13 PM          69342 libtermcap.dll
+-ar--           17-Apr-24  2:13 PM        2239635 libunistring-5.dll
+-ar--           17-Apr-24  2:13 PM         137216 libz.dll
+-ar--           17-Apr-24  2:13 PM         928693 libzstd.dll
+-ar--           17-Apr-24  2:13 PM         101628 loader_attic.dll
+-ar--           17-Apr-24  2:13 PM          72803 mcfgthread-12.dll
+la---           17-Apr-24  3:52 PM              0 nix-build.exe -> C:\Users\joschie\copy-to-windows\nix.exe
+la---           17-Apr-24  3:52 PM              0 nix-channel.exe -> C:\Users\joschie\copy-to-windows\nix.exe
+la---           17-Apr-24  3:52 PM              0 nix-collect-garbage.exe -> C:\Users\joschie\copy-to-windows\nix.exe
+la---           17-Apr-24  3:52 PM              0 nix-copy-closure.exe -> C:\Users\joschie\copy-to-windows\nix.exe
+la---           17-Apr-24  3:52 PM              0 nix-daemon.exe -> C:\Users\joschie\copy-to-windows\nix.exe
+la---           17-Apr-24  3:52 PM              0 nix-env.exe -> C:\Users\joschie\copy-to-windows\nix.exe
+la---           17-Apr-24  3:52 PM              0 nix-hash.exe -> C:\Users\joschie\copy-to-windows\nix.exe
+la---           17-Apr-24  2:41 PM              0 nix-instantiate.exe -> C:\Users\joschie\copy-to-windows\nix.exe
+la---           17-Apr-24  3:52 PM              0 nix-prefetch-url.exe -> C:\Users\joschie\copy-to-windows\nix.exe
+la---           17-Apr-24  3:52 PM              0 nix-shell.exe -> C:\Users\joschie\copy-to-windows\nix.exe
+la---           17-Apr-24  3:12 PM              0 nix-store.exe -> C:\Users\joschie\copy-to-windows\nix.exe
+-ar--           17-Apr-24  2:33 PM        4947837 nix.exe
+-ar--           17-Apr-24  2:13 PM          54706 padlock.dll
+-ar--           17-Apr-24  2:13 PM         137216 zlib1.dll
+```
+
+finally run nix-instantiate.exe to check everything is working:
+
+```
+(base) PS C:\Users\joschie\copy-to-windows> .\nix-instantiate.exe --store 'dummy://' --eval -E '1+1'
+2
+```
+
+## build using nix-shell
+
+if you hack on nix you might like:
+
+```
+nix develop .#devShells.x86_64-linux.x86_64-w64-mingw32
+declare | grep -i phases
+
+so basically:
+
+preConfigurePhases
+configurePhase
+
+buildPhase && installPhase && . ./copy-to-windows.sh
+```
+
+using **builddir** one can use separate build directories to do linux and windows builds from the same source tree!
+
+### copy-to-windows.sh
+
+```bash
+#!/bin/sh
+_linkDLLs
+rm -rf copy-to-windows
+mkdir copy-to-windows
+cp -rL $prefix/bin/*.{exe,dll} copy-to-windows/
+cp copy-to-windows/nix.exe copy-to-windows/nix-instantiate.exe
+
+# _linkDLLs creates symlinks but doesn't copy them
+# meaning that recursive dependencies don't get copied!
+# For example, libhttp_parser.2.9.4.dll which libgit2 needs.
+for i in $(echo "$LINK_DLL_FOLDERS" | tr ':' ' '); do
+    for dll in $(find $i -name "*.dll"); do
+        if [ ! -e "copy-to-windows/$(basename $dll)" ]; then
+           cp $dll copy-to-windows/
+        fi
+    done
+done
+
+# copy the checks
+mkdir copy-to-windows/check
+cp -rL outputs/check/bin/* copy-to-windows
+cp -rL outputs/check/lib/* copy-to-windows
+
+# update the windows copy
+rm -rf /mnt/c/nix
+cp -r copy-to-windows/* /mnt/c/nix-hack
+```
+
+## nix-instantiate.exe
+
+```
+powershell
+cd C:\nix
+.\nix-instantiate.exe --store 'dummy://' --eval -E '1+1'
+2
+```
+
+# tests
+
+```
+powershell
+cd C:\nix
+./libnixfetchers-tests.exe  --gtest_color=yes
+Running main() from /build/source/googletest/src/gtest_main.cc
+[==========] Running 2 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 2 tests from PublicKey
+[ RUN      ] PublicKey.jsonSerialization
+[       OK ] PublicKey.jsonSerialization (0 ms)
+[ RUN      ] PublicKey.jsonDeserialization
+[       OK ] PublicKey.jsonDeserialization (0 ms)
+[----------] 2 tests from PublicKey (5 ms total)
+
+[----------] Global test environment tear-down
+[==========] 2 tests from 1 test suite ran. (12 ms total)
+[  PASSED  ] 2 tests.
+```
+
+
+# summary
+
+given that some **nix tools already run on windows natively**, we have a shining future ahead!
+
+see <https://github.com/NixOS/nix/labels/windows> for next steps!
+
+

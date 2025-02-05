@@ -74,7 +74,10 @@ pub fn scan_articles() -> HashMap<PathBuf, Article> {
     traverse_and_collect_articles(&input_path, &mut articles);
 
     for (_, article) in &articles {
-        println!("Writing article {} to disk", article.clone().dst_file_name.unwrap().display());
+        println!(
+            "Writing article {} to disk",
+            article.clone().dst_file_name.unwrap().display()
+        );
         write_article_to_disk(article);
     }
 
@@ -88,22 +91,20 @@ fn write_article_to_disk(article: &Article) {
     let cfg = config::Config::get();
     let output_path: PathBuf = cfg.output.clone();
 
-    let article_mdwn_source = article
-        .article_mdwn_source
-        .clone()
-        .unwrap();
+    let article_mdwn_source = article.article_mdwn_source.clone().unwrap();
 
     match render_file(article_mdwn_source.clone()) {
         Ok(mdwn_html) => {
             let content: String =
                 create_html_from_content_template(article.clone(), mdwn_html).unwrap();
-            let html: String =
+            let standalone_html: String =
                 create_html_from_standalone_template(article.clone(), content).unwrap();
 
             if let Some(dst_file_name) = &article.dst_file_name {
-                let mut output_file = output_path.clone();
-                output_file.push(dst_file_name);
-                std::fs::write(output_file, html).expect("Unable to write HTML file");
+                let mut output_filename = output_path.clone();
+                output_filename.push(dst_file_name);
+                std::fs::write(output_filename, standalone_html)
+                    .expect("Unable to write HTML file");
             }
         }
         Err(e) => {
@@ -113,7 +114,10 @@ fn write_article_to_disk(article: &Article) {
 }
 
 fn parse_article(article_path: &PathBuf) -> Result<Article, Box<dyn Error>> {
-    println!("Parsing article {} from disk", article_path.clone().display());
+    println!(
+        "Parsing article {} from disk",
+        article_path.clone().display()
+    );
 
     let mut article: Article = Article {
         src_file_name: article_path.clone(),
@@ -155,14 +159,12 @@ fn parse_article(article_path: &PathBuf) -> Result<Article, Box<dyn Error>> {
     Ok(article)
 }
 
-
 #[cfg(test)]
 mod tests {
-    use super::*;  // Importing everything from the parent module
-    
+    use super::*; // Importing everything from the parent module
+
     #[test]
     fn test_process_plugins() {
-
         // let config = config::Config::new(
         //     PathBuf::new(),
         //     PathBuf::new(),
@@ -171,7 +173,7 @@ mod tests {
         //     23,
         // );
         // config::Config::initialize(config).expect("Failed to initialize config");
-        
+
         let raw_mdwn = "[[!title Test Title]]\n[[!summary This is a summary.]]\n[[!series My Series]]\n[[!tag rust programming]]".to_string();
         let mut article = Article {
             src_file_name: PathBuf::from("example.mdwn"),
@@ -197,7 +199,10 @@ mod tests {
         assert_eq!(article.title, Some("Test Title".to_string()));
         assert_eq!(article.summary, Some("This is a summary.".to_string()));
         assert_eq!(article.series, Some("My Series".to_string()));
-        assert_eq!(article.tags, Some(vec!["rust".to_string(), "programming".to_string()]));
+        assert_eq!(
+            article.tags,
+            Some(vec!["rust".to_string(), "programming".to_string()])
+        );
     }
 }
 

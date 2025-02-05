@@ -1,0 +1,462 @@
+[[!meta date="2024-04-12 20:53"]]
+[[!tag nix nixos libnix]]
+[[!series libnix]]
+[[!summary libnix motivation, the future of cross platform nix]]
+
+[[!Draft]]
+[[SpecialPage]]
+
+[[!img media/nlnet-logo.gif class="noFancy" style="float: right"]]
+[[!img posts/libnix/Nix_snowflake_windows.svg class="noFancy" style="float: right" width="200px"]]
+
+# motivation
+
+first we look at the legacy support of the rust interaction with nix tooling. next we'll look at the changes coming with the libnix based workflow.
+
+libnix: make `cargo` use nix internally as a backend using the [nix c interface](https://github.com/NixOS/nix/pull/8699) on top of cross-platform nix.
+
+why?
+
+* calling `nix-build` from `cargo`/`Cargo.toml` let's you **describe system dependencies cross platform (new)**
+* **better GC**: no more `rm ~/.cargo`, no more artifacts in `rm ./target/` as it is moved into `/nix/store` and `nix-collect-garbage` is used for cleanups
+* **binary substitutes**: `crate` compilation gets more fine grained, so faster development loop from development to deployment
+* **sharing crate sources** and related **builds between different rust projects (new)**
+* free of [import from derivation (IFD)](https://nixos.org/manual/nix/unstable/language/import-from-derivation), as this is disallowed in nixpkgs
+* sandbox builds (new)
+
+
+# traditional rust support using nix
+
+historically rust support was developed inside nixpkgs. rust applications are packaged by using the `buildRustPackage` helper from `rustPlatform`:
+
+```nix
+{ lib, fetchFromGitHub, rustPlatform }:
+
+rustPlatform.buildRustPackage rec {
+  pname = "ripgrep";
+  version = "12.1.1";
+
+  src = fetchFromGitHub {
+    owner = "BurntSushi";
+    repo = pname;
+    rev = version;
+    hash = "sha256-+s5RBC3XSgb8omTbUNLywZnP6jSxZBKSS1BmXOjRF8M=";
+  };
+
+  cargoHash = "sha256-jtBw4ahSl88L0iuCXxQgZVm1EcboWRJMNtjxLVTtzts=";
+
+  meta = {
+    description = "Fast line-oriented regex search tool, similar to ag and ack";
+    homepage = "https://github.com/BurntSushi/ripgrep";
+    license = lib.licenses.unlicense;
+    maintainers = [];
+  };
+}
+```
+
+most development nowadays happens in external flakes. because of
+[import from derivation (IFD)](https://nixos.org/manual/nix/unstable/language/import-from-derivation) these external implementations are not
+used from nixpkgs.
+
+## traditional nixpkgs extensions
+
+<table class="table">
+  <thead>
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">name</th>
+      <th scope="col">stars</th>
+      <th scope="col">commits</th>
+      <th scope="col">issues</th>
+      <th scope="col">notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th scope="row">1</th>
+      <td>[oxalica/rust-overlay](https://github.com/oxalica/rust-overlay)</td>
+      <td>830</td>
+      <td>1469</td>
+      <td>6/120</td>
+      <td>xxx</td>
+    </tr>
+    <tr>
+      <th scope="row">2</th>
+      <td>[crane](https://github.com/ipetkov/crane)</td>
+      <td>819</td>
+      <td>601</td>
+      <td>21/202</td>
+      <td>xxx</td>
+    </tr>
+    <tr>
+      <th scope="row">3</th>
+      <td>[fenix](https://github.com/nix-community/fenix)</td>
+      <td>620</td>
+      <td>1949</td>
+      <td>24/50</td>
+      <td>xxx</td>
+    </tr>
+    <tr>
+      <th scope="row">4</th>
+      <td>[naersk](https://github.com/nix-community/naersk)</td>
+      <td>677</td>
+      <td>345</td>
+      <td>45</td>
+      <td>xxx</td>
+    </tr>
+    <tr>
+      <th scope="row">5</th>
+      <td>[cargo2nix](https://github.com/cargo2nix/cargo2nix)</td>
+      <td>344</td>
+      <td>633</td>
+      <td>59/111</td>
+      <td>xxx</td>
+    </tr>
+    <tr>
+      <th scope="row">6</th>
+      <td>[create2nix](https://github.com/nix-community/crate2nix)</td>
+      <td>338</td>
+      <td>1336</td>
+      <td>80/110</td>
+      <td>crate-by-crate</td>
+    </tr>
+  </tbody>
+</table>
+
+
+
+> Oxalica and fenix: both projects provides a similar set of packages and overlays under different APIs.
+
+> * Oxalica’s overlay allows you to select a particular Rust version without you providing a hash or a flake input, but comes with a larger git repository than fenix.
+* Fenix also provides rust-analyzer nightly in addition to the Rust toolchains.
+
+> Both oxalica’s overlay and fenix better integrate with nix and cache optimizations. Because of this and ergonomics, either of those community projects should be preferred to the Mozilla’s Rust overlay (nixpkgs-mozilla).
+
+A set of differences between nipxkgs and the overlays:
+
+* nixpkgs supports only a few rust versions while oxalica/rust-overlay maintains many
+
+## traditional nixpkgs extensions (obsolete)
+
+<table class="table">
+  <thead>
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">name</th>
+      <th scope="col">stars</th>
+      <th scope="col">commits</th>
+      <th scope="col">issues</th>
+      <th scope="col">notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th scope="row">1</th>
+      <td>[nixpkgs-mozilla](https://github.com/mozilla/nixpkgs-mozilla)</td>
+      <td>511</td>
+      <td>264</td>
+      <td>49/88</td>
+      <td>xxx</td>
+    <tr>
+      <th scope="row">2</th>
+      <td>[rust2nix](https://github.com/anirudhb/rust2nix)</td>
+      <td>8</td>
+      <td>12</td>
+      <td>0/1</td>
+      <td>xxx</td>
+    </tr>
+    <tr>
+      <th scope="row">3</th>
+      <td>[carnix](https://github.com/nix-community/carnix)</td>
+      <td>10</td>
+      <td>43</td>
+      <td></td>
+      <td>xxx</td>
+    </tr>
+    <tr>
+      <th scope="row">4</th>
+      <td>[nixcrates](https://github.com/nixcloud/nixcrates)</td>
+      <td>15</td>
+      <td>63</td>
+      <td>0/1</td>
+      <td>xxx</td>
+    </tr>
+  </tbody>
+</table>
+
+# cargo workflow (no libnix)
+
+1. `cargo build` checks the Cargo.toml/Cargo.lock
+2. creates a target/ folder to work in
+3. creates a local crates.io registry copy
+4. builds all dependencies
+5. builds the program & links it
+
+# cargo workflow (with libnix)
+
+* to become IFD free, cargo needs a generator for build scripts. some IFD motivation can be found [nix-evaluation-blocking/](https://jade.fyi/blog/nix-evaluation-blocking/). does
+cargo know all build targets ahead of time or are they created on demand?
+* cargo/nix needs to know if it was called by cargo interactively (then it will create target/ symlinks) or via traditional nix-build where one might only want to extract the final binary and skip the rest.
+* once cargo build is called, does it ever call cargo again or is it just tools like rustc & misc?
+* where to place the toolchain knowledge to build, should be inside Cargo.toml
+
+* should every rust project become a nix flake?
+* are c compilers global per rust project or only available inside a crate?
+* do two different crates with native bundled c use two different c compilers?
+
+# libnix: interesting tests
+
+we should reuse these tests:
+
+* <https://github.com/ipetkov/crane/tree/master/examples>
+* <https://github.com/oxalica/rust-overlay/tree/master/examples>
+* <https://github.com/nix-community/naersk/tree/master/examples>
+* <https://github.com/cargo2nix/cargo2nix/tree/release-0.11.0/examples>
+* <https://github.com/nix-community/crate2nix/tree/master/sample_projects>
+* <https://github.com/nix-community/crate2nix/tree/master/sample_workspace>
+
+## understanding 'cargo build'
+
+on linux one can run this command to see a complete list of programs started by `cargo build`:
+
+```bash
+nix-shell -p git nix vim strace --pure
+nix develop
+rm -Rf ~/.cargo
+rm -Rf target
+strace -e execve -f -s 4000 cargo build 2>&1 | grep -v ENOENT | grep -v 'strace: Process .* attached' | grep -v '.*pid.*exited with.*' | grep -v SIGCHLD | grep -v SIGUSR.* > f
+```
+
+https://doc.rust-lang.org/nightly/nightly-rustc/cargo/index.html
+
+
+
+### src/cargo/core/compiler/compilation.rs
+
+```rust
+    pub fn rustc_process(
+        &self,
+        unit: &Unit,
+        is_primary: bool,
+        is_workspace: bool,
+    ) -> CargoResult<ProcessBuilder> {
+```
+
+<hr><hr><hr>
+
+# old
+
+since the toolchain is a fixpoint and we benefit if that is small (having only the bare minimum needed to compile/link the crates/program) we need to have a **crate-env.nix** in the project's project dir. This **crate-env.nix** is similar to a callPackage file, a nix function which is passed in a rust toolchain and basically pkgs so it can use nix to access the compiler and c-libraries.
+
+A central `flake.nix` can use _overrides_ to change the _rust toolchain_ for all crates in a single project.
+
+A rust project can have a **crate-env.nix** for individual toolchain overrides, which are uniformly used for all crates in the same project.
+
+So every crate could have a `crate-env.nix` like `pkgs/build-support/rust/build-rust-crate/default.nix`:
+
+```nix
+buildCrateEnv = import ./build-crate.nix {
+  inherit lib stdenv mkRustcDepArgs mkRustcFeatureArgs rust;
+};
+```
+
+which calls `pkgs/build-support/rust/build-rust-crate/default.nix`:
+
+```nix
+# Code for buildRustCrate, a Nix function that builds Rust code, just
+# like Cargo, but using Nix instead.
+#
+# This can be useful for deploying packages with NixOps, and to share
+# binary dependencies between projects.
+
+{ lib, stdenv, defaultCrateOverrides, fetchCrate, rustc, rust, cargo, jq }:
+
+let
+    # This doesn't appear to be officially documented anywhere yet.
+    # See https://github.com/rust-lang-nursery/rust-forge/issues/101.
+    target_os = if stdenv.hostPlatform.isDarwin
+      then "macos"
+      else stdenv.hostPlatform.parsed.kernel.name;
+...
+```
+
+
+A `flake.nix` can:
+```
+
+
+
+
+```
+
+
+When you enter the directory `/home/joachim/myrustproject` you will see the rust tools like: `cargo-clippy` / `cargo-fmt` / `cargo` / `rust-analyzer` / `rust-gdb` / `rust-lldb` / `rustc` / `rustdoc` / `rustfmt`. When you leave this directory the tools won't be in the shell anymore.
+
+In your top level project you have a `flake.nix`:
+
+```
+... FIXME override rust with overlay so we can pick rust version per project
+
+```
+
+
+
+This **myrustproject** specific `.envrc` should only contain the bare minimum to describe the environment needed for the rust project. So a flake could make use to build an output from the rust project but if said flake could contain several rust projects and each would have a specific definition of rust compiler settings.
+
+The same set of tools will be used by cargo when spawning a build, this gives use reproducability in builds since this might require more than just cargo/rustc. For instance a c compiler or some other useful third-party tool.
+
+See also:
+
+* https://lastlog.de/blog/libnix_roadmap.html#cargo-with-nix-support
+* https://github.com/NixOS/nix/pull/8699
+* https://github.com/Anillc/nixrs/pull/1
+
+# Example usages of cargo/crates
+
+Rust only crate:
+* https://doc.rust-lang.org/rust-by-example/crates.html
+
+Rust+C: Bundling c code in the create:
+* https://github.com/stainless-steel/sqlite3-sys
+
+Rust+C: External dependencies from the system:
+* https://doc.rust-lang.org/cargo/reference/manifest.html#the-links-field
+* https://github.com/rust-lang/git2-rs/tree/master/libgit2-sys
+
+# Build creates using nix abstractions
+
+
+
+# Working branch
+
+https://github.com/nixcloud/cargo/tree/libnix-0.79.0
+
+parts of both folders `~/.cargo` and `target` have been replaced by the nix store.
+
+Let's see what is in them!
+
+## ~/.cargo
+
+```
+[nixos@nixos:~/cargo]$ du -sh ~/.cargo
+239M    /home/nixos/.cargo
+
+[nixos@nixos:~/cargo]$ ls ~/.cargo/
+registry
+
+[nixos@nixos:~/cargo]$ ls ~/.cargo/registry/
+cache  CACHEDIR.TAG  index  src
+```
+
+## cargo/target
+
+The example is the cargo project itself, the tool coming with the rust toolchain, since we hack on it.
+
+```
+[nixos@nixos:~/cargo]$ du -sh target/
+2.3G    target/
+
+[nixos@nixos:~/cargo]$ ls target/
+CACHEDIR.TAG  debug
+
+[nixos@nixos:~/cargo]$ ls target/debug/
+build  cargo  cargo.d  deps  examples  incremental  libcargo.d  libcargo.rlib
+```
+
+# Plan
+
+libnix backend in cargo needs to get these things working:
+
+* no use of ~/.cargo, everything in /nix/store and the crate sources should be symlinked like the result link from the cargo call
+* target/debug/* needs to come from /nix/store, eventually symlinked or transparently from the store
+* nested system dependencies must be supported, see https://github.com/rusqlite/rusqlite/blob/master/libsqlite3-sys/Cargo.toml which uses `pkg-config` and `cc`
+
+figure out what these are:
+
+* target/debug/build
+
+## .fingerprint
+
+target/debug/.fingerprint -> https://doc.rust-lang.org/nightly/nightly-rustc/cargo/core/compiler/fingerprint/index.html
+
+```
+[nixos@nixos:~/cargo]$ ls target/debug/.fingerprint/der-d0714c795318982b/
+dep-lib-der  invoked.timestamp  lib-der  lib-der.json
+
+[nixos@nixos:~/cargo]$ cat target/debug/.fingerprint/der-d0714c795318982b/lib-der
+6b2cf10d51d11828
+
+[nixos@nixos:~/cargo]$ cat target/debug/.fingerprint/der-d0714c795318982b/lib-der.json  | jq
+{
+  "rustc": 18217185010275080438,
+  "features": "[\"alloc\", \"oid\", \"pem\", \"std\", \"zeroize\"]",
+  "declared_features": "",
+  "target": 4346314333490370059,
+  "profile": 12206360443249279867,
+  "path": 16879011525611689376,
+  "deps": [
+    [
+      1724196337906130016,
+      "pem_rfc7468",
+      false,
+      5466269655917579261
+    ],
+    [
+      2676387858222833023,
+      "const_oid",
+      false,
+      2852573652909154018
+    ],
+    [
+      15098350142499636151,
+      "zeroize",
+      false,
+      14469829910961900562
+    ]
+  ],
+  "local": [
+    {
+      "CheckDepInfo": {
+        "dep_info": "debug/.fingerprint/der-d0714c795318982b/dep-lib-der"
+      }
+    }
+  ],
+  "rustflags": [],
+  "metadata": 12456048820742377390,
+  "config": 2202906307356721367,
+  "compile_kind": 0
+}
+
+[nixos@nixos:~/cargo]$ cat target/debug/.fingerprint/der-d0714c795318982b/dep-lib-der
+```
+
+finally:
+
+* get a crate compiled without dependencies
+* get one with nested dependencies
+* get one with c library usage (like cargo itself)
+
+## BuildContext
+Some fields that might be interesting:
+
+```rust
+let bcx : BuildContext = create_bcx(ws, options, &interner)? // Line 153 in cargo/ops/cargo_compile/mod.rs
+bcx.ws.gctx.home_path;
+bcx.ws.gctx.cwd;
+bcx.ws.gctx.ws_roots;
+bcx.ws.current_manifest;
+bcx.ws.packages.gctx;
+bcx.ws.packages.packages; // HashMap<PackageId, LazyCell<Package>>
+```
+## Compilation outcomes
+
+Where do we need to grab the compilation results that we want to move into the nix store?
+
+https://docs.rs/cargo/latest/src/cargo/core/compiler/build_runner/mod.rs.html#135
+
+Can we just use the [`Compilation`](https://docs.rs/cargo/latest/cargo/core/compiler/struct.Compilation.html) outcome?
+
+With Rust nightly we can see build plan:
+```shell
+cargo build -Z unstable-options --build-plan | jq
+```

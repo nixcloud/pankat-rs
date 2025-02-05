@@ -140,7 +140,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
     };
 
-    //articles::scan_articles();
+    articles::scan_articles();
 
     // Start server with graceful shutdown
     println!("Press Ctrl+C to stop the server...");

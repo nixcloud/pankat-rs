@@ -1,0 +1,456 @@
+[[!meta date="2024-05-10 16:53"]]
+[[!tag nix nixos libnix]]
+[[!series libnix]]
+[[!summary reviewing volth's nix windows port from 2020]]
+
+[[!img media/nlnet-logo.gif class="noFancy" style="float: right"]]
+[[!img posts/libnix/Nix_snowflake_windows.svg class="noFancy" style="float: right" width="200px"]]
+
+# motivation
+
+status of **native windows nix using MinGW** from my series [libnix](https://lastlog.de/blog/timeline.html?filter=series::libnix).
+
+[last post](libnix_mingw_status.html) we were looking into nix on windows from the *nix master branch* which uses MinGW.
+
+**in this post we'll focus on volth's work running nix on windows back in the year 2020.**
+
+# introduction
+
+[volth](https://discourse.nixos.org/u/volth) *ported nix to windows* in ~2020.
+
+using `nix-build` he was able to build **boost 1.74** using a **msvc 2019 toolchain**:
+
+```cmd
+\bin\nix-build.exe --keep-failed --option system x86_64-windows -o x86_64-boost -E
+   "with (import <nixpkgs> { }); pkgsMsvc2019.boost174.override{ staticRuntime=true; static=true; }"
+```
+
+sadly it wasn't merged into upstream nix and i (qknight) was never able to run/build his code. at least we got the code, so let's what he did!
+
+## nix windows branch
+
+* <https://github.com/nix-windows/nix/tree/windows>
+
+branch diff (all commits combined):
+
+* <https://github.com/nix-windows/nix/compare/0538e1dfb1094ffe31805ad28aaf5040b27cf562..5482a4ca09f2b337e51d9f9cdcc0c77ab8451c23>
+
+<div class="alert alert-info" role="alert">
+70 commits, started around ~2019 and ended late 2020. +14664 additions and -1348 deletions.
+</div>
+
+## nixpkgs-windows
+
+* <https://github.com/nix-windows/nixpkgs> (called **nixpkgs-windows** in the source)
+
+branch diff (all commits combined):
+
+* <https://github.com/nix-windows/nixpkgs/compare/3102742718360360b4d8e5ba3d42ac591b6378e4..dc7ea0147fc07a391d15564e5f133e81095d57f4>
+
+<div class="alert alert-info" role="alert">
+270 commits, started late 2018. 133 changed files, showing +41167 additions and -1071 deletions.
+</div>
+
+## volth's windows nix capabilities
+
+* **build nix 2.1.3 from native windows** using mingw+meson based toolchain
+* a [single user setup](https://nixos.org/manual/nix/stable/installation/installing-binary#single-user-installation) -> no nix-daemon implementation
+* probably using **visual studio** for development
+* probably used **cmd** (build-meson-32-mt.cmd) because for powershell this would be called (build-meson-32-mt.ps)
+* **featured msvc and mingw compilers**
+* **john ericson added meson build system support for nix** (replacing autotools), let's have a closer look at this:
+
+    there have been proposals for other build systems over the years:
+
+    * <https://lastlog.de/blog/replacing_automake_by_cmake.html> my attempt of autotools replacement using **CMake** in nix - early 2011
+    * <https://github.com/NixOS/nix/pull/1427> autotools replacement using **CMake** - PR from mid 2017
+    * <https://github.com/NixOS/nix/issues/2503> **build system discussions** - from late 2018
+    * <https://github.com/NixOS/nix/pull/3160> **PR: Port Nix to Meson** - late 2019
+    * <https://github.com/nix-windows/nix/commits/windows/> autotools replacement using **Meson** - commits from ~2020
+
+    <div class="alert alert-warning" role="alert">
+    in upstream [nix](https://github.com/NixOS/nix) `autotools` is a requirement. `autotools` can't be used on native windows!
+    i've always seen `autotools` as *ancient technology*, acting as a *vendor lock-in* for gnu/unix systems.
+
+    the MinGW setup, which is discussed in the libnix series, has a clever workaround to this problem: a cross-compiler setup which
+    comes with the downside, that it only works *from* linux/mac. WSL2/[nixos-wsl](https://github.com/nix-community/NixOS-WSL)
+    makes this downside weight a little less, still it hurts!
+
+    **either `Meson` or `CMake` as replacement for `autotools` build system are mandatory for the windows nix port in order to compile nix from windows directly.**
+
+    a clear case for this quote:
+
+    > spock: "the needs of the many outweigh the needs of the few, ..., or the one"
+    </div>
+
+### nix builtins for external programs
+<div class="alert alert-info" role="alert">
+in the nix programming language, `builtins` are functions which can be called, but which are not written in the nix language themselves.
+</div>
+
+  * `runProgram()` was replaced by `runProgramGetStdout()` which could call `git`, `hg`, `tar`, `unzip`, `xz`, `gzip`, `tr`
+    * `builtins.fetchGit` -> src/libexpr/primops/fetchGit.cc
+    * `builtins.fetchMercurial` -> src/libexpr/primops/fetchMercurial.cc
+    * `builtins.fetchurl` / `nix-prefetch-url` -> src/nix-prefetch-url/nix-prefetch-url.cc - calls `unzip` / `tar`
+  * origin of the tools `git`, `hg`, `tar`, `unzip` is unclear: i guess some are from `cygwin` while others are form `mingw64` installation.
+
+### supported nix commands
+
+looking at the build system, checking the the source files for patches i conclude:
+
+working:
+
+* [x] nix-prefetch-url
+* [x] nix-instantiate
+* [x] nix-build
+* [x] nix-store
+
+not working:
+
+* [ ] nix-daemon
+* [ ] nix-channel
+* [ ] nix-shell
+* [ ] nix-collect-garbage
+* [ ] nix-env
+* [ ] nix-hash
+* [ ] nix-copy-closure
+
+working `nix` subcommands:
+
+* [x] run
+* [x] nar cat
+* [x] nar ls
+* [x] nar dump-path
+* [x] hash
+* [x] log
+* [x] search
+* [x] why-depends
+* [x] store ping
+* [x] store verify
+
+not working `nix` subcommands
+
+* [ ] repl
+* [ ] store gc
+
+**note:** this list is incomplete but still gives a broad overview. for instance, it seems that `nix build` was not supported, but the program `nix-build` was.
+
+### stdenv
+
+<div class="alert alert-info" role="alert">
+the `stdenv` is a build-environment, which sets environment variables as PATH to build software. a minimalistic installation of a compiler basically.
+</div>
+
+volth maintained these envs:
+
+  * [pkgs/stdenv/default.nix](https://github.com/nix-windows/nixpkgs/blob/windows/pkgs/stdenv/default.nix)
+  * [pkgs/stdenv/windows/mingw.nix](https://github.com/nix-windows/nixpkgs/blob/windows/pkgs/stdenv/windows/mingw.nix)
+  * [pkgs/development/mingw-modules/msys-pacman-x86_64.nix](https://github.com/nix-windows/nixpkgs/blob/windows/pkgs/development/mingw-modules/msys-pacman-x86_64.nix)
+  * [pkgs/development/mingw-modules/mingw-pacman-x86_64.nix](https://github.com/nix-windows/nixpkgs/blob/windows/pkgs/development/mingw-modules/mingw-pacman-x86_64.nix)
+
+
+those are used in the file **build-meson-32-mt.cmd** and supposedly buildable:
+
+* pkgsMsvc2019.stdenv.cc
+* pkgsMsvc2019.boost174
+* pkgsMsvc2019.openssl
+* pkgsMsvc2019.xz
+* pkgsMsvc2019.bzip2
+* pkgsMsvc2019.curl
+* pkgsMsvc2019.sqlite
+* msysPacman.flex
+* msysPacman.bison
+* mingwPacman.meson
+
+however: using these *stdenvs* one could attempt a build of any software in nixpkgs so we can't know what builds without trying.
+it is really worth pointing out that volth's boost's [volths generic.nix](https://github.com/nix-windows/nixpkgs/blob/windows/pkgs/development/libraries/boost/generic.nix)
+looks nothing like the original [upstream generic.nix](https://github.com/nix-windows/nixpkgs/blob/e3de8a92325620e65039d98281047a83fa07c9dd/pkgs/development/libraries/boost/generic.nix).
+
+### static vs. dynamic linking inside nixpkgs
+
+looking at [volths generic.nix](https://github.com/nix-windows/nixpkgs/blob/windows/pkgs/development/libraries/boost/generic.nix):
+
+```nix
+installPhase = ''
+  print("EXEC: b2 ${b2Args} install\n");
+  die $! if system("b2 ${b2Args} install");
+  renameL("$ENV{out}/include/boost-".('${version}' =~ s/^(\d+)\.(\d+).*/$1_$2/r)."/boost", "$ENV{out}/include/boost") or die $!;
+  rmdirL("$ENV{out}/include/boost-".('${version}' =~ s/^(\d+)\.(\d+).*/$1_$2/r))                                      or die $!;
+'' + stdenv.lib.optionalString (!static) ''
+  mkdirL("$ENV{out}/bin") or die $!;
+  for my $dll (glob("$ENV{out}/lib/*.dll")) {
+    renameL($dll, "$ENV{out}/bin/".basename($dll)) or die $!;
+  }
+'';
+```
+<div class="alert alert-info" role="alert">
+using the perl [renameL](https://metacpan.org/pod/Win32::LongPath#renameL-OLDNAME,NEWNAME) function volth copied all *dll* files into the *bin* directory.
+there is no [rpath](https://stackoverflow.com/questions/107888/is-there-a-windows-msvc-equivalent-to-the-rpath-linker-flag) concept on windows.
+</div>
+
+## MinGW vs. msvc toolchain
+
+<div class="alert alert-info" role="alert">
+the main difference between these two toolchains on windows are performance, developer experience (debugging), API availability and licensing.
+</div>
+
+i never worked with visual studio / msvc much but **for the purpose of [libnix](https://lastlog.de/blog/timeline.html?filter=series::libnix), i think MinGW is a good choice for porting nix and create a custom MinGW toolchain inside nix**
+should be sufficient.
+
+### corepkgs/config.nix
+
+<div class="alert alert-info" role="alert">
+config.nix shows a variety of tools/locations of his bootstrapping environment. i personaly would like to see a **"c:\\"** instead of unix paths **"/"**.
+</div>
+
+```nix
+let
+  fromEnv = var: def:
+    let val = builtins.getEnv var; in
+    if val != "" then val else def;
+in rec {
+  shell = "/usr/bin/bash";
+  coreutils = "/usr/bin";
+  bzip2 = "/mingw64/bin/bzip2";
+  gzip = "/usr/bin/gzip";
+  xz = "/mingw64/bin/xz";
+  tar = "/usr/bin/tar";
+  tarFlags = "--warning=no-timestamp";
+  tr = "/usr/bin/tr";
+  nixBinDir = fromEnv "NIX_BIN_DIR" "/usr/bin";
+  nixPrefix = "/usr";
+  nixLibexecDir = fromEnv "NIX_LIBEXEC_DIR" "/usr/libexec";
+  nixLocalstateDir = "/nix/var";
+  nixSysconfDir = "/usr/etc";
+  nixStoreDir = fromEnv "NIX_STORE_DIR" "/nix/store";
+
+  # If Nix is installed in the Nix store, then automatically add it as
+  # a dependency to the core packages. This ensures that they work
+  # properly in a chroot.
+  chrootDeps =
+    if dirOf nixPrefix == builtins.storeDir then
+      [ (builtins.storePath nixPrefix) ]
+    else
+      [ ];
+}
+```
+
+### nix.exe
+
+<div class="alert alert-info" role="alert">
+`nix.exe` follows the unix principle of 'putting all the functionality into one binary'.
+
+volth put some effort into this by getting some subcommands for `nix.exe` working.
+</div>
+
+#### run.cc
+
+volth put some effort into `run(ref<Store> store) override` function for getting it to work on windows
+
+```c++
+    void run(ref<Store> store) override
+    {
+        auto outPaths = toStorePaths(store, Build, installables);
+    ...
+```
+
+#### main.cc
+
+```c++
+#ifdef _WIN32
+    if (boost::algorithm::iends_with(programName, ".exe")) {
+        programName = programName.substr(0, programName.size()-4);
+    }
+#endif
+```
+
+#### ls.cc
+
+```c++
+void listText(ref<FSAccessor> accessor)
+{
+    std::function<void(const FSAccessor::Stat &, const Path &, const std::string &, bool)> doPath;
+
+    auto showFile = [&](const Path & curPath, const std::string & relPath) {
+        if (verbose) {
+            auto st = accessor->stat1(curPath);
+            std::string tp =
+                st.type == FSAccessor::Type::tRegular ? (
+#ifndef _WIN32
+                    st.isExecutable ? "-r-xr-xr-x" :
+#endif
+                    "-r--r--r--") :
+```
+
+### libexpr
+
+<div class="alert alert-info" role="alert">
+**chatGPT:** `libexpr` typically refer to the library that handles nix expressions. nix expressions are a domain-specific language (DSL) used in nix and nixos for defining packages, configurations, and system setups.
+
+very few changes were required here!
+</div>
+
+* `Path EvalState::coerceToPath(const Pos & pos, Value & v, PathSet & context)`
+
+    ```c++
+    Path EvalState::coerceToPath(const Pos & pos, Value & v, PathSet & context)
+    {
+        string path = coerceToString(pos, v, context, false, false);
+    #ifdef _WIN32
+        if (path.length() >= 7 && path[0] == '\\' && path[1] == '\\' && (path[2] == '.' || path[2] == '?') && path[3] == '\\' &&
+                   ('A' <= path[4] && path[4] <= 'Z') && path[5] == ':' && isslash(path[6])) {
+            return path;
+        }
+        if (path.length() >= 3 && (('A' <= path[0] && path[0] <= 'Z') || ('a' <= path[0] && path[0] <= 'z')) && path[1] == ':' && isslash(path[2])) {
+            return path;
+        }
+        throwEvalError("string '%1%' doesn't represent an absolute path, at %2%", path, pos);
+    #endif
+    ```
+* `std::pair<string, string> decodeContext(const string & s)`
+
+### libutil
+
+<div class="alert alert-info" role="alert">
+**chatGPT:** `libutil` is platform abstraction: these libraries may abstract away platform-specific details and provide a consistent interface for
+interacting with the underlying operating system.
+this can help ensure portability and make it easier to maintain and support Nix across different platforms.
+
+all changes are for platform/path handling.
+</div>
+
+src/libutil/util.cc, namely:
+
+* `std::string to_bytes(const std::wstring & path) {`
+* `std::wstring from_bytes(const std::string & s) {`
+* `optional<std::wstring> maybePathW(const Path & path) {`
+* `std::wstring pathW(const Path & path) {`
+* `std::wstring handleToFileName(HANDLE handle) {`
+* `Path handleToPath(HANDLE handle) {`
+* `std::string WinError::addLastError(const std::string & s)`
+* `std::wstring getCwdW()`
+* `std::wstring getArgv0W()`
+* `std::wstring getEnvW(const std::wstring & key, const std::wstring & def)`
+* `string getEnv(const string & key, const string & def)`
+* `std::map<std::wstring, std::wstring, no_case_compare> getEntireEnvW()`
+* `Path absPath(Path path, Path dir)`
+* `Path canonPath(const Path & path, bool resolveSymlinks) {`
+* `Path canonNarPath(const Path & path)`
+
+### libstore
+
+<div class="alert alert-info" role="alert">
+**chatGPT:** `libstore` is a library that provides functionality related to managing software on the system. in nix this does the following things:
+
+* manage /nix/store directories
+  * ACLs
+  * garbage collect unused entries
+  * manage symlinks for garbage collector
+* builds
+  * compile .drv files into /nix/store directories
+  * manage tempdirs
+  * manage sandboxing
+
+**note: C:\\nix\\store** was the store root and referenced by **/nix/store** in the code.
+
+see also <https://nixos.org/manual/nix/stable/store/types/local-store> for different store types.
+</div>
+
+* src/libstore/build.cc
+  * `void DerivationGoal::startBuilder()` doing `tmpDir = tmpDirOrig = createTempDir("", "nix-build-" + drvName, false, false);`  prepare build
+  * no chroot on windows...
+  * `void DerivationGoal::startBuilder()` -> `env variables` get exposed to the builder -> uenv -> uenvline -> `CreateProcessW(..)`
+  * `void DerivationGoal::deleteTmpDir(bool force)`
+  * `void DerivationGoal::handleChildOutput(HANDLE handle, const string & data)`
+  * no 'sandboxing builds'
+
+* src/libstore/download.cc
+  * a hack for making `libcurl` work with sleep (vs. callback)
+  * a hack for `tar` with MSYS filesystem compatibility
+
+* src/libstore/gc.cc
+  * `static void makeSymlink(const Path & link, const Path & target)`
+  * `void LocalStore::removeUnusedLinks(const GCState & state)`
+  * some file locking logic
+
+* src/libstore/local-store.cc
+  * `void canonicaliseTimestampAndPermissions(const Path & path)`
+  * `static void canonicalisePathMetaData_(const std::wstring & wpath, const WIN32_FIND_DATAW * wpathFD /* attributes might be known */, InodesSeen & inodesSeen)`
+  * `void canonicalisePathMetaData(const Path & path, InodesSeen & inodesSeen)`
+    *  running [compact](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/compact) -> `auto rc = runProgramWithOptions(RunOptions("compact", { "/C", "/S:"+path, "/I" }));`
+    *  running [icacls](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/icacls) ->  `runProgramWithOptions(RunOptions("icacls", { path2, "/reset", "/C", "/T", "/L" }));` // reset ACL on all children
+
+* src/libstore/nar-accessor.cc
+  * hack since windows has no executable bit `i->isExecutable`
+
+* src/libstore/optimize-store.cc
+  * `CreateHardLinkW` / `CreateFileW` file deduplication
+  * `LocalStore::InodeHash LocalStore::loadInodeHash()`
+  * `Strings LocalStore::readDirectoryIgnoringInodes(const Path & path, const InodeHash & inodeHash)`
+  * `void LocalStore::optimisePath_(Activity * act, OptimiseStats & stats, const Path & path, InodeHash & inodeHash)`
+
+* src/libstore/pathlocks.cc
+  * `AutoCloseWindowsHandle openLockFile(const Path & path, bool create)`
+  * `void deleteLockFile(const Path & path)`
+  * `bool lockFile(HANDLE handle, LockType lockType, bool wait)`
+  * `bool PathLocks::lockPaths(const PathSet & _paths, const string & waitMsg, bool wait)`
+
+### tests
+
+tests/local.mk contains some interesting mentions:
+
+```bash
+# these do not pass (yet) on MINGW:
+#  gc-concurrent.sh         <-- fails trying to delete open .lock-file, need runtimeRoots
+#  gc-runtime.sh            <-- runtimeRoots not implemented yet
+#  user-envs.sh             <-- nix-env is not implemented yet
+#  remote-store.sh          <-- not implemented yet
+#  secure-drv-outputs.sh    <-- needs nix-daemin which is not ported yet
+#  nix-channel.sh           <-- nix-channel is not implemented yet
+#  nix-profile.sh           <-- not implemented yet
+#  case-hack.sh             <-- not implemented yet (it might have Windows-specific)
+#  nix-shell.sh             <-- not implemented yet
+#  linux-sandbox.sh         <-- not implemented (Docker can be use on Windows for sandboxing)
+#  plugins.sh               <-- not implemented yet
+#  nix-copy-ssh.sh          <-- not implemented yet
+#  build-remote.sh          <-- not implemented yet
+#  binary-cache.sh          <-- \* does not work in MSYS Bash (https://superuser.com/questions/897599/escaping-asterisk-in-bash-on-windows)
+#  nar-access.sh            <-- not possible to have args '/foo/data' (paths inside nar) without magic msys path translation (maybe `bash -c '...'` will work?)
+```
+
+## volth's windows bash discussion
+
+we need to create a cross-platform `stdenv` and from this discussion <https://discourse.nixos.org/t/nix-on-windows/1113> i extracted this:
+
+* volth proposed these
+  * `ruby`
+  * [rakudo (Perl 6)](https://discourse.nixos.org/t/nix-on-windows/1113/48) + excellent Unicode support and + works well with Windows paths, including symlinks
+* [lua](https://discourse.nixos.org/t/nix-on-windows/1113/60) is proposed by john ericson
+* [oil shell](https://discourse.nixos.org/t/nix-on-windows/1113/75) - GSH, a non-interactive POSIX shell for Windows
+* nushell mentioned in recent times
+  * `nushell` see <https://determinate.systems/posts/nuenv/> from luc perkins (see also the [nixcon23 talk on YT](https://www.youtube.com/watch?v=QwElUltNsq0))
+* https://github.com/mvdan/sh
+
+<div class="alert alert-info" role="alert">
+i find `nushell` the most interesting as it contains many helper programs like `cp` and also has an [interesting programming language](https://www.nushell.sh/book/programming_in_nu.html).
+</div>
+
+# summary
+
+**volth's work has been kept alive, thanks john ericson!** furthermore, john ericson even managed to already integrate parts of volth's work into nix!
+
+**volth's amazing prototyping work shows that it is feasible to use nix on windows. thanks volth**! the code base is a huge inspiration and shows how much is already possible and where we need to focus work!
+
+some platform limitations volth faced, and in parts even fixed, are now overcome by microsoft on windows 10 and onwards, namely:
+
+* path length limitations
+* case handling for paths/files per directory
+* directory/file permissions
+* proper symlink support
+* unix domain socket support ([Windows 10 Insider Preview Build 17063 in 2017](https://github.com/rust-lang/libs-team/issues/271))
+
+however, there is still some major issue to be dealt with:
+
+* dynamic/static linking (i.e. rpath) but even here we have interesting developments
+
+**let's realize the potential of nix by integrating volth's findings into nix!**

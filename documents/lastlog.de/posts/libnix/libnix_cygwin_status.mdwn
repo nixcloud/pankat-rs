@@ -1,0 +1,8 @@
+[[!meta date="2024-02-18 20:53"]]
+[[!tag nix nixos libnix]]
+[[!series libnix]]
+[[!summary libnix motivation, the future of cross platform nix]]
+[[!draft]]
+# cygwin nix
+
+https://github.com/NixOS/nix/pull/4953

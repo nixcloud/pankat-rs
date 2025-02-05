@@ -1,0 +1,47 @@
+[[!meta date="2025-01-10 20:53"]]
+[[!tag nix nixos libnix]]
+[[!series libnix]]
+[[!summary libnix status update for 2025]]
+
+[[!Draft]]
+[[SpecialPage]]
+
+[[!img media/nlnet-logo.gif class="noFancy" style="float: right"]]
+[[!img posts/libnix/Nix_snowflake_windows.svg class="noFancy" style="float: right" width="200px"]]
+
+# motivation
+
+* is the GSOC for cross platform Path naming solved?
+
+
+puffnfresh
+
+#include <windows.h>
+#include
+
+int main() {
+// Registry key for Developer Mode
+HKEY hKey;
+const wchar_t* subKey = L"SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock";
+const wchar_t* valueName = L"AllowDevelopmentWithoutDevLicense";
+DWORD data = 1; // 1 to enable Developer Mode, 0 to disable
+
+1234567891011121314151617// Open or create the registry key
+LONG result = RegCreateKeyExW(HKEY_LOCAL_MACHINE, subKey, 0, nullptr, 0, KEY_WRITE, nullptr, &hKey, nullptr);
+if (result == ERROR_SUCCESS) {
+    // Set the value
+    result = RegSetValueExW(hKey, valueName, 0, REG_DWORD, reinterpret_cast<const BYTE*>(&data), sizeof(data));
+    if (result == ERROR_SUCCESS) {
+        std::wcout << L"Developer Mode has been successfully enabled!" << std::endl;
+    } else {
+        std::wcerr << L"Failed to set registry value. Error code: " << result << std::endl;
+    }
+    // Close the registry key
+    RegCloseKey(hKey);
+} else {
+    std::wcerr << L"Failed to open or create registry key. Error code: " << result << std::endl;
+}
+
+return 0;
+
+}

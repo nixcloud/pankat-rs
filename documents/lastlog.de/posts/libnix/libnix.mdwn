@@ -1,0 +1,150 @@
+[[!meta date="2024-04-12 20:53"]]
+[[!tag nix nixos libnix]]
+[[!series libnix]]
+[[!summary libnix motivation, the future of cross platform nix]]
+
+[[!img media/nlnet-logo.gif class="noFancy" style="float: right"]]
+[[!img posts/libnix/Nix_snowflake_windows.svg class="noFancy" style="float: right" width="200px"]]
+
+# motivation
+
+this [libnix](https://nlnet.nl/project/libnix/) nlnet application i've made is meant to contribute to the nix ecosystem by **making nix a
+generic cross platform backend for language specific package managers**.
+
+it consists of two parts:
+
+1. **nix on windows** - port nix to windows
+2. **libnix PM backend** - use nix as a backend for language specific package managers "PMs" (node, pip, cargo, ...)
+
+or in simpler terms, figuring out a way to make nix more attractive for the industry so can be used during development and not only for deployment afterwards.
+
+# introduction
+
+nix, the purely functional programming language and package manager, has been around since 3. jun 2003 - roughly 20 years. yet there is no vast industry adaption of nix (or nixos). **why is that?**
+
+in parts:
+
+* most development is done _from_ and sometimes also _for_ the windows platform
+* _wrapping language specific PMs with nix is hard_
+* technology stacks are selected _by the lowest common denominator_
+* running _IDEs on remote machines is not a common practice_
+
+## PC desktop OS usage
+
+it is worth to have a look at the [global market share held by operating systems for desktop PCs, from january 2013 to february 2024](https://www.statista.com/statistics/218089/global-market-share-of-windows-7/):
+
+[[!img posts/libnix/desktop-market-share.jpg class="noFancy" width="700px"]]
+
+taking macOS + Linux together, nix could be used on ~20% of the desktops.
+
+## PC gaming OS usage
+
+the [valve steam statistics](https://store.steampowered.com/hwsurvey) for march 2024 show:
+
+* 96.67% windows
+* 1.94% linux
+* 1.38% mac
+
+the gaming industry is a good early indicator for the general desktop usage with valve being a key driver in linux adaption together with AMD.
+
+## nixcon surveys
+
+the nix-surveys shed some light on how this is perceived by the nix community:
+
+* [2024](https://discourse.nixos.org/t/nixcon-na-2024-survey-results/43090)
+* [2023](https://discourse.nixos.org/t/nix-community-survey-2023-results/33124)
+* [2022](https://discourse.nixos.org/t/2022-nix-survey-results/18983)
+
+## OS summary
+
+<div class="alert alert-info" role="alert">
+with **nix working only on unix like environments**, one can't expect vast adoptions **unless the windows reign is over. nix is strongly designed for unix like systems. this might happen due to major macOS market share gains or the linux desktop**
+
+nixos, in particular, is strongly tied to a linux kernel and systemd, but we don't mention this much onwards as the focus is on nix as a package manager.
+</div>
+
+# the mission
+
+given the motivation and statistics, the mission is to make software development more about development and less about package management. this will be done by using nix as a generic cross platform backend for language specific package managers.
+
+## nix on windows
+
+before we go into a native nix on windows we have to look at **nixos-wsl using WSL2**.
+
+### nixos-wsl
+
+using nixos-wsl with [nixos-vscode-server](https://github.com/nix-community/nixos-vscode-server) via ssh is the most convenient way to work with nix on windows today. i've been using nixos-wsl a lot and it works for development and
+is much better compared to VM based development. that said, **nixos-wsl is no replacement for a native windows experience**, especially in regards to IDE integration and runtime performance.
+
+### native nix on windows
+
+for historic reasons we should also mention the _ternaris report from 2015_ which outlines obstacles to overcome: <https://ternaris.com/lab/nix-on-windows.html>. in parts this has been outdated but it still might be an interesting read.
+
+if you want to join development for a native nix on windows, see these resources:
+
+* <https://matrix.to/#/#windows:nixos.org>
+* <https://discourse.nixos.org/t/nix-on-windows/1113>
+* <https://github.com/NixOS/GSoC/blob/main/ideas/2024.md>
+
+since nix is c++, bash and perl there are some things to consider:
+
+* [minGW](https://www.mingw-w64.org/)
+* [cosmopolitan](https://justine.lol/cosmopolitan/)
+
+or maybe start with the rust port of nix?
+
+* [TVIX](https://tvix.dev/)
+
+### summary
+
+the next post in the libnix series will cover the current status of nix on windows.
+
+## libnix - language specific PMs considerations
+
+language specific PMs like npm, yarn, cargo, conan, pip, ... are the most common way to manage software stacks in the industry. some of them are even cross platform already!
+
+<div class="alert alert-info" role="alert">
+key observations 2024:
+
+* nix is **strong** with **open programming languages as python, c++, haskell and some others** but lacks support for languages with rather
+closed eco systems as c#, android and ios development
+* nix support for languages like c/c++ is rather good as they **don't use PMs**
+* **PM abstraction** is hard when:
+   * mixing languages and build systems, for instance, when using a c library in a python project with a seldom used build system
+   * build scripts are not easily patchable
+   * build scripts use lots of /lib /bin and similar assumptions about programs but have no way to override them
+* **PMs** which already feature a lock file concept are **easy to integrate** with nix (yarn.lock, package.lock, ...)
+</div>
+
+the main challenge here is how well these can be integrated with nix!
+
+### traditional wrapping
+
+most PMs are wrapped using nix abstractions, see <https://nixos.wiki/wiki/Language-specific_package_helpers> and on program updates these need to be redone.
+
+### PM anatomy
+
+language specific package managers (like cargo, npm) solve these problems:
+
+* resolve dependencies
+* using/creating lock files for toolchains and dependencies
+* downloading dependencies
+* manage build artifact caches (i.e. .cargo, .conan, .npm, ...) for faster builds and garbage collecting them eventually
+* build target program or library
+* wrap native software like openssl, libxml for runtime or compilers like gcc for build time actions
+* install routines for the target program or library
+
+ideally this only means a manual run of some tool like node2nix but often times it means a manual patching of build scripts.
+
+### examples
+
+these two projects have the concept of libnix already implemented:
+
+* [spack](https://github.com/flatironinstitute/nixpack)
+* [haskell](https://docs.haskellstack.org/en/stable/nix_integration/)
+
+i will look into these in more detail in the next post about libnix series.
+
+# summary
+
+windows nix support matters because then we can share package management concepts between operating systems. ideally we can make nix into a generic backend for PMs making software development great again!
