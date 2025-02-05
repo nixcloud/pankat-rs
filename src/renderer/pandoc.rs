@@ -3,13 +3,12 @@ use std::error::Error;
 use std::io::Write;
 use std::path::PathBuf;
 
-pub fn render_file(path: String) -> Result<String, Box<dyn Error>> {
+pub fn render_file(article_markdown: String) -> Result<String, Box<dyn Error>> {
     let cfg = config::Config::get();
-    let article_markdown = std::fs::read_to_string(&path)?;
     let mut assets: PathBuf = PathBuf::from(cfg.assets.clone());
     assets.push("pandoc-lua/shifted-numbered-headings.lua");
     let luafile = assets.as_path();
-    println!("luafile path: {:?}", luafile.clone());
+    //println!("luafile path: {:?}", luafile.clone());
     let mut pandoc_process = std::process::Command::new("pandoc")
         .arg("--lua-filter")
         .arg(luafile)

@@ -17,6 +17,7 @@ use bcrypt::{hash, verify, DEFAULT_COST};
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::SqliteConnection;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 use std::path::PathBuf;
 use tokio::fs;
 
@@ -93,6 +94,7 @@ pub async fn protected(headers: HeaderMap) -> Result<Json<&'static str>, AppErro
 }
 
 pub async fn serve_output(uri: axum::http::Uri) -> Result<Response, AppError> {
+    //println!("Received request for URI (serve_output): {}", uri);
     let cfg = config::Config::get();
     let mut path = PathBuf::from(cfg.output.clone());
 
@@ -137,11 +139,16 @@ pub async fn serve_output(uri: axum::http::Uri) -> Result<Response, AppError> {
 }
 
 pub async fn serve_input(uri: axum::http::Uri) -> Result<Response, AppError> {
+    //println!("Received request for URI (serve_input): {}", uri);
     let cfg = config::Config::get();
     let mut input = PathBuf::from(cfg.input.clone());
 
-    let path_str = uri.path();
-    input.push(&path_str[1..]);
+    let uri_path = PathBuf::from(uri.path());
+    let path_str = uri_path
+        .strip_prefix("/")
+        .map_err(|_| AppError::InternalError)?;
+
+    input.push(&path_str);
 
     match fs::read(&input).await {
         Ok(contents) => {
@@ -160,11 +167,16 @@ pub async fn serve_input(uri: axum::http::Uri) -> Result<Response, AppError> {
 }
 
 pub async fn serve_assets(uri: axum::http::Uri) -> Result<Response, AppError> {
+    //println!("Received request for URI (serve_assets): {}", uri);
     let cfg = config::Config::get();
     let mut assets = PathBuf::from(cfg.assets.clone());
 
-    let path_str = uri.path();
-    assets.push(&path_str[1..]);
+    let uri_path = PathBuf::from(uri.path());
+    let path_str = uri_path
+        .strip_prefix("/assets/")
+        .map_err(|_| AppError::InternalError)?;
+
+    assets.push(&path_str);
 
     match fs::read(&assets).await {
         Ok(contents) => {

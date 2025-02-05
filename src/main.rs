@@ -103,9 +103,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     // Create router
     let app = Router::new()
-        .route("/posts", get(handlers::serve_input))
-        .route("/media", get(handlers::serve_input))
-        .route("/assets", get(handlers::serve_assets))
+        .route("/posts/*path", get(handlers::serve_input))
+        .route("/media/*path", get(handlers::serve_input))
+        .route("/assets/*path", get(handlers::serve_assets))
         .route("/api/auth/register", post(handlers::register))
         .route("/api/auth/login", post(handlers::login))
         .route("/api/protected", get(handlers::protected))
@@ -140,7 +140,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
     };
 
-    articles::scan_articles();
+    //articles::scan_articles();
 
     // Start server with graceful shutdown
     println!("Press Ctrl+C to stop the server...");
