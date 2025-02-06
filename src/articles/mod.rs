@@ -80,6 +80,7 @@ pub fn scan_articles() -> HashMap<PathBuf, Article> {
             "Writing article {} to disk",
             article.clone().dst_file_name.unwrap().display()
         );
+        //println!("Article: {:#?}", article);
         write_article_to_disk(article);
     }
 
@@ -161,6 +162,11 @@ fn parse_article(article_path: &PathBuf) -> Result<Article, Box<dyn Error>> {
         .unwrap()
         .into();
     article.dst_file_name = Some(dst_file_name);
+
+    if article.title == None {
+        let title = utils::article_src_file_name_to_title(&article.src_file_name);
+        article.title = Some(title);
+    }
 
     Ok(article)
 }

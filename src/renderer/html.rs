@@ -1,4 +1,5 @@
 use crate::config;
+use crate::renderer::utils::{date_and_time, tag_links_to_timeline};
 use handlebars::Handlebars;
 use serde_json::json;
 use std::error::Error;
@@ -68,8 +69,17 @@ pub fn create_html_from_content_template(
         "next".to_string(),
     )?;
 
-    let date_and_time: String = String::new(); //<div id="date"><p><span id="lastupdated">` + strings.ToLower(date) + `</span></p></div>`
-    let tags: String = String::new();
+    let date_and_time: String = format!(
+        r#"<div id="date"><p><span id="lastupdated">{}</span></p></div>"#,
+        date_and_time(&article.modification_date)
+    )
+    .to_string();
+
+    let tags: String = format!(
+        r#"<div id="tags"><p>{}</p></div>"#,
+        tag_links_to_timeline(article.tags)
+    )
+    .to_string();
 
     let data = json!({
         "SpecialPage": article.special_page,
