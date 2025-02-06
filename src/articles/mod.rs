@@ -182,6 +182,12 @@ fn eval_plugins(
     for mat in re.find_iter(&article_mdwn_raw_string) {
         let start = mat.start();
         let end = mat.end();
+
+        if start > last {
+            res += &article_mdwn_raw_string[last..start];
+            last = start;
+        }
+
         match exec_plugin(&article_mdwn_raw_string[start..end], article) {
             Ok(result) => {
                 res.push_str(&result.output);

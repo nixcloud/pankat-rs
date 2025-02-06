@@ -1,9 +1,9 @@
+#[cfg(test)]
 use crate::articles::eval_plugins;
 use crate::articles::Article;
 use std::path::PathBuf;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, UNIX_EPOCH};
 
-#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -409,9 +409,19 @@ mod tests {
 
     #[test]
     fn test_img() {
-        let input = r#"hi!\n[[!img media/nlnet-logo.gif class="noFancy" style="float: right"]]\n[[!img posts/libnix/Nix_snowflake_windows.svg class="noFancy" style="float: right" width="200px"]]\n"#.to_string();
+        let input = r#"
+        hi!
+        [[!img media/nlnet-logo.gif class="noFancy" style="float: right"]]
+        abab
+        [[!img posts/libnix/Nix_snowflake_windows.svg class="noFancy" style="float: right" width="200px"]]
+        "#.to_string();
 
-        let expected_output = r#"<a href="media/nlnet-logo.gif"><img src="media/nlnet-logo.gif" class="noFancy" style="float: right"></a>hi!\n<a href="posts/libnix/Nix_snowflake_windows.svg"><img src="posts/libnix/Nix_snowflake_windows.svg" class="noFancy" style="float: right" width="200px"></a>\n\n"#.to_string();
+        let expected_output = r#"
+        hi!
+        <a href="media/nlnet-logo.gif"><img src="media/nlnet-logo.gif" class="noFancy" style="float: right"></a>
+        abab
+        <a href="posts/libnix/Nix_snowflake_windows.svg"><img src="posts/libnix/Nix_snowflake_windows.svg" class="noFancy" style="float: right" width="200px"></a>
+        "#.to_string();
 
         //o := `<a href="` + f[1] + `"><img src=` + b + `></a>`
         let mut article = Article {
@@ -457,7 +467,7 @@ mod tests {
         match result {
             Ok(document) => {
                 println!("document: {:?}", document);
-                assert_eq!(document, expected_output);
+                assert_eq!(expected_output, document);
             }
             Err(_) => {}
         }

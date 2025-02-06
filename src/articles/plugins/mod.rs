@@ -1,11 +1,10 @@
-
-pub mod specialpage;
 pub mod draft;
+pub mod img;
 pub mod meta;
 pub mod series;
-pub mod tag;
-pub mod img;
+pub mod specialpage;
 pub mod summary;
+pub mod tag;
 pub mod title;
 
 #[derive(Clone, Debug)]

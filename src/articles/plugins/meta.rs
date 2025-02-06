@@ -1,11 +1,11 @@
 use crate::articles::Article;
 use crate::articles::PluginResult;
-use std::error::Error;
 use chrono::NaiveDateTime;
 use chrono::TimeZone;
 use chrono::Utc;
-use std::time::SystemTime;
 use regex::Regex;
+use std::error::Error;
+use std::time::SystemTime;
 
 pub fn meta(input: &str, article: &mut Article) -> Result<PluginResult, Box<dyn Error>> {
     let re = Regex::new(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}").unwrap();
