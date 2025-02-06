@@ -1,11 +1,10 @@
-use chrono::NaiveDateTime;
-use chrono::TimeZone;
-use chrono::Utc;
 use regex::Regex;
 use std::collections::HashMap;
 use std::error::Error;
 use std::path::PathBuf;
-use std::time::SystemTime;
+
+mod plugins;
+mod utils;
 
 use crate::config;
 use crate::renderer::html::{
@@ -13,7 +12,10 @@ use crate::renderer::html::{
 };
 use crate::renderer::pandoc::render_file;
 
-#[derive(Debug, Clone)]
+mod tests;
+use self::plugins::{draft, img, meta, series, specialpage, summary, tag, title, PluginResult};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Article {
     /// relative to $input
     pub src_file_name: PathBuf,
@@ -140,12 +142,16 @@ fn parse_article(article_path: &PathBuf) -> Result<Article, Box<dyn Error>> {
     };
 
     let article_mdwn_raw_string = std::fs::read_to_string(article_path).unwrap();
-    match process_plugins(&article_mdwn_raw_string, &mut article) {
+    match eval_plugins(&article_mdwn_raw_string, &mut article) {
         Ok(article_mdwn_refined_source) => {
             article.article_mdwn_source = Some(article_mdwn_refined_source)
         }
         Err(err) => {
-            todo!()
+            println!(
+                "Error on eval_plugins in article {}: {}",
+                article_path.display(),
+                err
+            );
         }
     }
 
@@ -159,196 +165,76 @@ fn parse_article(article_path: &PathBuf) -> Result<Article, Box<dyn Error>> {
     Ok(article)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*; // Importing everything from the parent module
-
-    #[test]
-    fn test_process_plugins() {
-        // let config = config::Config::new(
-        //     PathBuf::new(),
-        //     PathBuf::new(),
-        //     PathBuf::new(),
-        //     PathBuf::new(),
-        //     23,
-        // );
-        // config::Config::initialize(config).expect("Failed to initialize config");
-
-        let raw_mdwn = "[[!title Test Title]]\n[[!summary This is a summary.]]\n[[!series My Series]]\n[[!tag rust programming]]".to_string();
-        let mut article = Article {
-            src_file_name: PathBuf::from("example.mdwn"),
-            dst_file_name: None,
-            article_mdwn_source: None,
-            title: None,
-            modification_date: None,
-            summary: None,
-            tags: None,
-            series: None,
-            draft: None,
-            special_page: None,
-            timeline: None,
-            anchorjs: None,
-            tocify: None,
-            show_source_link: None,
-            live_updates: None,
-        };
-
-        let result = process_plugins(&raw_mdwn, &mut article);
-
-        assert!(result.is_ok());
-        assert_eq!(article.title, Some("Test Title".to_string()));
-        assert_eq!(article.summary, Some("This is a summary.".to_string()));
-        assert_eq!(article.series, Some("My Series".to_string()));
-        assert_eq!(
-            article.tags,
-            Some(vec!["rust".to_string(), "programming".to_string()])
-        );
-    }
-}
-
-fn process_plugins(
+fn eval_plugins(
     article_mdwn_raw_string: &String,
     article: &mut Article,
 ) -> Result<String, Box<dyn Error>> {
-    let mut processed_article = String::new();
-    let re = Regex::new(r"\[\[!(.*?)\]\]").unwrap();
-    let mut prev_pos = 0;
-    let mut found_plugins = Vec::new();
+    let re = Regex::new(r"\[\[\!(.*?)\]\]").unwrap();
 
-    for mat in re.find_iter(article_mdwn_raw_string) {
-        if prev_pos != mat.start() {
-            processed_article.push_str(&article_mdwn_raw_string[prev_pos..mat.start()]);
-        }
-        match call_plugin(&article_mdwn_raw_string[mat.start()..mat.end()], article) {
-            Ok(res) => {
-                let PluginResult {
-                    name: plugin_name,
-                    output: plugin_output,
-                } = res;
-                found_plugins.push(plugin_name);
-                processed_article.push_str(&plugin_output);
-                prev_pos = mat.end();
+    let mut last = 0;
+    let mut res: String = String::new();
+    for mat in re.find_iter(&article_mdwn_raw_string) {
+        let start = mat.start();
+        let end = mat.end();
+        match exec_plugin(&article_mdwn_raw_string[start..end], article) {
+            Ok(result) => {
+                res.push_str(&result.output);
             }
-            Err(e) => {
-                //todo!()
-            }
+            Err(e) => match utils::position_to_line_and_col_number(&article_mdwn_raw_string, start)
+            {
+                Ok((line, col)) => {
+                    return Err(format!(
+                        "Error: call_plugin (at {}:{}:{}) returned error: {e}",
+                        article.src_file_name.display(),
+                        line,
+                        col
+                    )
+                    .into())
+                }
+                Err(_) => {
+                    return Err(format!(
+                        "Error: call_plugin (at {}:unknown position) returned error: {e}",
+                        article.src_file_name.display()
+                    )
+                    .into())
+                }
+            },
         }
-        processed_article.push_str(&article_mdwn_raw_string[prev_pos..]);
+        if end <= article_mdwn_raw_string.len() {
+            let t = &article_mdwn_raw_string[last..start];
+            res += t;
+            last = end;
+        } else {
+            return Err(
+                "Error: The specified length to extract is beyond the string's bounds.".into(),
+            );
+        }
     }
-
-    //println!("Plugins: {:?}", found_plugins);
-    Ok(processed_article)
+    if last <= article_mdwn_raw_string.len() {
+        let t = &article_mdwn_raw_string[last..];
+        res += t;
+    }
+    Ok(res)
 }
 
-struct PluginResult {
-    name: String,
-    output: String,
-}
-
-fn call_plugin(input: &str, article: &mut Article) -> Result<PluginResult, Box<dyn Error>> {
+pub fn exec_plugin(input: &str, article: &mut Article) -> Result<PluginResult, Box<dyn Error>> {
     let pattern = r#"\[\[!([\w]+)(?:\s+(.*))?\]\]"#;
     let re = Regex::new(pattern).unwrap();
 
     if let Some(captures) = re.captures(input) {
-        let name = captures.get(1).unwrap().as_str();
+        let name: &str = captures.get(1).unwrap().as_str();
         let argument = captures.get(2).map_or("", |m| m.as_str()).trim();
 
-        match name {
-            "specialpage" => {
-                article.special_page = Some(true);
-                Ok(PluginResult {
-                    name: "specialpage".to_string(),
-                    output: "".to_string(),
-                })
-            }
-            "draft" => {
-                article.special_page = Some(true);
-                Ok(PluginResult {
-                    name: "draft".to_string(),
-                    output: "".to_string(),
-                })
-            }
-            "meta" => {
-                let re = Regex::new(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}").unwrap();
-                if let Some(mat) = re.find(&argument) {
-                    if let Ok(parsed_time) =
-                        NaiveDateTime::parse_from_str(mat.as_str(), "%Y-%m-%d %H:%M")
-                    {
-                        let system_time: SystemTime = Utc.from_utc_datetime(&parsed_time).into();
-                        article.modification_date = Some(system_time);
-                        return Ok(PluginResult {
-                            name: "meta".to_string(),
-                            output: "".to_string(),
-                        });
-                    } else {
-                        Err("Argument contains invalid characters (newlines or tabs)".into())
-                    }
-                } else {
-                    Err("Argument contains invalid characters (newlines or tabs)".into())
-                }
-            }
-            "series" => {
-                if argument.contains('\n') || argument.contains('\t') {
-                    Err("Argument contains invalid characters (newlines or tabs)".into())
-                } else {
-                    let series = argument.to_string();
-                    article.series = Some(series);
-                    Ok(PluginResult {
-                        name: "series".to_string(),
-                        output: "".to_string(),
-                    })
-                }
-            }
-            "tag" => {
-                if argument.contains('\n') || argument.contains('\t') {
-                    Err("Argument contains invalid characters (newlines or tabs)".into())
-                } else {
-                    let tag = argument.to_string();
-                    article.tags = Some(tag.split_whitespace().map(|s| s.to_string()).collect());
-                    Ok(PluginResult {
-                        name: "tag".to_string(),
-                        output: "".to_string(),
-                    })
-                }
-            }
-            "img" => {
-                if argument.contains('\n') || argument.contains('\t') {
-                    Err("Argument contains invalid characters (newlines or tabs)".into())
-                } else {
-                    let mut parts = argument.split_whitespace();
-                    let img = parts.next().unwrap_or("").to_string();
-                    let subarg = parts.collect::<Vec<&str>>().join(" ");
-                    Ok(PluginResult {
-                        name: "img".to_string(),
-                        output: format!("<a href=\"{}\"><img src=\"{}\"></a>", img, subarg),
-                    })
-                }
-            }
-            "summary" => {
-                if argument.contains('\n') || argument.contains('\t') {
-                    Err("Argument contains invalid characters (newlines or tabs)".into())
-                } else {
-                    let summary = argument.to_string();
-                    article.summary = Some(summary);
-                    Ok(PluginResult {
-                        name: "summary".to_string(),
-                        output: "".to_string(),
-                    })
-                }
-            }
-            "title" => {
-                if argument.contains('\n') || argument.contains('\t') {
-                    Err("Argument contains invalid characters (newlines or tabs)".into())
-                } else {
-                    let title = argument.to_string();
-                    article.title = Some(title);
-                    Ok(PluginResult {
-                        name: "title".to_string(),
-                        output: "".to_string(),
-                    })
-                }
-            }
-            _ => Err("Plugin '{name}' is not supported".into()),
+        match name.to_lowercase().as_str() {
+            "title" => title::title(argument, article),
+            "specialpage" => specialpage::specialpage(argument, article),
+            "draft" => draft::draft(argument, article),
+            "meta" => meta::meta(argument, article),
+            "series" => series::series(argument, article),
+            "tag" => tag::tag(argument, article),
+            "img" => img::img(argument, article),
+            "summary" => summary::summary(argument, article),
+            _ => Err(format!("Plugin '{}' is not supported", name).into()),
         }
     } else {
         Err("Plugin couldn't be decoded".into())

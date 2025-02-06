@@ -32,10 +32,15 @@ impl Config {
     }
 
     pub fn initialize(config: Config) -> Result<(), &'static str> {
-        ensure_paths_exist(&config.input).unwrap();
-        ensure_paths_exist(&config.output).unwrap();
-        ensure_paths_exist(&config.assets).unwrap();
-        ensure_paths_exist(&config.database).unwrap();
+        
+        #[cfg(not(debug_assertions))] // This attribute ensures the code runs only in release builds
+        {
+            ensure_paths_exist(&config.input).unwrap();
+            ensure_paths_exist(&config.output).unwrap();
+            ensure_paths_exist(&config.assets).unwrap();
+            ensure_paths_exist(&config.database).unwrap();
+        }
+        
         SINGLETON
             .set(Arc::new(config))
             .map_err(|_| "Config can only be initialized once")

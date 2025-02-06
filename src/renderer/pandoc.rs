@@ -4,6 +4,9 @@ use std::io::Write;
 use std::path::PathBuf;
 
 pub fn render_file(article_markdown: String) -> Result<String, Box<dyn Error>> {
+    // println!("-------------------------");
+    // println!("{}", article_markdown.clone());
+    // println!("-------------------------");
     let cfg = config::Config::get();
     let mut assets: PathBuf = PathBuf::from(cfg.assets.clone());
     assets.push("pandoc-lua/shifted-numbered-headings.lua");

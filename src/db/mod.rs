@@ -4,7 +4,6 @@ use std::path::Path;
 
 pub type DbPool = r2d2::Pool<ConnectionManager<SqliteConnection>>;
 
-pub mod articles;
 mod schema;
 pub mod users;
 
