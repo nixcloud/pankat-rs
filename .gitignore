@@ -4,4 +4,6 @@ dist
 target
 auth.db
 documents/blog.lastlog.de
+documents/lastlog.de
 documents/output
+documents/pankat.sqlite
