@@ -13,7 +13,7 @@ use crate::renderer::html::{
 use crate::renderer::pandoc::render_file;
 
 mod tests;
-use self::plugins::{draft, img, meta, series, specialpage, summary, tag, title, PluginResult};
+use self::plugins::{draft, img, meta, series, specialpage, summary, tag, title};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Article {
@@ -207,7 +207,7 @@ fn eval_plugins(
 
         match exec_plugin(&article_mdwn_raw_string[start..end], article) {
             Ok(result) => {
-                res.push_str(&result.output);
+                res.push_str(&result);
             }
             Err(e) => {
                 res += &article_mdwn_raw_string[start..end];
@@ -245,7 +245,7 @@ fn eval_plugins(
     Ok(res)
 }
 
-pub fn exec_plugin(input: &str, article: &mut Article) -> Result<PluginResult, Box<dyn Error>> {
+pub fn exec_plugin(input: &str, article: &mut Article) -> Result<String, Box<dyn Error>> {
     let pattern = r#"\[\[!([\w]+)(?:\s+(.*))?\]\]"#;
     let re = Regex::new(pattern).unwrap();
 
