@@ -28,11 +28,10 @@ pub fn create_html_from_standalone_template(
     let data = json!({
         "SiteBrandTitle": "Sample Brand",
         "Title": article.title,
-        "NavTitleArticleSource": html,
+        "NavAndArticle": html,
         "ArticleSourceCodeURL": article.src_file_name,
         "ArticleSourceCodeFS": article.src_file_name,
         "ArticleDstFileName": article.dst_file_name,
-        "ShowSourceLink": article.show_source_link,
         "LiveUpdates": article.live_updates,
         "SpecialPage": article.special_page,
         "Anchorjs": article.anchorjs,

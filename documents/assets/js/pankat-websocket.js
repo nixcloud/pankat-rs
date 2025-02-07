@@ -25,9 +25,9 @@ $(document).ready(function() {
       var  dd = new diffDOM.DiffDOM();
       var htmlString = JSON.parse(msg.data)
       //console.log (htmlString)
-      var outDiv = document.getElementById('headerAndArticle');
+      var outDiv = document.getElementById('NavAndArticle');
       var newElement = document.createElement("div");
-      newElement.setAttribute("id", "headerAndArticle");
+      newElement.setAttribute("id", "NavAndArticle");
       newElement.innerHTML = htmlString;
       var diff = dd.diff(outDiv, newElement);
       //console.log(diff)

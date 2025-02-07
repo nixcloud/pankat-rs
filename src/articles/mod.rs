@@ -37,8 +37,6 @@ pub struct Article {
 
     pub anchorjs: Option<bool>,
     pub tocify: Option<bool>,
-    pub show_source_link: Option<bool>,
-    /// register for live updates (default true)
     pub live_updates: Option<bool>,
 }
 
@@ -76,6 +74,24 @@ pub fn scan_articles() -> HashMap<PathBuf, Article> {
     traverse_and_collect_articles(&input_path, &mut articles);
 
     for (_, article) in &articles {
+        if let Some(draft) = article.draft {
+            if draft {
+                println!(
+                    "Article {} is a draft, not writing to disk",
+                    article.src_file_name.display()
+                );
+                continue;
+            }
+        }
+        if let Some(special_page) = article.special_page {
+            if special_page {
+                println!(
+                    "Article {} is a special_page, not writing to disk",
+                    article.src_file_name.display()
+                );
+                continue;
+            }
+        }
         println!(
             "Writing article {} to disk",
             article.clone().dst_file_name.unwrap().display()
@@ -94,25 +110,26 @@ fn write_article_to_disk(article: &Article) {
     let cfg = config::Config::get();
     let output_path: PathBuf = cfg.output.clone();
 
-    let article_mdwn_source = article.article_mdwn_source.clone().unwrap();
+    match article.article_mdwn_source.clone() {
+        Some(article_mdwn_source) => match render_file(article_mdwn_source.clone()) {
+            Ok(mdwn_html) => {
+                let content: String =
+                    create_html_from_content_template(article.clone(), mdwn_html).unwrap();
+                let standalone_html: String =
+                    create_html_from_standalone_template(article.clone(), content).unwrap();
 
-    match render_file(article_mdwn_source.clone()) {
-        Ok(mdwn_html) => {
-            let content: String =
-                create_html_from_content_template(article.clone(), mdwn_html).unwrap();
-            let standalone_html: String =
-                create_html_from_standalone_template(article.clone(), content).unwrap();
-
-            if let Some(dst_file_name) = &article.dst_file_name {
-                let mut output_filename = output_path.clone();
-                output_filename.push(dst_file_name);
-                std::fs::write(output_filename, standalone_html)
-                    .expect("Unable to write HTML file");
+                if let Some(dst_file_name) = &article.dst_file_name {
+                    let mut output_filename = output_path.clone();
+                    output_filename.push(dst_file_name);
+                    std::fs::write(output_filename, standalone_html)
+                        .expect("Unable to write HTML file");
+                }
             }
-        }
-        Err(e) => {
-            println!("Error: path: {} - {}", article_mdwn_source, e);
-        }
+            Err(e) => {
+                println!("Error: path: {} - {}", article_mdwn_source, e);
+            }
+        },
+        None => {}
     }
 }
 
@@ -136,39 +153,38 @@ fn parse_article(article_path: &PathBuf) -> Result<Article, Box<dyn Error>> {
         special_page: None,
         timeline: None,
 
-        anchorjs: None,
-        tocify: None,
-        show_source_link: None,
-        live_updates: None,
+        anchorjs: Some(true),
+        tocify: Some(true),
+        live_updates: Some(true),
     };
 
     let article_mdwn_raw_string = std::fs::read_to_string(article_path).unwrap();
     match eval_plugins(&article_mdwn_raw_string, &mut article) {
         Ok(article_mdwn_refined_source) => {
-            article.article_mdwn_source = Some(article_mdwn_refined_source)
+            article.article_mdwn_source = Some(article_mdwn_refined_source);
+            let dst_file_name: PathBuf = article_path
+                .with_extension("html")
+                .file_name()
+                .unwrap()
+                .into();
+            article.dst_file_name = Some(dst_file_name);
+
+            if article.title == None {
+                let title = utils::article_src_file_name_to_title(&article.src_file_name);
+                article.title = Some(title);
+            }
+
+            Ok(article)
         }
-        Err(err) => {
+        Err(e) => {
             println!(
                 "Error on eval_plugins in article {}: {}",
                 article_path.display(),
-                err
+                e
             );
+            Err(e)
         }
     }
-
-    let dst_file_name: PathBuf = article_path
-        .with_extension("html")
-        .file_name()
-        .unwrap()
-        .into();
-    article.dst_file_name = Some(dst_file_name);
-
-    if article.title == None {
-        let title = utils::article_src_file_name_to_title(&article.src_file_name);
-        article.title = Some(title);
-    }
-
-    Ok(article)
 }
 
 fn eval_plugins(
@@ -192,29 +208,28 @@ fn eval_plugins(
             Ok(result) => {
                 res.push_str(&result.output);
             }
-            Err(e) => match utils::position_to_line_and_col_number(&article_mdwn_raw_string, start)
-            {
-                Ok((line, col)) => {
-                    return Err(format!(
-                        "Error: call_plugin (at {}:{}:{}) returned error: {e}",
-                        article.src_file_name.display(),
-                        line,
-                        col
-                    )
-                    .into())
+            Err(e) => {
+                res += &article_mdwn_raw_string[start..end];
+                match utils::position_to_line_and_col_number(&article_mdwn_raw_string, start) {
+                    Ok((line, col)) => {
+                        println!(
+                            "Error: call_plugin (at {}:{}:{}) returned error: {e}",
+                            article.src_file_name.display(),
+                            line,
+                            col
+                        );
+                    }
+                    Err(_) => {
+                        println!(
+                            "Error: call_plugin (at {}:unknown position) returned error: {e}",
+                            article.src_file_name.display()
+                        )
+                    }
                 }
-                Err(_) => {
-                    return Err(format!(
-                        "Error: call_plugin (at {}:unknown position) returned error: {e}",
-                        article.src_file_name.display()
-                    )
-                    .into())
-                }
-            },
+            }
         }
         if end <= article_mdwn_raw_string.len() {
-            let t = &article_mdwn_raw_string[last..start];
-            res += t;
+            res += &article_mdwn_raw_string[last..start];
             last = end;
         } else {
             return Err(
