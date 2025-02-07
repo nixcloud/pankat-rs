@@ -13,7 +13,7 @@ pub fn position_to_line_and_col_number(
     let mut col = 0;
     let mut current_pos = 0;
 
-    for (i, ch) in article_mdwn_raw_string.chars().enumerate() {
+    for (_i, ch) in article_mdwn_raw_string.chars().enumerate() {
         if current_pos == position {
             return Ok((line, col));
         }

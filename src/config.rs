@@ -48,6 +48,7 @@ impl Config {
 
 static SINGLETON: OnceLock<Arc<Config>> = OnceLock::new();
 
+#[cfg(not(debug_assertions))]
 fn ensure_paths_exist(path: &PathBuf) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if !path.exists() {
         return Err(Box::<dyn std::error::Error + Send + Sync>::from(format!(

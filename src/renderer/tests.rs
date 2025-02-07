@@ -1,12 +1,9 @@
-use crate::articles::Article;
-use crate::config;
-use crate::renderer::html::create_html_from_content_template;
-use std::collections::HashMap;
-use std::path::PathBuf;
-
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::articles::Article;
+    use crate::config;
+    use crate::renderer::html::create_html_from_content_template;
+    use std::path::PathBuf;
 
     #[test]
     fn test_create_html_from_content_template() {

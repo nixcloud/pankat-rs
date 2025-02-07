@@ -4,7 +4,7 @@ use handlebars::Handlebars;
 use serde_json::json;
 use std::error::Error;
 use std::fs;
-use std::path::{Path, PathBuf, MAIN_SEPARATOR};
+use std::path::{PathBuf, MAIN_SEPARATOR};
 
 use crate::articles::Article;
 

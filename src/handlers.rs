@@ -17,7 +17,6 @@ use bcrypt::{hash, verify, DEFAULT_COST};
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::SqliteConnection;
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 use std::path::PathBuf;
 use tokio::fs;
 

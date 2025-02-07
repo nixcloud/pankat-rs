@@ -14,7 +14,7 @@ use axum::{
 };
 
 use clap::{Arg, Command};
-use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use diesel_migrations::{embed_migrations, EmbeddedMigrations};
 use std::net::SocketAddr;
 use tokio::signal;
 use tokio::sync::broadcast;

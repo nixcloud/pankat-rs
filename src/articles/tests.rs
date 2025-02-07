@@ -1,11 +1,9 @@
 #[cfg(test)]
-use crate::articles::eval_plugins;
-use crate::articles::Article;
-use std::path::PathBuf;
-use std::time::{Duration, UNIX_EPOCH};
-
 mod tests {
-    use super::*;
+    use crate::articles::eval_plugins;
+    use crate::articles::Article;
+    use std::path::PathBuf;
+    use std::time::{Duration, UNIX_EPOCH};
 
     #[test]
     fn test_title() {
