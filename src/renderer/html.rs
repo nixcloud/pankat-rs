@@ -4,11 +4,9 @@ use handlebars::Handlebars;
 use serde_json::json;
 use std::error::Error;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 
 use crate::articles::Article;
-
-// https://docs.rs/handlebars/latest/handlebars/
 
 pub fn create_html_from_standalone_template(
     article: Article,
@@ -25,12 +23,20 @@ pub fn create_html_from_standalone_template(
 
     handlebars.register_template_string("standalone-template", &template_content)?;
 
+    let mut input_path: PathBuf = cfg.input.clone();
+    if !input_path.as_os_str().is_empty() && !input_path.to_string_lossy().ends_with(MAIN_SEPARATOR)
+    {
+        input_path.push(""); // Ensures trailing separator
+    }
+    let article_source_code_fs: PathBuf = PathBuf::from(article.src_file_name.clone());
+    let relative_path = article_source_code_fs.strip_prefix(&input_path).unwrap();
+
     let data = json!({
         "SiteBrandTitle": "Sample Brand",
         "Title": article.title,
         "NavAndArticle": html,
-        "ArticleSourceCodeURL": article.src_file_name,
-        "ArticleSourceCodeFS": article.src_file_name,
+        "ArticleSrcURL": relative_path,
+        "ArticleSrcFileName": article.src_file_name,
         "ArticleDstFileName": article.dst_file_name,
         "LiveUpdates": article.live_updates,
         "SpecialPage": article.special_page,
@@ -40,7 +46,6 @@ pub fn create_html_from_standalone_template(
     });
 
     let result = handlebars.render("standalone-template", &data)?;
-
     Ok(result)
 }
 
