@@ -40,13 +40,3 @@ pub fn article_src_file_name_to_title(article_src_file_name: &PathBuf) -> String
     // Replace underscores with spaces and return the result
     file_name_str.replace("_", " ").to_string()
 }
-
-pub fn date_and_time(modification_date: &Option<chrono::DateTime<chrono::Local>>) -> String {
-    match modification_date {
-        Some(modification_date) => {
-            let datetime: chrono::DateTime<chrono::Local> = (*modification_date).into();
-            datetime.format("%d %b %Y").to_string().to_lowercase()
-        }
-        None => String::new(),
-    }
-}
