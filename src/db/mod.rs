@@ -1,6 +1,8 @@
+use crate::config;
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
 use std::path::Path;
+use std::path::PathBuf;
 
 pub type DbPool = r2d2::Pool<ConnectionManager<SqliteConnection>>;
 
@@ -8,15 +10,16 @@ mod schema;
 pub mod users;
 
 pub fn establish_connection_pool() -> DbPool {
-    let database_url =
-        std::env::var("DATABASE_URL").unwrap_or_else(|_| String::from("sqlite:auth.db"));
-    println!("Connecting to {}", database_url);
-    // Ensure the database file exists
-    if !Path::new("auth.db").exists() {
-        println!("Creating SQLite database file...");
-        std::fs::File::create("auth.db").expect("Failed to create SQLite database file");
+    let cfg = config::Config::get();
+    let mut database_path = PathBuf::from(cfg.database.clone());
 
-        // Optionally initialize the schema here
+    database_path.push("pankat.sqlite");
+    let database_url: &str = database_path.as_path().to_str().unwrap();
+
+    println!("Connecting to {}", database_url);
+    if !Path::new("pankat.db").exists() {
+        println!("Creating SQLite database file...");
+        std::fs::File::create("pankat.db").expect("Failed to create SQLite database file");
         initialize_schema(&database_url);
     }
 
@@ -30,7 +33,6 @@ fn initialize_schema(database_url: &str) {
     use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 
     const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
-
     let mut connection =
         SqliteConnection::establish(database_url).expect("Failed to connect to SQLite database");
 
