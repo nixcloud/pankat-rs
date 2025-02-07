@@ -21,6 +21,7 @@ pub struct Article {
     pub src_file_name: PathBuf,
     /// relative to $input or flattened to single filename
     pub dst_file_name: Option<PathBuf>,
+    /// move this to a seperate table
     pub article_mdwn_source: Option<String>,
     pub draft: Option<bool>,
 

@@ -103,39 +103,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "auth-service"
-version = "0.1.0"
-dependencies = [
- "axum",
- "bcrypt",
- "chrono",
- "clap",
- "diesel",
- "diesel_cli",
- "diesel_migrations",
- "futures",
- "gloo-timers",
- "handlebars",
- "jsonwebtoken",
- "lazy_static",
- "libsqlite3-sys",
- "mime_guess",
- "notify",
- "rand",
- "regex",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
- "tokio",
- "tower",
- "tower-http",
- "tracing",
- "tracing-subscriber",
- "virtual-dom-rs",
- "virtual-node",
-]
-
-[[package]]
 name = "autocfg"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1436,6 +1403,39 @@ name = "overload"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
+
+[[package]]
+name = "pankat"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "bcrypt",
+ "chrono",
+ "clap",
+ "diesel",
+ "diesel_cli",
+ "diesel_migrations",
+ "futures",
+ "gloo-timers",
+ "handlebars",
+ "jsonwebtoken",
+ "lazy_static",
+ "libsqlite3-sys",
+ "mime_guess",
+ "notify",
+ "rand",
+ "regex",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "virtual-dom-rs",
+ "virtual-node",
+]
 
 [[package]]
 name = "parking_lot"
