@@ -25,7 +25,6 @@ mod tests {
             timeline: None,
             anchorjs: None,
             tocify: None,
-            show_source_link: None,
             live_updates: None,
         };
 
@@ -43,7 +42,6 @@ mod tests {
             timeline: None,
             anchorjs: None,
             tocify: None,
-            show_source_link: None,
             live_updates: None,
         };
 
@@ -81,7 +79,6 @@ mod tests {
             timeline: None,
             anchorjs: None,
             tocify: None,
-            show_source_link: None,
             live_updates: None,
         };
 
@@ -99,7 +96,6 @@ mod tests {
             timeline: None,
             anchorjs: None,
             tocify: None,
-            show_source_link: None,
             live_updates: None,
         };
 
@@ -137,7 +133,6 @@ mod tests {
             timeline: None,
             anchorjs: None,
             tocify: None,
-            show_source_link: None,
             live_updates: None,
         };
 
@@ -155,7 +150,6 @@ mod tests {
             timeline: None,
             anchorjs: None,
             tocify: None,
-            show_source_link: None,
             live_updates: None,
         };
 
@@ -194,7 +188,6 @@ mod tests {
             timeline: None,
             anchorjs: None,
             tocify: None,
-            show_source_link: None,
             live_updates: None,
         };
 
@@ -215,7 +208,6 @@ mod tests {
             timeline: None,
             anchorjs: None,
             tocify: None,
-            show_source_link: None,
             live_updates: None,
         };
 
@@ -254,7 +246,6 @@ mod tests {
             timeline: None,
             anchorjs: None,
             tocify: None,
-            show_source_link: None,
             live_updates: None,
         };
 
@@ -272,7 +263,6 @@ mod tests {
             timeline: None,
             anchorjs: None,
             tocify: None,
-            show_source_link: None,
             live_updates: None,
         };
 
@@ -311,7 +301,6 @@ mod tests {
             timeline: None,
             anchorjs: None,
             tocify: None,
-            show_source_link: None,
             live_updates: None,
         };
 
@@ -329,7 +318,6 @@ mod tests {
             timeline: None,
             anchorjs: None,
             tocify: None,
-            show_source_link: None,
             live_updates: None,
         };
 
@@ -368,7 +356,6 @@ mod tests {
             timeline: None,
             anchorjs: None,
             tocify: None,
-            show_source_link: None,
             live_updates: None,
         };
 
@@ -386,7 +373,6 @@ mod tests {
             timeline: None,
             anchorjs: None,
             tocify: None,
-            show_source_link: None,
             live_updates: None,
         };
 
@@ -438,7 +424,6 @@ mod tests {
             timeline: None,
             anchorjs: None,
             tocify: None,
-            show_source_link: None,
             live_updates: None,
         };
 
@@ -456,7 +441,6 @@ mod tests {
             timeline: None,
             anchorjs: None,
             tocify: None,
-            show_source_link: None,
             live_updates: None,
         };
 

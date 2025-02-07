@@ -36,7 +36,6 @@ mod tests {
 
             anchorjs: None,
             tocify: None,
-            show_source_link: None,
             live_updates: None,
         };
         let html_content = "<p>This is a test body.</p>".to_string();
