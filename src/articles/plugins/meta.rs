@@ -1,4 +1,4 @@
-use crate::articles::Article;
+use crate::articles::NewArticle;
 use chrono::NaiveDateTime;
 use chrono::TimeZone;
 use chrono::Utc;
@@ -6,7 +6,7 @@ use regex::Regex;
 use std::error::Error;
 use std::time::SystemTime;
 
-pub fn meta(input: &str, article: &mut Article) -> Result<String, Box<dyn Error>> {
+pub fn meta(input: &str, article: &mut NewArticle) -> Result<String, Box<dyn Error>> {
     let re = Regex::new(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}").unwrap();
     if let Some(mat) = re.find(&input) {
         if let Ok(parsed_time) = NaiveDateTime::parse_from_str(mat.as_str(), "%Y-%m-%d %H:%M") {

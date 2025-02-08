@@ -16,7 +16,7 @@ mod tests;
 use self::plugins::{draft, img, meta, series, specialpage, summary, tag, title};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Article {
+pub struct NewArticle {
     /// relative to $input
     pub src_file_name: PathBuf,
     /// relative to $input or flattened to single filename
@@ -41,14 +41,14 @@ pub struct Article {
     pub live_updates: Option<bool>,
 }
 
-pub fn scan_articles() -> HashMap<PathBuf, Article> {
-    let mut articles: HashMap<PathBuf, Article> = HashMap::new();
+pub fn scan_articles() -> HashMap<PathBuf, NewArticle> {
+    let mut articles: HashMap<PathBuf, NewArticle> = HashMap::new();
     let cfg = config::Config::get();
     let input_path: PathBuf = cfg.input.clone();
 
     let start_time = std::time::Instant::now();
 
-    fn traverse_and_collect_articles(dir: &PathBuf, articles: &mut HashMap<PathBuf, Article>) {
+    fn traverse_and_collect_articles(dir: &PathBuf, articles: &mut HashMap<PathBuf, NewArticle>) {
         if dir.is_dir() {
             if let Ok(entries) = std::fs::read_dir(dir) {
                 for entry in entries {
@@ -107,7 +107,7 @@ pub fn scan_articles() -> HashMap<PathBuf, Article> {
     articles
 }
 
-fn write_article_to_disk(article: &Article) {
+fn write_article_to_disk(article: &NewArticle) {
     let cfg = config::Config::get();
     let output_path: PathBuf = cfg.output.clone();
 
@@ -134,13 +134,13 @@ fn write_article_to_disk(article: &Article) {
     }
 }
 
-fn parse_article(article_path: &PathBuf) -> Result<Article, Box<dyn Error>> {
+fn parse_article(article_path: &PathBuf) -> Result<NewArticle, Box<dyn Error>> {
     println!(
         "Parsing article {} from disk",
         article_path.clone().display()
     );
 
-    let mut article: Article = Article {
+    let mut article: NewArticle = NewArticle {
         src_file_name: article_path.clone(),
         dst_file_name: None,
         article_mdwn_source: None,
@@ -190,7 +190,7 @@ fn parse_article(article_path: &PathBuf) -> Result<Article, Box<dyn Error>> {
 
 fn eval_plugins(
     article_mdwn_raw_string: &String,
-    article: &mut Article,
+    article: &mut NewArticle,
 ) -> Result<String, Box<dyn Error>> {
     let re = Regex::new(r"\[\[\!(.*?)\]\]").unwrap();
 
@@ -245,7 +245,7 @@ fn eval_plugins(
     Ok(res)
 }
 
-pub fn exec_plugin(input: &str, article: &mut Article) -> Result<String, Box<dyn Error>> {
+pub fn exec_plugin(input: &str, article: &mut NewArticle) -> Result<String, Box<dyn Error>> {
     let pattern = r#"\[\[!([\w]+)(?:\s+(.*))?\]\]"#;
     let re = Regex::new(pattern).unwrap();
 

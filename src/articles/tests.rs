@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::articles::eval_plugins;
-    use crate::articles::Article;
+    use crate::articles::NewArticle;
     use std::path::PathBuf;
     use std::time::{Duration, UNIX_EPOCH};
 
@@ -9,7 +9,7 @@ mod tests {
     fn test_title() {
         let input = "hi!\n[[!title Test Title  ]]\n".to_string();
         let expected_output = "hi!\n\n".to_string();
-        let mut article = Article {
+        let mut article = NewArticle {
             src_file_name: PathBuf::from("example.mdwn"),
             dst_file_name: None,
             article_mdwn_source: None,
@@ -26,7 +26,7 @@ mod tests {
             live_updates: None,
         };
 
-        let article_expected = Article {
+        let article_expected = NewArticle {
             src_file_name: PathBuf::from("example.mdwn"),
             dst_file_name: None,
             article_mdwn_source: None,
@@ -55,7 +55,7 @@ mod tests {
             Err(_) => {}
         }
 
-        println!("Article: {:#?}", article);
+        println!("NewArticle: {:#?}", article);
         assert_eq!(article, article_expected);
     }
 
@@ -63,7 +63,7 @@ mod tests {
     fn test_draft() {
         let input = "hi!\n[[!draft]]\n".to_string();
         let expected_output = "hi!\n\n".to_string();
-        let mut article = Article {
+        let mut article = NewArticle {
             src_file_name: PathBuf::from("example.mdwn"),
             dst_file_name: None,
             article_mdwn_source: None,
@@ -80,7 +80,7 @@ mod tests {
             live_updates: None,
         };
 
-        let article_expected = Article {
+        let article_expected = NewArticle {
             src_file_name: PathBuf::from("example.mdwn"),
             dst_file_name: None,
             article_mdwn_source: None,
@@ -109,7 +109,7 @@ mod tests {
             Err(_) => {}
         }
 
-        println!("Article: {:#?}", article);
+        println!("NewArticle: {:#?}", article);
         assert_eq!(article, article_expected);
     }
 
@@ -117,7 +117,7 @@ mod tests {
     fn test_specialpage() {
         let input = "hi!\n[[!specialpage]]\n".to_string();
         let expected_output = "hi!\n\n".to_string();
-        let mut article = Article {
+        let mut article = NewArticle {
             src_file_name: PathBuf::from("example.mdwn"),
             dst_file_name: None,
             article_mdwn_source: None,
@@ -134,7 +134,7 @@ mod tests {
             live_updates: None,
         };
 
-        let article_expected = Article {
+        let article_expected = NewArticle {
             src_file_name: PathBuf::from("example.mdwn"),
             dst_file_name: None,
             article_mdwn_source: None,
@@ -163,7 +163,7 @@ mod tests {
             Err(_) => {}
         }
 
-        println!("Article: {:#?}", article);
+        println!("NewArticle: {:#?}", article);
         println!("article_expected: {:#?}", article_expected);
         assert_eq!(article, article_expected);
     }
@@ -172,7 +172,7 @@ mod tests {
     fn test_meta() {
         let input = "hi!\n[[!meta date=\"2024-07-19 14:33\"]]\n".to_string();
         let expected_output = "hi!\n\n".to_string();
-        let mut article = Article {
+        let mut article = NewArticle {
             src_file_name: PathBuf::from("example.mdwn"),
             dst_file_name: None,
             article_mdwn_source: None,
@@ -192,7 +192,7 @@ mod tests {
         let timestamp = 1721399580;
         let time = UNIX_EPOCH + Duration::from_secs(timestamp as u64);
 
-        let article_expected = Article {
+        let article_expected = NewArticle {
             src_file_name: PathBuf::from("example.mdwn"),
             dst_file_name: None,
             article_mdwn_source: None,
@@ -221,7 +221,7 @@ mod tests {
             Err(_) => {}
         }
 
-        println!("Article: {:#?}", article);
+        println!("NewArticle: {:#?}", article);
         println!("article_expected: {:#?}", article_expected);
         assert_eq!(article, article_expected);
     }
@@ -230,7 +230,7 @@ mod tests {
     fn test_series() {
         let input = "hi!\n[[!series   asdf ]]\n".to_string();
         let expected_output = "hi!\n\n".to_string();
-        let mut article = Article {
+        let mut article = NewArticle {
             src_file_name: PathBuf::from("example.mdwn"),
             dst_file_name: None,
             article_mdwn_source: None,
@@ -247,7 +247,7 @@ mod tests {
             live_updates: None,
         };
 
-        let article_expected = Article {
+        let article_expected = NewArticle {
             src_file_name: PathBuf::from("example.mdwn"),
             dst_file_name: None,
             article_mdwn_source: None,
@@ -276,7 +276,7 @@ mod tests {
             Err(_) => {}
         }
 
-        println!("Article: {:#?}", article);
+        println!("NewArticle: {:#?}", article);
         println!("article_expected: {:#?}", article_expected);
         assert_eq!(article, article_expected);
     }
@@ -285,7 +285,7 @@ mod tests {
     fn test_tag() {
         let input = "hi!\n[[!tag   foo bar asdf]]\n".to_string();
         let expected_output = "hi!\n\n".to_string();
-        let mut article = Article {
+        let mut article = NewArticle {
             src_file_name: PathBuf::from("example.mdwn"),
             dst_file_name: None,
             article_mdwn_source: None,
@@ -302,7 +302,7 @@ mod tests {
             live_updates: None,
         };
 
-        let article_expected = Article {
+        let article_expected = NewArticle {
             src_file_name: PathBuf::from("example.mdwn"),
             dst_file_name: None,
             article_mdwn_source: None,
@@ -331,7 +331,7 @@ mod tests {
             Err(_) => {}
         }
 
-        println!("Article: {:#?}", article);
+        println!("NewArticle: {:#?}", article);
         println!("article_expected: {:#?}", article_expected);
         assert_eq!(article, article_expected);
     }
@@ -340,7 +340,7 @@ mod tests {
     fn test_summary() {
         let input = "hi!\n[[!summary   foo bar asdf  ]]\n".to_string();
         let expected_output = "hi!\n\n".to_string();
-        let mut article = Article {
+        let mut article = NewArticle {
             src_file_name: PathBuf::from("example.mdwn"),
             dst_file_name: None,
             article_mdwn_source: None,
@@ -357,7 +357,7 @@ mod tests {
             live_updates: None,
         };
 
-        let article_expected = Article {
+        let article_expected = NewArticle {
             src_file_name: PathBuf::from("example.mdwn"),
             dst_file_name: None,
             article_mdwn_source: None,
@@ -386,7 +386,7 @@ mod tests {
             Err(_) => {}
         }
 
-        println!("Article: {:#?}", article);
+        println!("NewArticle: {:#?}", article);
         println!("article_expected: {:#?}", article_expected);
         assert_eq!(article, article_expected);
     }
@@ -408,7 +408,7 @@ mod tests {
         "#.to_string();
 
         //o := `<a href="` + f[1] + `"><img src=` + b + `></a>`
-        let mut article = Article {
+        let mut article = NewArticle {
             src_file_name: PathBuf::from("example.mdwn"),
             dst_file_name: None,
             article_mdwn_source: None,
@@ -425,7 +425,7 @@ mod tests {
             live_updates: None,
         };
 
-        let article_expected = Article {
+        let article_expected = NewArticle {
             src_file_name: PathBuf::from("example.mdwn"),
             dst_file_name: None,
             article_mdwn_source: None,
@@ -454,7 +454,7 @@ mod tests {
             Err(_) => {}
         }
 
-        println!("Article: {:#?}", article);
+        println!("NewArticle: {:#?}", article);
         println!("article_expected: {:#?}", article_expected);
         assert_eq!(article, article_expected);
     }

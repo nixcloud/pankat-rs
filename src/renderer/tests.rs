@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::articles::Article;
+    use crate::articles::NewArticle;
     use crate::config;
     use crate::renderer::html::create_html_from_content_template;
     use std::path::PathBuf;
@@ -16,9 +16,9 @@ mod tests {
         );
         config::Config::initialize(config).expect("Failed to initialize config");
 
-        let article = Article {
+        let article = NewArticle {
             special_page: Some(true),
-            title: Some("Test Article".to_string()),
+            title: Some("Test NewArticle".to_string()),
             src_file_name: "test_src.md".to_string().into(),
             dst_file_name: Some("test_dst.html".to_string().into()),
 
@@ -42,6 +42,6 @@ mod tests {
         assert!(result.is_ok());
         let rendered_html = result.unwrap();
         assert!(rendered_html.contains(&html_content));
-        assert!(rendered_html.contains("Test Article"));
+        assert!(rendered_html.contains("Test NewArticle"));
     }
 }

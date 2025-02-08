@@ -6,10 +6,10 @@ use std::error::Error;
 use std::fs;
 use std::path::{PathBuf, MAIN_SEPARATOR};
 
-use crate::articles::Article;
+use crate::articles::NewArticle;
 
 pub fn create_html_from_standalone_template(
-    article: Article,
+    article: NewArticle,
     html: String,
 ) -> Result<String, Box<dyn Error>> {
     let cfg = config::Config::get();
@@ -34,10 +34,10 @@ pub fn create_html_from_standalone_template(
     let data = json!({
         "SiteBrandTitle": "Sample Brand",
         "Title": article.title,
-        "NavAndArticle": html,
-        "ArticleSrcURL": relative_path,
-        "ArticleSrcFileName": article.src_file_name,
-        "ArticleDstFileName": article.dst_file_name,
+        "NavAndNewArticle": html,
+        "NewArticleSrcURL": relative_path,
+        "NewArticleSrcFileName": article.src_file_name,
+        "NewArticleDstFileName": article.dst_file_name,
         "LiveUpdates": article.live_updates,
         "SpecialPage": article.special_page,
         "Anchorjs": article.anchorjs,
@@ -50,7 +50,7 @@ pub fn create_html_from_standalone_template(
 }
 
 pub fn create_html_from_content_template(
-    article: Article,
+    article: NewArticle,
     html: String,
 ) -> Result<String, Box<dyn Error>> {
     let cfg = config::Config::get();
@@ -87,12 +87,12 @@ pub fn create_html_from_content_template(
 
     let data = json!({
         "SpecialPage": article.special_page,
-        "ArticlesNAV": articles_nav,
+        "NewArticlesNAV": articles_nav,
         "SeriesNAV": series_nav,
         "Title": article.title,
         "DateAndTime": date_and_time,
         "Tags": tags,
-        "ArticleContent": html,
+        "NewArticleContent": html,
     });
 
     let result = handlebars.render("content_template", &data)?;
