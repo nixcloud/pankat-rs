@@ -40,3 +40,12 @@ pub fn article_src_file_name_to_title(article_src_file_name: &PathBuf) -> String
     // Replace underscores with spaces and return the result
     file_name_str.replace("_", " ").to_string()
 }
+
+pub fn create_dst_file_name(article_path: &PathBuf) -> String {
+    let dst_file_name: PathBuf = article_path
+        .with_extension("html")
+        .file_name()
+        .unwrap()
+        .into();
+    dst_file_name.display().to_string()
+}

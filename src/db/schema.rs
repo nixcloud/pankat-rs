@@ -10,7 +10,7 @@ diesel::table! {
 
 diesel::table! {
     articles (id) {
-        id -> Nullable<Integer>,
+        id -> Integer,
         src_file_name -> Text,
         dst_file_name -> Text,
         title -> Nullable<Text>,

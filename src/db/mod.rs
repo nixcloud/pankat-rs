@@ -6,8 +6,8 @@ use std::path::PathBuf;
 
 pub type DbPool = r2d2::Pool<ConnectionManager<SqliteConnection>>;
 
-mod articles;
-mod schema;
+pub mod articles;
+pub mod schema;
 mod tests;
 pub mod users;
 

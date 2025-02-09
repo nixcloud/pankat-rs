@@ -79,11 +79,11 @@ pub fn create_html_from_content_template(
     )
     .to_string();
 
-    let tags: String = format!(
-        r#"<div id="tags"><p>{}</p></div>"#,
-        tag_links_to_timeline(article.tags)
-    )
-    .to_string();
+    // let tags: String = format!(
+    //     r#"<div id="tags"><p>{}</p></div>"#,
+    //     tag_links_to_timeline(article.tags)
+    // )
+    // .to_string();
 
     let data = json!({
         "SpecialPage": article.special_page,
@@ -91,7 +91,7 @@ pub fn create_html_from_content_template(
         "SeriesNAV": series_nav,
         "Title": article.title,
         "DateAndTime": date_and_time,
-        "Tags": tags,
+        "Tags": "tags", // FIXME
         "NewArticleContent": html,
     });
 

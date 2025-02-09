@@ -1,9 +1,9 @@
-pub fn date_and_time(modification_date: &Option<std::time::SystemTime>) -> String {
+pub fn date_and_time(modification_date: &Option<chrono::NaiveDateTime>) -> String {
     match modification_date {
         Some(modification_date) => {
-            let datetime: chrono::DateTime<chrono::Local> =
-                chrono::DateTime::from(*modification_date);
-            datetime.format("%d %b %Y").to_string().to_lowercase()
+            // let local_time = chrono::Local.from_local_datetime(modification_date).unwrap();
+            // local_time.format("%d %b %Y").to_string().to_lowercase()
+            todo!()
         }
         None => String::new(),
     }

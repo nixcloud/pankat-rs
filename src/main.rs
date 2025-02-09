@@ -113,7 +113,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .route("/", get(handlers::serve_output))
         .route("/*path", get(handlers::serve_output))
         .layer(CorsLayer::permissive())
-        .with_state(pool);
+        .with_state(pool.clone());
 
     // Start server
     let addr = SocketAddr::from(([0, 0, 0, 0], cfg.port));
@@ -140,7 +140,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
     };
 
-    articles::scan_articles();
+    articles::scan_articles(pool);
 
     // Start server with graceful shutdown
     println!("Press Ctrl+C to stop the server...");

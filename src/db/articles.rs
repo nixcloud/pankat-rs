@@ -1,25 +1,47 @@
+use crate::articles::NewArticle;
+use crate::db::schema::{articles, articles_cache, series, tags};
+use chrono::NaiveDateTime;
 use diesel::prelude::*;
 
-use crate::db::schema::{articles, articles_cache, series, tags};
-
-#[derive(Queryable, Identifiable, Selectable, Debug, PartialEq)]
+#[derive(Queryable, Insertable, Identifiable, Selectable, Debug, PartialEq)]
 #[diesel(table_name = articles)]
 pub struct Articles {
     pub id: i32,
-    pub title: String,
     pub src_file_name: String,
     pub dst_file_name: String,
-    pub modification_date: std::time::SystemTime,
-    pub summary: String,
-    // pub tags: None,
-    // pub series: None,
-    pub draft: bool,
-    pub special_page: bool,
-    pub timeline: bool,
+    pub title: Option<String>,
+    pub modification_date: Option<NaiveDateTime>,
+    pub summary: Option<String>,
+    pub series: Option<String>,
+    pub draft: Option<bool>,
+    pub special_page: Option<bool>,
+    pub timeline: Option<bool>,
+    pub anchorjs: Option<bool>,
+    pub tocify: Option<bool>,
+    pub live_updates: Option<bool>,
+}
 
-    pub anchorjs: bool,
-    pub tocify: bool,
-    pub live_updates: bool,
+pub fn query_articles(
+    conn: &mut SqliteConnection,
+    src_file_name_query: &str,
+) -> QueryResult<Option<Articles>> {
+    use crate::db::schema::articles::dsl::*;
+
+    articles
+        .filter(src_file_name.eq(src_file_name_query))
+        .first(conn)
+        .optional()
+}
+
+pub fn create_articles(conn: &mut SqliteConnection, new_article: &NewArticle) -> QueryResult<i32> {
+    diesel::insert_into(articles::table)
+        .values(new_article)
+        .execute(conn)?;
+
+    articles::table
+        .select(articles::id)
+        .order(articles::id.desc())
+        .first(conn)
 }
 
 #[derive(Queryable, Selectable, Identifiable, Debug, PartialEq)]
