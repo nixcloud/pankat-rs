@@ -11,7 +11,7 @@ use crate::config;
 use crate::renderer::html::{
     create_html_from_content_template, create_html_from_standalone_template,
 };
-use crate::renderer::pandoc::render_file;
+use crate::renderer::pandoc::pandoc_mdwn_2_html;
 
 mod tests;
 use self::plugins::{draft, img, meta, series, specialpage, summary, tag, title};
@@ -42,7 +42,7 @@ pub fn scan_articles(pool: DbPool) -> HashMap<PathBuf, NewArticle> {
     let mut articles: HashMap<PathBuf, NewArticle> = HashMap::new();
     let cfg = config::Config::get();
     let input_path: PathBuf = cfg.input.clone();
-    let mut article_cache: HashMap<String, String> = HashMap::new();
+    let mut cache: HashMap<String, String> = HashMap::new();
 
     let mut conn = pool
         .get()
@@ -53,7 +53,7 @@ pub fn scan_articles(pool: DbPool) -> HashMap<PathBuf, NewArticle> {
     fn traverse_and_collect_articles(
         dir: &PathBuf,
         articles: &mut HashMap<PathBuf, NewArticle>,
-        article_cache: &mut HashMap<String, String>,
+        cache: &mut HashMap<String, String>,
     ) {
         if dir.is_dir() {
             if let Ok(entries) = std::fs::read_dir(dir) {
@@ -61,12 +61,13 @@ pub fn scan_articles(pool: DbPool) -> HashMap<PathBuf, NewArticle> {
                     if let Ok(entry) = entry {
                         let path = entry.path();
                         if path.is_dir() {
-                            traverse_and_collect_articles(&path, articles, article_cache);
+                            traverse_and_collect_articles(&path, articles, cache);
                         } else if let Some(ext) = path.extension() {
                             if ext == "mdwn" {
-                                match parse_article(&path, article_cache) {
+                                match parse_article(&path, cache) {
                                     Ok(article) => {
                                         articles.insert(path, article);
+                                        //crate::db::article::set(&mut conn, article);
                                     }
                                     Err(_) => { /* Handle errors if necessary */ }
                                 }
@@ -78,37 +79,27 @@ pub fn scan_articles(pool: DbPool) -> HashMap<PathBuf, NewArticle> {
         }
     }
 
-    traverse_and_collect_articles(&input_path, &mut articles, &mut article_cache);
+    traverse_and_collect_articles(&input_path, &mut articles, &mut cache, &mut pool);
 
+    // FIXME workaround until articles are properly added to db and processed from there instead of `articles HasMap`
     for (_, article) in &articles {
-        let _ = crate::db::articles::create_articles(&mut conn, article);
+        let _ = crate::db::article::set(&mut conn, article);
     }
 
-    let t = crate::db::articles::query_articles(&mut conn, "documents/lastlog.de/posts/libnix/libnix-2025-status.mdwn");
-    println!("{:?}", t);
+    let t = crate::db::article::get_visible_articles(&mut conn);
+    println!("get_visible_articles {:?}", t);
+
+    // for (key, value) in &cache {
+    //     println!("{}: {}...", key, &value[0..40]);
+    // }
 
     for (_, article) in &articles {
-        if let Some(draft) = article.draft {
-            if draft {
-                println!(
-                    "Article {} is a draft, not writing to disk",
-                    article.src_file_name
-                );
-                continue;
-            }
-        }
-        if let Some(special_page) = article.special_page {
-            if special_page {
-                println!(
-                    "Article {} is a special_page, not writing to disk",
-                    article.src_file_name
-                );
-                continue;
-            }
-        }
         println!("Writing article {} to disk", article.clone().dst_file_name);
-        //println!("Article: {:#?}", article);
-        write_article_to_disk(article, &mut article_cache);
+        write_article_to_disk(article, &mut cache);
+    }
+
+    if let Some(articles) = crate::db::article::get_visible_articles(&mut conn) {
+        
     }
 
     let duration = start_time.elapsed();
@@ -117,42 +108,41 @@ pub fn scan_articles(pool: DbPool) -> HashMap<PathBuf, NewArticle> {
     articles
 }
 
-fn write_article_to_disk(article: &NewArticle, article_cache: &mut HashMap<String, String>) {
+fn write_article_to_disk(article: &NewArticle, cache: &mut HashMap<String, String>) {
     let cfg = config::Config::get();
     let output_path: PathBuf = cfg.output.clone();
 
-    match article_cache.get(&article.src_file_name) {
-        Some(article_mdwn_source) => match render_file(article_mdwn_source.clone()) {
-            Ok(mdwn_html) => {
-                let content: String =
-                    create_html_from_content_template(article.clone(), mdwn_html).unwrap();
-                let standalone_html: String =
-                    create_html_from_standalone_template(article.clone(), content).unwrap();
+    match cache.get(&article.src_file_name) {
+        Some(html) => {
+            let content: String =
+                create_html_from_content_template(article.clone(), html.clone()).unwrap();
 
-                let mut output_filename = output_path.clone();
-                output_filename.push(article.dst_file_name.clone());
-                std::fs::write(output_filename, standalone_html)
-                    .expect("Unable to write HTML file");
-            }
-            Err(e) => {
-                println!("Error: path: {} - {}", article_mdwn_source, e);
-            }
-        },
-        None => {}
+            let standalone_html: String =
+                create_html_from_standalone_template(article.clone(), content).unwrap();
+
+            let mut output_filename = output_path.clone();
+            output_filename.push(article.dst_file_name.clone());
+            std::fs::write(output_filename, standalone_html).expect("Unable to write HTML file");
+        }
+        None => {
+            println!("Error: path: {}", &article.src_file_name);
+        }
     }
 }
 
 fn parse_article(
     article_path: &PathBuf,
-    articles_cache: &mut HashMap<String, String>,
+    cache: &mut HashMap<String, String>,
 ) -> Result<NewArticle, Box<dyn Error>> {
     println!(
         "Parsing article {} from disk",
         article_path.clone().display()
     );
 
+    let src_file_name = article_path.display().to_string();
+
     let mut new_article: NewArticle = NewArticle {
-        src_file_name: article_path.display().to_string(),
+        src_file_name: src_file_name.clone(),
         dst_file_name: utils::create_dst_file_name(article_path),
         title: None,
         modification_date: None,
@@ -172,22 +162,26 @@ fn parse_article(
     let article_mdwn_raw_string = std::fs::read_to_string(article_path).unwrap();
     match eval_plugins(&article_mdwn_raw_string, &mut new_article) {
         Ok(article_mdwn_refined_source) => {
-            articles_cache.insert(article_mdwn_raw_string.clone(), article_mdwn_refined_source);
-            //article.article_mdwn_source = Some(article_mdwn_refined_source);
-
-            if new_article.title == None {
-                let title = utils::article_src_file_name_to_title(&article_path);
-                new_article.title = Some(title);
+            match pandoc_mdwn_2_html(article_mdwn_refined_source.clone()) {
+                Ok(html) => {
+                    cache.insert(src_file_name, html);
+                    if new_article.title == None {
+                        let title = utils::article_src_file_name_to_title(&article_path);
+                        new_article.title = Some(title);
+                    }
+                    Ok(new_article)
+                }
+                Err(e) => {
+                    println!(
+                        "Error: No entry in cache for path: {}: {}",
+                        src_file_name, e,
+                    );
+                    Err(e)
+                }
             }
-
-            Ok(new_article)
         }
         Err(e) => {
-            println!(
-                "Error on eval_plugins in article {}: {}",
-                article_path.display(),
-                e
-            );
+            println!("Error: Evaluating plugins on: {}: {}", src_file_name, e,);
             Err(e)
         }
     }

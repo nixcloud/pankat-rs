@@ -1,5 +1,4 @@
 use crate::registry::PubSubRegistry;
-use crate::renderer::pandoc::render_file;
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::Path;
 use std::sync::Arc;
@@ -122,10 +121,11 @@ fn debounce(input: String) {
                             let mut cache = EVENT_CACHE.lock().unwrap();
                             cache.remove(&key);
                         }
-                        println!("Processing cached event for: {}", key);
-                        if let Ok(result) = render_file(key) {
-                            let _ = news_sender.send(result);
-                        }
+                        todo!()
+                        // println!("Processing cached event for: {}", key);
+                        // if let Ok(result) = render_file(key) {
+                        //     let _ = news_sender.send(result);
+                        // }
                     } else {
                         let duration = instant.duration_since(now);
                         sleep(duration).await;

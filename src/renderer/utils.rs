@@ -3,7 +3,7 @@ pub fn date_and_time(modification_date: &Option<chrono::NaiveDateTime>) -> Strin
         Some(modification_date) => {
             // let local_time = chrono::Local.from_local_datetime(modification_date).unwrap();
             // local_time.format("%d %b %Y").to_string().to_lowercase()
-            todo!()
+            String::new()
         }
         None => String::new(),
     }

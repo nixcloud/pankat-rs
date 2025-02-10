@@ -49,3 +49,10 @@ pub fn create_dst_file_name(article_path: &PathBuf) -> String {
         .into();
     dst_file_name.display().to_string()
 }
+
+#[test]
+fn test_create_dst_file_name() {
+    let article_path = PathBuf::from("src/articles/test.mdwn");
+    let dst_file_name = create_dst_file_name(&article_path);
+    assert_eq!(dst_file_name, "test.html");
+}

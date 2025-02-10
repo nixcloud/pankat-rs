@@ -29,15 +29,26 @@ pub fn create_html_from_standalone_template(
         input_path.push(""); // Ensures trailing separator
     }
     let article_source_code_fs: PathBuf = PathBuf::from(article.src_file_name.clone());
-    let relative_path = article_source_code_fs.strip_prefix(&input_path).unwrap();
+    let relative_path = match article_source_code_fs.strip_prefix(&input_path) {
+        Ok(res) => res,
+        Err(e) => {
+            println!("Error: Article source file path is not within input path");
+            println!("   input_path: {}", input_path.display());
+            println!(
+                "   article.src_file_name: {}",
+                article.src_file_name.clone()
+            );
+            return Err(Box::new(e));
+        }
+    };
 
     let data = json!({
         "SiteBrandTitle": "Sample Brand",
         "Title": article.title,
-        "NavAndNewArticle": html,
-        "NewArticleSrcURL": relative_path,
-        "NewArticleSrcFileName": article.src_file_name,
-        "NewArticleDstFileName": article.dst_file_name,
+        "NavAndArticle": html,
+        "ArticleSrcURL": relative_path,
+        "ArticleSrcFileName": article.src_file_name,
+        "ArticleDstFileName": article.dst_file_name,
         "LiveUpdates": article.live_updates,
         "SpecialPage": article.special_page,
         "Anchorjs": article.anchorjs,
@@ -79,6 +90,7 @@ pub fn create_html_from_content_template(
     )
     .to_string();
 
+    let tags: String = "".to_string();
     // let tags: String = format!(
     //     r#"<div id="tags"><p>{}</p></div>"#,
     //     tag_links_to_timeline(article.tags)
@@ -87,12 +99,12 @@ pub fn create_html_from_content_template(
 
     let data = json!({
         "SpecialPage": article.special_page,
-        "NewArticlesNAV": articles_nav,
+        "ArticlesNAV": articles_nav,
         "SeriesNAV": series_nav,
         "Title": article.title,
         "DateAndTime": date_and_time,
-        "Tags": "tags", // FIXME
-        "NewArticleContent": html,
+        "Tags": tags,
+        "ArticleContent": html,
     });
 
     let result = handlebars.render("content_template", &data)?;

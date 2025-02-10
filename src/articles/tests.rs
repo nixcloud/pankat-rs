@@ -2,7 +2,6 @@
 mod tests {
     use crate::articles::eval_plugins;
     use crate::articles::NewArticle;
-    use std::path::PathBuf;
     use std::time::{Duration, UNIX_EPOCH};
 
     #[test]
@@ -10,13 +9,11 @@ mod tests {
         let input = "hi!\n[[!title Test Title  ]]\n".to_string();
         let expected_output = "hi!\n\n".to_string();
         let mut article = NewArticle {
-            src_file_name: PathBuf::from("example.mdwn"),
-            dst_file_name: None,
-            article_mdwn_source: None,
+            src_file_name: "example.mdwn".to_string(),
+            dst_file_name: String::new(),
             title: None,
             modification_date: None,
             summary: None,
-            tags: None,
             series: None,
             draft: None,
             special_page: None,
@@ -27,13 +24,11 @@ mod tests {
         };
 
         let article_expected = NewArticle {
-            src_file_name: PathBuf::from("example.mdwn"),
-            dst_file_name: None,
-            article_mdwn_source: None,
+            src_file_name: "example.mdwn".to_string(),
+            dst_file_name: String::new(),
             title: Some("Test Title".to_string()),
             modification_date: None,
             summary: None,
-            tags: None,
             series: None,
             draft: None,
             special_page: None,
@@ -64,13 +59,11 @@ mod tests {
         let input = "hi!\n[[!draft]]\n".to_string();
         let expected_output = "hi!\n\n".to_string();
         let mut article = NewArticle {
-            src_file_name: PathBuf::from("example.mdwn"),
-            dst_file_name: None,
-            article_mdwn_source: None,
+            src_file_name: "example.mdwn".to_string(),
+            dst_file_name: String::new(),
             title: None,
             modification_date: None,
             summary: None,
-            tags: None,
             series: None,
             draft: None,
             special_page: None,
@@ -81,13 +74,11 @@ mod tests {
         };
 
         let article_expected = NewArticle {
-            src_file_name: PathBuf::from("example.mdwn"),
-            dst_file_name: None,
-            article_mdwn_source: None,
+            src_file_name: "example.mdwn".to_string(),
+            dst_file_name: String::new(),
             title: None,
             modification_date: None,
             summary: None,
-            tags: None,
             series: None,
             draft: Some(true),
             special_page: None,
@@ -118,13 +109,11 @@ mod tests {
         let input = "hi!\n[[!specialpage]]\n".to_string();
         let expected_output = "hi!\n\n".to_string();
         let mut article = NewArticle {
-            src_file_name: PathBuf::from("example.mdwn"),
-            dst_file_name: None,
-            article_mdwn_source: None,
+            src_file_name: "example.mdwn".to_string(),
+            dst_file_name: String::new(),
             title: None,
             modification_date: None,
             summary: None,
-            tags: None,
             series: None,
             draft: None,
             special_page: None,
@@ -135,13 +124,11 @@ mod tests {
         };
 
         let article_expected = NewArticle {
-            src_file_name: PathBuf::from("example.mdwn"),
-            dst_file_name: None,
-            article_mdwn_source: None,
+            src_file_name: "example.mdwn".to_string(),
+            dst_file_name: String::new(),
             title: None,
             modification_date: None,
             summary: None,
-            tags: None,
             series: None,
             draft: None,
             special_page: Some(true),
@@ -170,60 +157,58 @@ mod tests {
 
     #[test]
     fn test_meta() {
-        let input = "hi!\n[[!meta date=\"2024-07-19 14:33\"]]\n".to_string();
-        let expected_output = "hi!\n\n".to_string();
-        let mut article = NewArticle {
-            src_file_name: PathBuf::from("example.mdwn"),
-            dst_file_name: None,
-            article_mdwn_source: None,
-            title: None,
-            modification_date: None,
-            summary: None,
-            tags: None,
-            series: None,
-            draft: None,
-            special_page: None,
-            timeline: None,
-            anchorjs: None,
-            tocify: None,
-            live_updates: None,
-        };
+        assert_eq!(1, 2);
 
-        let timestamp = 1721399580;
-        let time = UNIX_EPOCH + Duration::from_secs(timestamp as u64);
+        // let input = "hi!\n[[!meta date=\"2024-07-19 14:33\"]]\n".to_string();
+        // let expected_output = "hi!\n\n".to_string();
+        // let mut article = NewArticle {
+        //     src_file_name: "example.mdwn".to_string(),
+        //     dst_file_name: String::new(),
+        //     title: None,
+        //     modification_date: None,
+        //     summary: None,
+        //     series: None,
+        //     draft: None,
+        //     special_page: None,
+        //     timeline: None,
+        //     anchorjs: None,
+        //     tocify: None,
+        //     live_updates: None,
+        // };
 
-        let article_expected = NewArticle {
-            src_file_name: PathBuf::from("example.mdwn"),
-            dst_file_name: None,
-            article_mdwn_source: None,
-            title: None,
-            modification_date: Some(time),
-            summary: None,
-            tags: None,
-            series: None,
-            draft: None,
-            special_page: None,
-            timeline: None,
-            anchorjs: None,
-            tocify: None,
-            live_updates: None,
-        };
+        // let timestamp = 1721399580;
+        // let time = UNIX_EPOCH + Duration::from_secs(timestamp as u64);
 
-        let result = eval_plugins(&input, &mut article);
+        // let article_expected = NewArticle {
+        //     src_file_name: "example.mdwn".to_string(),
+        //     dst_file_name: String::new(),
+        //     title: None,
+        //     modification_date: Some(time),
+        //     summary: None,
+        //     series: None,
+        //     draft: None,
+        //     special_page: None,
+        //     timeline: None,
+        //     anchorjs: None,
+        //     tocify: None,
+        //     live_updates: None,
+        // };
 
-        assert!(result.is_ok());
+        // let result = eval_plugins(&input, &mut article);
 
-        match result {
-            Ok(document) => {
-                println!("document: {:?}", document);
-                assert_eq!(document, expected_output);
-            }
-            Err(_) => {}
-        }
+        // assert!(result.is_ok());
 
-        println!("NewArticle: {:#?}", article);
-        println!("article_expected: {:#?}", article_expected);
-        assert_eq!(article, article_expected);
+        // match result {
+        //     Ok(document) => {
+        //         println!("document: {:?}", document);
+        //         assert_eq!(document, expected_output);
+        //     }
+        //     Err(_) => {}
+        // }
+
+        // println!("NewArticle: {:#?}", article);
+        // println!("article_expected: {:#?}", article_expected);
+        // assert_eq!(article, article_expected);
     }
 
     #[test]
@@ -231,13 +216,11 @@ mod tests {
         let input = "hi!\n[[!series   asdf ]]\n".to_string();
         let expected_output = "hi!\n\n".to_string();
         let mut article = NewArticle {
-            src_file_name: PathBuf::from("example.mdwn"),
-            dst_file_name: None,
-            article_mdwn_source: None,
+            src_file_name: "example.mdwn".to_string(),
+            dst_file_name: String::new(),
             title: None,
             modification_date: None,
             summary: None,
-            tags: None,
             series: None,
             draft: None,
             special_page: None,
@@ -248,13 +231,11 @@ mod tests {
         };
 
         let article_expected = NewArticle {
-            src_file_name: PathBuf::from("example.mdwn"),
-            dst_file_name: None,
-            article_mdwn_source: None,
+            src_file_name: "example.mdwn".to_string(),
+            dst_file_name: String::new(),
             title: None,
             modification_date: None,
             summary: None,
-            tags: None,
             series: Some("asdf".to_string()),
             draft: None,
             special_page: None,
@@ -283,57 +264,55 @@ mod tests {
 
     #[test]
     fn test_tag() {
-        let input = "hi!\n[[!tag   foo bar asdf]]\n".to_string();
-        let expected_output = "hi!\n\n".to_string();
-        let mut article = NewArticle {
-            src_file_name: PathBuf::from("example.mdwn"),
-            dst_file_name: None,
-            article_mdwn_source: None,
-            title: None,
-            modification_date: None,
-            summary: None,
-            tags: None,
-            series: None,
-            draft: None,
-            special_page: None,
-            timeline: None,
-            anchorjs: None,
-            tocify: None,
-            live_updates: None,
-        };
+        //     let input = "hi!\n[[!tag   foo bar asdf]]\n".to_string();
+        //     let expected_output = "hi!\n\n".to_string();
+        //     let mut article = NewArticle {
+        //         src_file_name: "example.mdwn".to_string(),
+        //         dst_file_name: String::new(),
+        //         title: None,
+        //         modification_date: None,
+        //         summary: None,
+        //         series: None,
+        //         draft: None,
+        //         special_page: None,
+        //         timeline: None,
+        //         anchorjs: None,
+        //         tocify: None,
+        //         live_updates: None,
+        //     };
 
-        let article_expected = NewArticle {
-            src_file_name: PathBuf::from("example.mdwn"),
-            dst_file_name: None,
-            article_mdwn_source: None,
-            title: None,
-            modification_date: None,
-            summary: None,
-            tags: vec!["foo".to_string(), "bar".to_string(), "asdf".to_string()].into(),
-            series: None,
-            draft: None,
-            special_page: None,
-            timeline: None,
-            anchorjs: None,
-            tocify: None,
-            live_updates: None,
-        };
+        //     let article_expected = NewArticle {
+        //         src_file_name: "example.mdwn".to_string(),
+        //         dst_file_name: String::new(),
+        //         title: None,
+        //         modification_date: None,
+        //         summary: None,
+        //         //tags: vec!["foo".to_string(), "bar".to_string(), "asdf".to_string()].into(),
+        //         series: None,
+        //         draft: None,
+        //         special_page: None,
+        //         timeline: None,
+        //         anchorjs: None,
+        //         tocify: None,
+        //         live_updates: None,
+        //     };
 
-        let result = eval_plugins(&input, &mut article);
+        //     let result = eval_plugins(&input, &mut article);
 
-        assert!(result.is_ok());
+        //     assert!(result.is_ok());
 
-        match result {
-            Ok(document) => {
-                println!("document: {:?}", document);
-                assert_eq!(document, expected_output);
-            }
-            Err(_) => {}
-        }
+        //     match result {
+        //         Ok(document) => {
+        //             println!("document: {:?}", document);
+        //             assert_eq!(document, expected_output);
+        //         }
+        //         Err(_) => {}
+        //     }
 
-        println!("NewArticle: {:#?}", article);
-        println!("article_expected: {:#?}", article_expected);
-        assert_eq!(article, article_expected);
+        //     println!("NewArticle: {:#?}", article);
+        //     println!("article_expected: {:#?}", article_expected);
+        //     assert_eq!(article, article_expected);
+        assert_eq!(1, 2);
     }
 
     #[test]
@@ -341,13 +320,11 @@ mod tests {
         let input = "hi!\n[[!summary   foo bar asdf  ]]\n".to_string();
         let expected_output = "hi!\n\n".to_string();
         let mut article = NewArticle {
-            src_file_name: PathBuf::from("example.mdwn"),
-            dst_file_name: None,
-            article_mdwn_source: None,
+            src_file_name: "example.mdwn".to_string(),
+            dst_file_name: String::new(),
             title: None,
             modification_date: None,
             summary: None,
-            tags: None,
             series: None,
             draft: None,
             special_page: None,
@@ -358,13 +335,11 @@ mod tests {
         };
 
         let article_expected = NewArticle {
-            src_file_name: PathBuf::from("example.mdwn"),
-            dst_file_name: None,
-            article_mdwn_source: None,
+            src_file_name: "example.mdwn".to_string(),
+            dst_file_name: String::new(),
             title: None,
             modification_date: None,
             summary: Some("foo bar asdf".to_string()),
-            tags: None,
             series: None,
             draft: None,
             special_page: None,
@@ -409,13 +384,11 @@ mod tests {
 
         //o := `<a href="` + f[1] + `"><img src=` + b + `></a>`
         let mut article = NewArticle {
-            src_file_name: PathBuf::from("example.mdwn"),
-            dst_file_name: None,
-            article_mdwn_source: None,
+            src_file_name: "example.mdwn".to_string(),
+            dst_file_name: String::new(),
             title: None,
             modification_date: None,
             summary: None,
-            tags: None,
             series: None,
             draft: None,
             special_page: None,
@@ -426,13 +399,11 @@ mod tests {
         };
 
         let article_expected = NewArticle {
-            src_file_name: PathBuf::from("example.mdwn"),
-            dst_file_name: None,
-            article_mdwn_source: None,
+            src_file_name: "example.mdwn".to_string(),
+            dst_file_name: String::new(),
             title: None,
             modification_date: None,
             summary: None,
-            tags: None,
             series: None,
             draft: None,
             special_page: None,
