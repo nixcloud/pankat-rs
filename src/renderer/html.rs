@@ -6,11 +6,12 @@ use std::error::Error;
 use std::fs;
 use std::path::{PathBuf, MAIN_SEPARATOR};
 
-use crate::articles::NewArticle;
+use crate::db::article::Article;
 
 pub fn create_html_from_standalone_template(
-    article: NewArticle,
+    article: Article,
     html: String,
+    //relative_path: String,
 ) -> Result<String, Box<dyn Error>> {
     let cfg = config::Config::get();
 
@@ -23,12 +24,14 @@ pub fn create_html_from_standalone_template(
 
     handlebars.register_template_string("standalone-template", &template_content)?;
 
+    /// FIXME move code below to mod.rs
     let mut input_path: PathBuf = cfg.input.clone();
     if !input_path.as_os_str().is_empty() && !input_path.to_string_lossy().ends_with(MAIN_SEPARATOR)
     {
         input_path.push(""); // Ensures trailing separator
     }
     let article_source_code_fs: PathBuf = PathBuf::from(article.src_file_name.clone());
+    /// FIXME move code above to mod.rs
     let relative_path = match article_source_code_fs.strip_prefix(&input_path) {
         Ok(res) => res,
         Err(e) => {
@@ -61,7 +64,7 @@ pub fn create_html_from_standalone_template(
 }
 
 pub fn create_html_from_content_template(
-    article: NewArticle,
+    article: Article,
     html: String,
 ) -> Result<String, Box<dyn Error>> {
     let cfg = config::Config::get();

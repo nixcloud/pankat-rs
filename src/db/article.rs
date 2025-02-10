@@ -5,7 +5,7 @@ use diesel::dsl::sql;
 use diesel::prelude::*;
 use diesel::sql_types::Nullable;
 
-#[derive(Queryable, Insertable, Identifiable, Selectable, Debug, PartialEq)]
+#[derive(Queryable, Insertable, Identifiable, Selectable, Debug, Clone, PartialEq)]
 #[diesel(table_name = articles)]
 pub struct Article {
     pub id: i32,
@@ -35,8 +35,8 @@ pub struct Tags {
 pub fn get_most_recent_article(conn: &mut SqliteConnection) -> QueryResult<Option<Article>> {
     use crate::db::schema::articles::dsl::*;
     articles
-        .filter(draft.eq(false))
-        .filter(special_page.eq(false))
+    .filter(draft.eq(false).or(draft.is_null()))
+    .filter(special_page.eq(false).or(special_page.is_null()))
         .order((
             sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
             modification_date.desc(),
@@ -60,8 +60,8 @@ pub fn get_all_articles(conn: &mut SqliteConnection) -> QueryResult<Vec<Article>
 pub fn get_visible_articles(conn: &mut SqliteConnection) -> QueryResult<Vec<Article>> {
     use crate::db::schema::articles::dsl::*;
     articles
-        .filter(draft.eq(false))
-        .filter(special_page.eq(false))
+        .filter(draft.eq(false).or(draft.is_null()))
+        .filter(special_page.eq(false).or(special_page.is_null()))
         .order((
             sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
             modification_date.desc(),

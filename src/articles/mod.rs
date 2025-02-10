@@ -1,10 +1,13 @@
+use crate::db::article::Article;
 use crate::db::DbPool;
+
 use regex::Regex;
 use std::collections::HashMap;
 use std::error::Error;
 use std::path::PathBuf;
 
 mod plugins;
+mod tests;
 mod utils;
 
 use crate::config;
@@ -13,8 +16,8 @@ use crate::renderer::html::{
 };
 use crate::renderer::pandoc::pandoc_mdwn_2_html;
 
-mod tests;
 use self::plugins::{draft, img, meta, series, specialpage, summary, tag, title};
+use diesel::prelude::*;
 
 #[derive(diesel::Insertable, Debug, Clone, PartialEq, Eq)]
 #[diesel(table_name = crate::db::schema::articles)]
@@ -38,8 +41,7 @@ pub struct NewArticle {
     pub live_updates: Option<bool>,
 }
 
-pub fn scan_articles(pool: DbPool) -> HashMap<PathBuf, NewArticle> {
-    let mut articles: HashMap<PathBuf, NewArticle> = HashMap::new();
+pub fn scan_articles(pool: DbPool) {
     let cfg = config::Config::get();
     let input_path: PathBuf = cfg.input.clone();
     let mut cache: HashMap<String, String> = HashMap::new();
@@ -51,8 +53,8 @@ pub fn scan_articles(pool: DbPool) -> HashMap<PathBuf, NewArticle> {
     let start_time = std::time::Instant::now();
 
     fn traverse_and_collect_articles(
+        conn: &mut SqliteConnection,
         dir: &PathBuf,
-        articles: &mut HashMap<PathBuf, NewArticle>,
         cache: &mut HashMap<String, String>,
     ) {
         if dir.is_dir() {
@@ -61,13 +63,12 @@ pub fn scan_articles(pool: DbPool) -> HashMap<PathBuf, NewArticle> {
                     if let Ok(entry) = entry {
                         let path = entry.path();
                         if path.is_dir() {
-                            traverse_and_collect_articles(&path, articles, cache);
+                            traverse_and_collect_articles(conn, &path, cache);
                         } else if let Some(ext) = path.extension() {
                             if ext == "mdwn" {
                                 match parse_article(&path, cache) {
                                     Ok(article) => {
-                                        articles.insert(path, article);
-                                        //crate::db::article::set(&mut conn, article);
+                                        let _ = crate::db::article::set(conn, &article);
                                     }
                                     Err(_) => { /* Handle errors if necessary */ }
                                 }
@@ -79,38 +80,31 @@ pub fn scan_articles(pool: DbPool) -> HashMap<PathBuf, NewArticle> {
         }
     }
 
-    traverse_and_collect_articles(&input_path, &mut articles, &mut cache, &mut pool);
+    traverse_and_collect_articles(&mut conn, &input_path, &mut cache);
 
-    // FIXME workaround until articles are properly added to db and processed from there instead of `articles HasMap`
-    for (_, article) in &articles {
-        let _ = crate::db::article::set(&mut conn, article);
+    match crate::db::article::get_visible_articles(&mut conn) {
+        Ok(articles) => {
+            for article in articles {
+                println!("Writing article {} to disk", article.clone().dst_file_name);
+                write_article_to_disk(&article, &mut cache);
+            }
+        }
+        Err(_) => { /* Handle errors if necessary */ }
     }
-
-    let t = crate::db::article::get_visible_articles(&mut conn);
-    println!("get_visible_articles {:?}", t);
 
     // for (key, value) in &cache {
     //     println!("{}: {}...", key, &value[0..40]);
     // }
 
-    for (_, article) in &articles {
-        println!("Writing article {} to disk", article.clone().dst_file_name);
-        write_article_to_disk(article, &mut cache);
-    }
-
-    if let Some(articles) = crate::db::article::get_visible_articles(&mut conn) {
-        
-    }
-
     let duration = start_time.elapsed();
     println!("Time taken to execute: {:?}", duration);
-
-    articles
 }
 
-fn write_article_to_disk(article: &NewArticle, cache: &mut HashMap<String, String>) {
+fn write_article_to_disk(article: &Article, cache: &mut HashMap<String, String>) {
     let cfg = config::Config::get();
     let output_path: PathBuf = cfg.output.clone();
+
+    //let relative_path: String = String::new(); // FIXME move code from html.rs here
 
     match cache.get(&article.src_file_name) {
         Some(html) => {
@@ -118,7 +112,8 @@ fn write_article_to_disk(article: &NewArticle, cache: &mut HashMap<String, Strin
                 create_html_from_content_template(article.clone(), html.clone()).unwrap();
 
             let standalone_html: String =
-                create_html_from_standalone_template(article.clone(), content).unwrap();
+                create_html_from_standalone_template(article.clone(), content)
+                    .unwrap();
 
             let mut output_filename = output_path.clone();
             output_filename.push(article.dst_file_name.clone());
