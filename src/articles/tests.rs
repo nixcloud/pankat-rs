@@ -157,58 +157,57 @@ mod tests {
 
     #[test]
     fn test_meta() {
-        assert_eq!(1, 2);
+         use chrono::NaiveDateTime;
 
-        // let input = "hi!\n[[!meta date=\"2024-07-19 14:33\"]]\n".to_string();
-        // let expected_output = "hi!\n\n".to_string();
-        // let mut article = NewArticle {
-        //     src_file_name: "example.mdwn".to_string(),
-        //     dst_file_name: String::new(),
-        //     title: None,
-        //     modification_date: None,
-        //     summary: None,
-        //     series: None,
-        //     draft: None,
-        //     special_page: None,
-        //     timeline: None,
-        //     anchorjs: None,
-        //     tocify: None,
-        //     live_updates: None,
-        // };
+        let input = "hi!\n[[!meta date=\"2024-07-19 14:33\"]]\n".to_string();
+        let expected_output = "hi!\n\n".to_string();
+        let mut article = NewArticle {
+            src_file_name: "example.mdwn".to_string(),
+            dst_file_name: String::new(),
+            title: None,
+            modification_date: None,
+            summary: None,
+            series: None,
+            draft: None,
+            special_page: None,
+            timeline: None,
+            anchorjs: None,
+            tocify: None,
+            live_updates: None,
+        };
 
-        // let timestamp = 1721399580;
-        // let time = UNIX_EPOCH + Duration::from_secs(timestamp as u64);
+        let parsed_time = NaiveDateTime::parse_from_str("2024-07-19 14:33", "%Y-%m-%d %H:%M").unwrap();
 
-        // let article_expected = NewArticle {
-        //     src_file_name: "example.mdwn".to_string(),
-        //     dst_file_name: String::new(),
-        //     title: None,
-        //     modification_date: Some(time),
-        //     summary: None,
-        //     series: None,
-        //     draft: None,
-        //     special_page: None,
-        //     timeline: None,
-        //     anchorjs: None,
-        //     tocify: None,
-        //     live_updates: None,
-        // };
+        let article_expected = NewArticle {
+            src_file_name: "example.mdwn".to_string(),
+            dst_file_name: String::new(),
+            title: None,
+            modification_date: Some(parsed_time),
+            summary: None,
+            series: None,
+            draft: None,
+            special_page: None,
+            timeline: None,
+            anchorjs: None,
+            tocify: None,
+            live_updates: None,
+        };
 
-        // let result = eval_plugins(&input, &mut article);
+        let result = eval_plugins(&input, &mut article);
 
-        // assert!(result.is_ok());
+        assert!(result.is_ok());
 
-        // match result {
-        //     Ok(document) => {
-        //         println!("document: {:?}", document);
-        //         assert_eq!(document, expected_output);
-        //     }
-        //     Err(_) => {}
-        // }
+        match result {
+            Ok(document) => {
+                println!("document: {:?}", document);
+                assert_eq!(document, expected_output);
+            }
+            Err(_) => {}
+        }
 
-        // println!("NewArticle: {:#?}", article);
-        // println!("article_expected: {:#?}", article_expected);
-        // assert_eq!(article, article_expected);
+        println!("NewArticle: {:#?}", article);
+        println!("article_expected: {:#?}", article_expected);
+        assert_eq!(article, article_expected);
     }
 
     #[test]
