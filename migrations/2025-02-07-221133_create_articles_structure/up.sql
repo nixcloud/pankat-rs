@@ -20,7 +20,7 @@ CREATE TABLE tags (
 );
 
 CREATE TABLE article_tags (
-  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  PRIMARY KEY(article_id, tag_id),
   article_id INTEGER NOT NULL,
   tag_id INTEGER NOT NULL,
   FOREIGN KEY(article_id) REFERENCES articles(id) ON DELETE CASCADE,

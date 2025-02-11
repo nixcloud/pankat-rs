@@ -1,5 +1,5 @@
 use crate::articles::ArticleWithTags;
-use crate::db::schema::{articles, tags};
+use crate::db::schema::{article_tags, articles, tags};
 use chrono::NaiveDateTime;
 use diesel::dsl::sql;
 use diesel::prelude::*;
@@ -72,9 +72,15 @@ pub struct Tag {
     pub name: String,
 }
 
-
-
-
+#[derive(Identifiable, Selectable, Queryable, Associations, Debug)]
+#[diesel(belongs_to(Article))]
+#[diesel(belongs_to(Tag))]
+#[diesel(table_name = article_tags)]
+#[diesel(primary_key(article_id, tag_id))]
+pub struct ArticleTags {
+    pub article_id: i32,
+    pub tag_id: i32,
+}
 
 // func (a *ArticlesDb) MostRecentArticle() (Article, error) {
 
@@ -93,7 +99,9 @@ pub fn get_most_recent_article(conn: &mut SqliteConnection) -> QueryResult<Optio
 }
 
 // func (a *ArticlesDb) QueryAll() ([]Article, error) {
-pub fn get_all_articles(conn: &mut SqliteConnection) -> Result<Vec<ArticleWithTags>, diesel::result::Error> {
+pub fn get_all_articles(
+    conn: &mut SqliteConnection,
+) -> Result<Vec<ArticleWithTags>, diesel::result::Error> {
     use crate::db::schema::articles::dsl::*;
     let article_list: QueryResult<Vec<Article>> = articles
         .order((
@@ -111,7 +119,7 @@ pub fn get_all_articles(conn: &mut SqliteConnection) -> Result<Vec<ArticleWithTa
             }
             Ok(results)
         }
-        Err(e) => Err(e)
+        Err(e) => Err(e),
     }
 }
 
@@ -160,15 +168,29 @@ pub fn get_special_pages(conn: &mut SqliteConnection) -> QueryResult<Vec<Article
 // * most recent article (if changed)
 // * add/del on draft (so leptos can display an adapted list using /ws)
 // * add/del on special_pages (so leptos can display an adapted list using /ws)
-pub fn set(
-    conn: &mut SqliteConnection,
-    new_article: &ArticleWithTags,
-) -> QueryResult<usize> {
+
+// 1. check if article is exists
+// 1. a) it exists, update it but track old neigbours
+//  2. update tags
+//  3. update article_tags bindings
+//  4. finish transaction
+// 1. b) it doesn't exist, create it
+// follow 2./3./4.
+pub fn set(conn: &mut SqliteConnection, new_article: &ArticleWithTags) -> QueryResult<usize> {
     use crate::db::schema::{article_tags, articles, tags};
     let article: Article = new_article.clone().into();
+
     diesel::insert_into(articles::table)
         .values(article)
         .execute(conn)
+    // match a {
+    //     Ok(s) => {},
+    //     Err(e) => match e {
+
+    //     }
+    // }
+
+    //let tags_list: Vec<String> = new_article.tags.clone().unwrap_or_default();
 }
 
 // // func (a *ArticlesDb) Del(SrcFileName string) ([]string, error) {

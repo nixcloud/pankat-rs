@@ -6,6 +6,35 @@ mod get_special_pages;
 mod get_visible_articles;
 mod set;
 
+use diesel::prelude::*;
+use diesel::sqlite::SqliteConnection;
+
+pub fn establish_connection() -> SqliteConnection {
+    SqliteConnection::establish(":memory:").expect("Failed to create SQLite in-memory database")
+}
+
+#[test]
+fn test_diesel_in_memory_sqlite() {
+    let mut conn: SqliteConnection = establish_connection();
+
+    // Create a sample table
+    diesel::sql_query("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL)")
+        .execute(&mut conn)
+        .expect("Failed to create table");
+
+    // Insert data
+    diesel::sql_query("INSERT INTO users (name) VALUES ('Alice')")
+        .execute(&mut conn)
+        .expect("Failed to insert data");
+
+    // Read data
+    let result: (String,) = diesel::sql_query("SELECT name FROM users WHERE id = 1")
+        .get_result(&mut conn)
+        .expect("Failed to read data");
+
+    assert_eq!(result.0, "Alice");
+}
+
 // package db
 
 // import (
