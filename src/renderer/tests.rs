@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::db::article::Article;
     use crate::config;
+    use crate::db::article::Article;
     use crate::renderer::html::{
         create_html_from_content_template, create_html_from_standalone_template,
     };
@@ -58,7 +58,7 @@ mod tests {
         config::Config::initialize(config).expect("Failed to initialize config");
 
         let article = Article {
-            id: 0,
+            id: None,
             src_file_name: "documents/blog.lastlog.de/posts/test_src.md".to_string(),
             dst_file_name: "test_dst.html".to_string(),
             title: Some("Test NewArticle".to_string()),
@@ -81,5 +81,19 @@ mod tests {
         println!("{}", rendered_html);
         assert!(rendered_html.contains(&html_content));
         assert!(rendered_html.contains("Test NewArticle"));
+    }
+
+    #[test]
+    fn test_date_and_time() {
+        use crate::renderer::utils::date_and_time;
+        use chrono::NaiveDateTime;
+        let date_time_str = "2024-04-12 20:53:00";
+        let date_time = NaiveDateTime::parse_from_str(date_time_str, "%Y-%m-%d %H:%M:%S")
+            .expect("Failed to parse date time");
+        let formatted_date = date_and_time(&Some(date_time));
+        assert_eq!(formatted_date, "12 apr 2024");
+
+        let formatted_date_none = date_and_time(&None);
+        assert_eq!(formatted_date_none, "");
     }
 }

@@ -19,19 +19,15 @@ use crate::renderer::pandoc::pandoc_mdwn_2_html;
 use self::plugins::{draft, img, meta, series, specialpage, summary, tag, title};
 use diesel::prelude::*;
 
-#[derive(diesel::Insertable, Debug, Clone, PartialEq, Eq)]
-#[diesel(table_name = crate::db::schema::articles)]
-pub struct NewArticle {
-    /// relative to $input
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct ArticleWithTags {
+    pub id: Option<i32>,
     pub src_file_name: String,
-    /// relative to $input or flattened to single filename
     pub dst_file_name: String,
-
-    /// override for the title (derived from filename by default)
     pub title: Option<String>,
     pub modification_date: Option<chrono::NaiveDateTime>,
     pub summary: Option<String>,
-    //pub tags: Option<Vec<String>>,
+    pub tags: Option<Vec<String>>,
     pub series: Option<String>,
     pub draft: Option<bool>,
     pub special_page: Option<bool>,
@@ -112,8 +108,7 @@ fn write_article_to_disk(article: &Article, cache: &mut HashMap<String, String>)
                 create_html_from_content_template(article.clone(), html.clone()).unwrap();
 
             let standalone_html: String =
-                create_html_from_standalone_template(article.clone(), content)
-                    .unwrap();
+                create_html_from_standalone_template(article.clone(), content).unwrap();
 
             let mut output_filename = output_path.clone();
             output_filename.push(article.dst_file_name.clone());
@@ -128,7 +123,7 @@ fn write_article_to_disk(article: &Article, cache: &mut HashMap<String, String>)
 fn parse_article(
     article_path: &PathBuf,
     cache: &mut HashMap<String, String>,
-) -> Result<NewArticle, Box<dyn Error>> {
+) -> Result<ArticleWithTags, Box<dyn Error>> {
     println!(
         "Parsing article {} from disk",
         article_path.clone().display()
@@ -136,19 +131,18 @@ fn parse_article(
 
     let src_file_name = article_path.display().to_string();
 
-    let mut new_article: NewArticle = NewArticle {
+    let mut new_article: ArticleWithTags = ArticleWithTags {
+        id: None,
         src_file_name: src_file_name.clone(),
         dst_file_name: utils::create_dst_file_name(article_path),
         title: None,
         modification_date: None,
         summary: None,
-        //tags: None,
+        tags: None,
         series: None,
-
         draft: None,
         special_page: None,
         timeline: None,
-
         anchorjs: Some(true),
         tocify: Some(true),
         live_updates: Some(true),
@@ -184,7 +178,7 @@ fn parse_article(
 
 fn eval_plugins(
     article_mdwn_raw_string: &String,
-    article: &mut NewArticle,
+    article: &mut ArticleWithTags,
 ) -> Result<String, Box<dyn Error>> {
     let re = Regex::new(r"\[\[\!(.*?)\]\]").unwrap();
 
@@ -237,7 +231,7 @@ fn eval_plugins(
     Ok(res)
 }
 
-pub fn exec_plugin(input: &str, article: &mut NewArticle) -> Result<String, Box<dyn Error>> {
+pub fn exec_plugin(input: &str, article: &mut ArticleWithTags) -> Result<String, Box<dyn Error>> {
     let pattern = r#"\[\[!([\w]+)(?:\s+(.*))?\]\]"#;
     let re = Regex::new(pattern).unwrap();
 

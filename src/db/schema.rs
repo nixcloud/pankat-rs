@@ -1,17 +1,16 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
-    cache (id) {
-        id -> Integer,
-        src_file_name -> Text,
-        hash -> Text,
-        html -> Text
+    article_tags (id) {
+        id -> Nullable<Integer>,
+        article_id -> Integer,
+        tag_id -> Integer,
     }
 }
 
 diesel::table! {
     articles (id) {
-        id -> Integer,
+        id -> Nullable<Integer>,
         src_file_name -> Text,
         dst_file_name -> Text,
         title -> Nullable<Text>,
@@ -28,10 +27,18 @@ diesel::table! {
 }
 
 diesel::table! {
+    cache (id) {
+        id -> Nullable<Integer>,
+        src_file_name -> Text,
+        hash -> Text,
+        html -> Text,
+    }
+}
+
+diesel::table! {
     tags (id) {
-        id -> Integer,
+        id -> Nullable<Integer>,
         name -> Text,
-        article_id -> Integer,
     }
 }
 
@@ -44,6 +51,13 @@ diesel::table! {
     }
 }
 
-diesel::joinable!(tags -> articles (article_id));
+diesel::joinable!(article_tags -> articles (article_id));
+diesel::joinable!(article_tags -> tags (tag_id));
 
-diesel::allow_tables_to_appear_in_same_query!(cache, articles, tags, users);
+diesel::allow_tables_to_appear_in_same_query!(
+    article_tags,
+    articles,
+    cache,
+    tags,
+    users,
+);

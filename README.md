@@ -11,3 +11,7 @@ cargo run -- --input documents/blog.lastlog.de/ --output documents/output/ --ass
 # architecture
 
 ![architecture](internals.svg)
+
+# extend schema
+
+    diesel print-schema > src/db/schema.rs

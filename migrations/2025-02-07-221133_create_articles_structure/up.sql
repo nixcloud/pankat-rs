@@ -1,5 +1,5 @@
 CREATE TABLE articles (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   src_file_name TEXT NOT NULL UNIQUE,
   dst_file_name TEXT NOT NULL UNIQUE,
   title TEXT,
@@ -15,24 +15,21 @@ CREATE TABLE articles (
 );
 
 CREATE TABLE tags (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL UNIQUE,
-  article_id INTEGER NOT NULL REFERENCES articles(id)
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE article_tags (
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  article_id INTEGER NOT NULL,
+  tag_id INTEGER NOT NULL,
+  FOREIGN KEY(article_id) REFERENCES articles(id) ON DELETE CASCADE,
+  FOREIGN KEY(tag_id) REFERENCES tags(id) ON DELETE CASCADE
 );
 
 CREATE TABLE cache (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   src_file_name TEXT NOT NULL UNIQUE,
   hash TEXT NOT NULL UNIQUE,
   html TEXT NOT NULL UNIQUE
 );
-
--- CREATE TABLE article_tags (
---   article_id INTEGER NOT NULL,
---   tag_id INTEGER NOT NULL,
---   FOREIGN KEY(article_id) REFERENCES articles(id) ON DELETE CASCADE,
---   FOREIGN KEY(tag_id) REFERENCES tags(id) ON DELETE CASCADE
--- );
-
--- CREATE INDEX idx_article_series ON articles(series);
--- CREATE INDEX idx_article_modification_date ON articles(modification_date);

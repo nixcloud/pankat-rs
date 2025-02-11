@@ -24,14 +24,14 @@ pub fn create_html_from_standalone_template(
 
     handlebars.register_template_string("standalone-template", &template_content)?;
 
-    /// FIXME move code below to mod.rs
+    // FIXME move code below to mod.rs
     let mut input_path: PathBuf = cfg.input.clone();
     if !input_path.as_os_str().is_empty() && !input_path.to_string_lossy().ends_with(MAIN_SEPARATOR)
     {
         input_path.push(""); // Ensures trailing separator
     }
     let article_source_code_fs: PathBuf = PathBuf::from(article.src_file_name.clone());
-    /// FIXME move code above to mod.rs
+    // FIXME move code above to mod.rs
     let relative_path = match article_source_code_fs.strip_prefix(&input_path) {
         Ok(res) => res,
         Err(e) => {
@@ -93,12 +93,11 @@ pub fn create_html_from_content_template(
     )
     .to_string();
 
-    let tags: String = "".to_string();
-    // let tags: String = format!(
-    //     r#"<div id="tags"><p>{}</p></div>"#,
-    //     tag_links_to_timeline(article.tags)
-    // )
-    // .to_string();
+    let tags: String = format!(
+        r#"<div id="tags"><p>{}</p></div>"#,
+        "" // tag_links_to_timeline(article.tags)
+    )
+    .to_string();
 
     let data = json!({
         "SpecialPage": article.special_page,

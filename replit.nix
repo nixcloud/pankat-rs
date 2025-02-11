@@ -1,5 +1,6 @@
 {pkgs}: {
   deps = [
+    pkgs.diesel-cli-ext
     pkgs.zlib
     pkgs.tk
     pkgs.tcl
