@@ -1,3 +1,4 @@
+use crate::articles::ArticleWithTags;
 use crate::config;
 use crate::renderer::utils::{date_and_time, tag_links_to_timeline};
 use handlebars::Handlebars;
@@ -6,10 +7,8 @@ use std::error::Error;
 use std::fs;
 use std::path::{PathBuf, MAIN_SEPARATOR};
 
-use crate::db::article::Article;
-
 pub fn create_html_from_standalone_template(
-    article: Article,
+    article: ArticleWithTags,
     html: String,
     //relative_path: String,
 ) -> Result<String, Box<dyn Error>> {
@@ -64,7 +63,7 @@ pub fn create_html_from_standalone_template(
 }
 
 pub fn create_html_from_content_template(
-    article: Article,
+    article: ArticleWithTags,
     html: String,
 ) -> Result<String, Box<dyn Error>> {
     let cfg = config::Config::get();
@@ -95,7 +94,7 @@ pub fn create_html_from_content_template(
 
     let tags: String = format!(
         r#"<div id="tags"><p>{}</p></div>"#,
-        "" // tag_links_to_timeline(article.tags)
+        tag_links_to_timeline(article.tags)
     )
     .to_string();
 

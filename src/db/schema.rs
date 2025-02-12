@@ -1,8 +1,7 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
-    article_tags (id) {
-        id -> Nullable<Integer>,
+    article_tags (article_id, tag_id) {
         article_id -> Integer,
         tag_id -> Integer,
     }

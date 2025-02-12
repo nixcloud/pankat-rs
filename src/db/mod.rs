@@ -15,14 +15,14 @@ pub mod users;
 pub fn establish_connection_pool() -> DbPool {
     let cfg = config::Config::get();
     let mut database_path = PathBuf::from(cfg.database.clone());
-
     database_path.push("pankat.sqlite");
+
     let database_url: &str = database_path.as_path().to_str().unwrap();
 
     println!("Connecting to {}", database_url);
-    if !Path::new("pankat.db").exists() {
+    if !Path::new(database_url).exists() {
         println!("Creating SQLite database file...");
-        std::fs::File::create("pankat.db").expect("Failed to create SQLite database file");
+        std::fs::File::create(database_url).expect("Failed to create SQLite database file");
         initialize_schema(&database_url);
     }
 

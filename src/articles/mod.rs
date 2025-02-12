@@ -1,4 +1,3 @@
-use crate::db::article::Article;
 use crate::db::DbPool;
 
 use regex::Regex;
@@ -96,7 +95,7 @@ pub fn scan_articles(pool: DbPool) {
     println!("Time taken to execute: {:?}", duration);
 }
 
-fn write_article_to_disk(article: &Article, cache: &mut HashMap<String, String>) {
+fn write_article_to_disk(article: &ArticleWithTags, cache: &mut HashMap<String, String>) {
     let cfg = config::Config::get();
     let output_path: PathBuf = cfg.output.clone();
 

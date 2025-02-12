@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::config;
-    use crate::db::article::Article;
+    use crate::articles::ArticleWithTags;
     use crate::renderer::html::{
         create_html_from_content_template, create_html_from_standalone_template,
     };
@@ -57,7 +57,7 @@ mod tests {
         );
         config::Config::initialize(config).expect("Failed to initialize config");
 
-        let article = Article {
+        let article = ArticleWithTags {
             id: None,
             src_file_name: "documents/blog.lastlog.de/posts/test_src.md".to_string(),
             dst_file_name: "test_dst.html".to_string(),
@@ -71,6 +71,7 @@ mod tests {
             anchorjs: None,
             tocify: None,
             live_updates: None,
+            tags: None,
         };
         let html_content = "<p>This is a test body.</p>".to_string();
 
