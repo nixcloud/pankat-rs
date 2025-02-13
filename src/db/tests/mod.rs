@@ -1,5 +1,6 @@
 mod del;
 mod get_all_articles;
+mod get_all_tags;
 mod get_drafts;
 mod get_most_recent_article;
 mod get_special_pages;

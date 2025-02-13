@@ -4,7 +4,7 @@ use crate::db::schema::cache as cache_table;
 use crate::db::schema::cache::dsl as cache_objects;
 use diesel::prelude::*;
 
-#[derive(Queryable, Insertable, Clone, Debug)]
+#[derive(Queryable, Insertable, Clone, Debug, AsChangeset)]
 #[diesel(belongs_to(Article))]
 #[diesel(table_name = cache_table)]
 pub struct Cache {
@@ -41,28 +41,61 @@ pub fn set_cache(
         id: None, // SQLite will auto-increment this if not provided
         src_file_name: src_file_name.clone(),
         hash: sha256_hash,
-        html,
+        html: html.clone(),
     };
-    // println!(
-    //     "Preparing to execute insert into cache table with data: {:#?}",
-    //     new_cache
-    // );
 
-    match diesel::insert_into(cache_table::table)
-        .values(&new_cache)
-        .execute(conn)
-    {
-        Ok(rows) => {
-            println!("Successfully inserted cache entry. Rows affected: {}", rows);
-            Ok(())
+    // Check if the cache entry already exists
+    let existing_cache: QueryResult<Option<Cache>> = cache_objects::cache
+        .filter(cache_objects::src_file_name.eq(src_file_name.clone()))
+        .first(conn)
+        .optional();
+
+    match existing_cache {
+        Ok(Some(_)) => {
+            // Update the existing cache entry
+            match diesel::update(cache_objects::cache.filter(cache_objects::src_file_name.eq(src_file_name.clone())))
+                .set(&new_cache)
+                .execute(conn) {
+                Ok(rows) => {
+                    println!("Successfully updated cache entry. Rows affected: {}", rows);
+                    Ok(())
+                }
+                Err(e) => {
+                    let error_message = format!(
+                        "Failed to update cache entry for article {}: {:?}",
+                        src_file_name, e
+                    );
+                    println!("{}", error_message);
+                    Err(error_message) // Use detailed error message for debugging
+                }
+            }
+        }
+        Ok(None) => {
+            // Insert new cache entry if it does not exist
+            match diesel::insert_into(cache_table::table)
+                .values(&new_cache)
+                .execute(conn) {
+                Ok(rows) => {
+                    println!("Successfully inserted cache entry. Rows affected: {}", rows);
+                    Ok(())
+                }
+                Err(e) => {
+                    let error_message = format!(
+                        "Failed to insert cache entry for article {}: {:?}",
+                        src_file_name, e
+                    );
+                    println!("{}", error_message);
+                    Err(error_message) // Use detailed error message for debugging
+                }
+            }
         }
         Err(e) => {
             let error_message = format!(
-                "Failed to insert cache entry for article {}: {:?}",
+                "Failed to check existing cache for article {}: {:?}",
                 src_file_name, e
             );
             println!("{}", error_message);
-            Err(error_message) // Use detailed error message for debugging
+            Err(error_message)
         }
     }
 }

@@ -207,6 +207,38 @@ pub fn get_visible_articles(
     }
 }
 
+// func (a *ArticlesDb) ArticlesBySeries(series string) ([]Article, error) {
+pub fn get_visible_articles_by_series(
+    conn: &mut SqliteConnection,
+    series: &str,
+) -> QueryResult<Vec<Article>> {
+    articles_table
+        .filter(
+            articles_objects::draft
+                .eq(false)
+                .or(articles_objects::draft.is_null()),
+        )
+        .filter(
+            articles_objects::special_page
+                .eq(false)
+                .or(articles_objects::special_page.is_null()),
+        )
+        .filter(articles_objects::series.eq(series))
+        .order((
+            sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
+            articles_objects::modification_date.desc(),
+        ))
+        .load(conn)
+}
+
+// func (a *ArticlesDb) ArticlesByTag(tagName string) ([]Article, error) {
+pub fn get_visible_articles_by_tag(
+    conn: &mut SqliteConnection,
+    tag: String,
+) -> QueryResult<Vec<String>> {
+    tags_table.select(tags_objects::name).load(conn)
+}
+
 // func (a *ArticlesDb) Drafts() ([]Article, error) {
 pub fn get_drafts(conn: &mut SqliteConnection) -> QueryResult<Vec<Article>> {
     articles_table
@@ -297,7 +329,7 @@ pub fn set(conn: &mut SqliteConnection, new_article_with_tags: &ArticleWithTags)
                 }
             }
             Err(ref e) => {
-                println!("freaking article already exists, please implement this xxx");
+                println!("Article already exists id articles db: either implement update or remove db to re-generate article");
             }
         };
 
@@ -319,39 +351,8 @@ pub fn set(conn: &mut SqliteConnection, new_article_with_tags: &ArticleWithTags)
 //     num_deleted
 // }
 
-// func (a *ArticlesDb) ArticlesBySeries(series string) ([]Article, error) {
-pub fn get_visible_articles_by_series(
-    conn: &mut SqliteConnection,
-    series: &str,
-) -> QueryResult<Vec<Article>> {
-    articles_table
-        .filter(
-            articles_objects::draft
-                .eq(false)
-                .or(articles_objects::draft.is_null()),
-        )
-        .filter(
-            articles_objects::special_page
-                .eq(false)
-                .or(articles_objects::special_page.is_null()),
-        )
-        .filter(articles_objects::series.eq(series))
-        .order((
-            sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
-            articles_objects::modification_date.desc(),
-        ))
-        .load(conn)
-}
-
 // func (a *ArticlesDb) AllTagsInDB() ([]string, error) {
 pub fn get_all_tags(conn: &mut SqliteConnection) -> QueryResult<Vec<String>> {
-    tags_table.select(tags_objects::name).load(conn)
-}
-// func (a *ArticlesDb) ArticlesByTag(tagName string) ([]Article, error) {
-pub fn get_visible_articles_by_tag(
-    conn: &mut SqliteConnection,
-    tag: String,
-) -> QueryResult<Vec<String>> {
     tags_table.select(tags_objects::name).load(conn)
 }
 
