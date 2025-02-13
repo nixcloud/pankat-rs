@@ -248,7 +248,7 @@ pub fn get_special_pages(conn: &mut SqliteConnection) -> QueryResult<Vec<Article
 pub fn set(conn: &mut SqliteConnection, new_article_with_tags: &ArticleWithTags) {
     let article: Article = new_article_with_tags.clone().into();
 
-    let t = conn.transaction(|mut conn| {
+    let _ = conn.transaction(|mut conn| {
         let articles_result = diesel::insert_into(articles_table)
             .values(article)
             .get_results::<Article>(conn);
@@ -358,7 +358,6 @@ pub fn get_visible_articles_by_tag(
 // func (a *ArticlesDb) QueryRawBySrcFileName(SrcFileName string) (*Article, error) {
 // func (a *ArticlesDb) NextArticle(article Article) (*Article, error) {
 // func (a *ArticlesDb) PrevArticle(article Article) (*Article, error) {
-
 
 // func (a *ArticlesDb) GetRelatedArticles(article Article) map[string]bool {
 

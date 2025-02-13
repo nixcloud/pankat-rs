@@ -1,7 +1,7 @@
+use crate::db::cache::{get_cache, set_cache};
 use crate::db::DbPool;
 
 use regex::Regex;
-use std::collections::HashMap;
 use std::error::Error;
 use std::path::PathBuf;
 
@@ -39,7 +39,6 @@ pub struct ArticleWithTags {
 pub fn scan_articles(pool: DbPool) {
     let cfg = config::Config::get();
     let input_path: PathBuf = cfg.input.clone();
-    let mut cache: HashMap<String, String> = HashMap::new();
 
     let mut conn = pool
         .get()
@@ -47,21 +46,17 @@ pub fn scan_articles(pool: DbPool) {
 
     let start_time = std::time::Instant::now();
 
-    fn traverse_and_collect_articles(
-        conn: &mut SqliteConnection,
-        dir: &PathBuf,
-        cache: &mut HashMap<String, String>,
-    ) {
+    fn traverse_and_collect_articles(conn: &mut SqliteConnection, dir: &PathBuf) {
         if dir.is_dir() {
             if let Ok(entries) = std::fs::read_dir(dir) {
                 for entry in entries {
                     if let Ok(entry) = entry {
                         let path = entry.path();
                         if path.is_dir() {
-                            traverse_and_collect_articles(conn, &path, cache);
+                            traverse_and_collect_articles(conn, &path);
                         } else if let Some(ext) = path.extension() {
                             if ext == "mdwn" {
-                                match parse_article(&path, cache) {
+                                match parse_article(conn, &path) {
                                     Ok(article) => {
                                         let _ = crate::db::article::set(conn, &article);
                                     }
@@ -75,36 +70,31 @@ pub fn scan_articles(pool: DbPool) {
         }
     }
 
-    traverse_and_collect_articles(&mut conn, &input_path, &mut cache);
+    traverse_and_collect_articles(&mut conn, &input_path);
 
     match crate::db::article::get_visible_articles(&mut conn) {
         Ok(articles) => {
             for article in articles {
                 println!("Writing article {} to disk", article.clone().dst_file_name);
-                write_article_to_disk(&article, &mut cache);
+                write_article_to_disk(&mut conn, &article);
             }
         }
         Err(_) => { /* Handle errors if necessary */ }
     }
 
-    // for (key, value) in &cache {
-    //     println!("{}: {}...", key, &value[0..40]);
-    // }
-
     let duration = start_time.elapsed();
     println!("Time taken to execute: {:?}", duration);
 }
 
-fn write_article_to_disk(article: &ArticleWithTags, cache: &mut HashMap<String, String>) {
+fn write_article_to_disk(conn: &mut SqliteConnection, article: &ArticleWithTags) {
     let cfg = config::Config::get();
     let output_path: PathBuf = cfg.output.clone();
 
     //let relative_path: String = String::new(); // FIXME move code from html.rs here
 
-    match cache.get(&article.src_file_name) {
-        Some(html) => {
-            let content: String =
-                create_html_from_content_template(article.clone(), html.clone()).unwrap();
+    match get_cache(conn, article.src_file_name.clone()) {
+        Some(cache_entry) => {
+            let content: String = create_html_from_content_template(article.clone(), cache_entry.html).unwrap();
 
             let standalone_html: String =
                 create_html_from_standalone_template(article.clone(), content).unwrap();
@@ -114,14 +104,14 @@ fn write_article_to_disk(article: &ArticleWithTags, cache: &mut HashMap<String, 
             std::fs::write(output_filename, standalone_html).expect("Unable to write HTML file");
         }
         None => {
-            println!("Error: path: {}", &article.src_file_name);
+            println!("Error retrieving cache for path: {}", &article.src_file_name);
         }
     }
 }
 
 fn parse_article(
+    conn: &mut SqliteConnection,
     article_path: &PathBuf,
-    cache: &mut HashMap<String, String>,
 ) -> Result<ArticleWithTags, Box<dyn Error>> {
     println!(
         "Parsing article {} from disk",
@@ -152,7 +142,7 @@ fn parse_article(
         Ok(article_mdwn_refined_source) => {
             match pandoc_mdwn_2_html(article_mdwn_refined_source.clone()) {
                 Ok(html) => {
-                    cache.insert(src_file_name, html);
+                    let _ = set_cache(conn, src_file_name.clone(), html.clone());
                     if new_article.title == None {
                         let title = utils::article_src_file_name_to_title(&article_path);
                         new_article.title = Some(title);
