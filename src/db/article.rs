@@ -1,4 +1,5 @@
 use crate::articles::ArticleWithTags;
+use crate::articles::NewArticle;
 
 use crate::db::schema;
 
@@ -20,7 +21,7 @@ use chrono::NaiveDateTime;
 #[derive(Queryable, Insertable, Identifiable, Selectable, Debug, Clone, PartialEq)]
 #[diesel(table_name = schema::articles)]
 pub struct Article {
-    pub id: Option<i32>,
+    pub id: i32,
     pub src_file_name: String,
     pub dst_file_name: String,
     pub title: Option<String>,
@@ -35,30 +36,10 @@ pub struct Article {
     pub live_updates: Option<bool>,
 }
 
-impl From<ArticleWithTags> for Article {
-    fn from(new_article_with_tags: ArticleWithTags) -> Self {
-        Article {
-            id: new_article_with_tags.id,
-            src_file_name: new_article_with_tags.src_file_name,
-            dst_file_name: new_article_with_tags.dst_file_name,
-            title: new_article_with_tags.title,
-            modification_date: new_article_with_tags.modification_date,
-            summary: new_article_with_tags.summary,
-            series: new_article_with_tags.series,
-            draft: new_article_with_tags.draft,
-            special_page: new_article_with_tags.special_page,
-            timeline: new_article_with_tags.timeline,
-            anchorjs: new_article_with_tags.anchorjs,
-            tocify: new_article_with_tags.tocify,
-            live_updates: new_article_with_tags.live_updates,
-        }
-    }
-}
-
 impl From<Article> for ArticleWithTags {
     fn from(article: Article) -> Self {
         ArticleWithTags {
-            id: article.id,
+            id: Some(article.id),
             src_file_name: article.src_file_name,
             dst_file_name: article.dst_file_name,
             title: article.title,
@@ -79,7 +60,7 @@ impl From<Article> for ArticleWithTags {
 #[diesel(belongs_to(Article, foreign_key = article_id))]
 #[diesel(table_name = schema::tags)]
 pub struct Tag {
-    pub id: Option<i32>,
+    pub id: i32,
     pub name: String,
 }
 
@@ -93,58 +74,7 @@ pub struct ArticleTag {
     pub tag_id: i32,
 }
 
-// func (a *ArticlesDb) MostRecentArticle() (Article, error) {
-
-// FIXME to: Result<ArticleWithTags>
-pub fn get_most_recent_article(conn: &mut SqliteConnection) -> QueryResult<Option<Article>> {
-    articles_table
-        .filter(
-            articles_objects::draft
-                .eq(false)
-                .or(articles_objects::draft.is_null()),
-        )
-        .filter(
-            articles_objects::special_page
-                .eq(false)
-                .or(articles_objects::special_page.is_null()),
-        )
-        .order((
-            sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
-            articles_objects::modification_date.desc(),
-        ))
-        .first(conn)
-        .optional()
-}
-
-// func (a *ArticlesDb) QueryAll() ([]Article, error) {
-pub fn get_all_articles(
-    conn: &mut SqliteConnection,
-) -> Result<Vec<ArticleWithTags>, diesel::result::Error> {
-    let article_list: QueryResult<Vec<Article>> = articles_table
-        .order((
-            sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
-            articles_objects::modification_date.desc(),
-        ))
-        .load(conn);
-    match article_list {
-        Ok(list) => {
-            let mut results = Vec::new();
-            for article in list.iter() {
-                let article_with_tags: ArticleWithTags = article.clone().into();
-                results.push(article_with_tags)
-            }
-            Ok(results)
-        }
-        Err(e) => Err(e),
-    }
-}
-
-// SELECT t.name AS tag_name
-// FROM article_tags at
-// JOIN tags t ON at.tag_id = t.id
-// WHERE at.article_id = 1;
-
-fn get_tags_for_article(article_id: i32, conn: &mut SqliteConnection) -> Option<Vec<String>> {
+fn get_tags_for_article(conn: &mut SqliteConnection, article_id: i32) -> Option<Vec<String>> {
     let tag_ids_result: QueryResult<Vec<i32>> = article_tags_table
         .filter(article_tags_objects::article_id.eq(article_id))
         .select(article_tags_objects::tag_id)
@@ -167,10 +97,80 @@ fn get_tags_for_article(article_id: i32, conn: &mut SqliteConnection) -> Option<
     }
 }
 
+pub fn get_article_with_tags_by_id(
+    conn: &mut SqliteConnection,
+    article_id: i32,
+) -> Option<ArticleWithTags> {
+    let res = articles_table
+        .filter(articles_objects::id.eq(article_id))
+        .first::<Article>(conn);
+    match res {
+        Ok(article) => {
+            let mut article_with_tags: ArticleWithTags = article.clone().into();
+            article_with_tags.tags = get_tags_for_article(conn, article_id);
+            Some(article_with_tags)
+        }
+        Err(e) => None,
+    }
+}
+
+// func (a *ArticlesDb) MostRecentArticle() (Article, error) {
+pub fn get_most_recent_article(conn: &mut SqliteConnection) -> Option<ArticleWithTags> {
+    let res = articles_table
+        .filter(
+            articles_objects::draft
+                .eq(false)
+                .or(articles_objects::draft.is_null()),
+        )
+        .filter(
+            articles_objects::special_page
+                .eq(false)
+                .or(articles_objects::special_page.is_null()),
+        )
+        .order((
+            sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
+            articles_objects::modification_date.desc(),
+        ))
+        .first::<Article>(conn);
+    match res {
+        Ok(article) => {
+            let mut article_with_tags: ArticleWithTags = article.clone().into();
+            article_with_tags.tags = get_tags_for_article(conn, article.id);
+            Some(article_with_tags)
+        }
+        Err(e) => None,
+    }
+}
+
+// func (a *ArticlesDb) QueryAll() ([]Article, error) {
+pub fn get_all_articles(conn: &mut SqliteConnection) -> Vec<ArticleWithTags> {
+    let res: QueryResult<Vec<Article>> = articles_table
+        .order((
+            sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
+            articles_objects::modification_date.desc(),
+        ))
+        .load(conn);
+    match res {
+        Ok(articles) => {
+            let mut results = Vec::new();
+            for article in articles.iter() {
+                let mut article_with_tags: ArticleWithTags = article.clone().into();
+                article_with_tags.tags = get_tags_for_article(conn, article.id);
+                results.push(article_with_tags)
+            }
+            results
+        }
+        Err(e) => {
+            vec![]
+        }
+    }
+}
+
 //func (a *ArticlesDb) Articles() ([]Article, error) { -> all articles, except drafts / special pages
 pub fn get_visible_articles(
     conn: &mut SqliteConnection,
 ) -> Result<Vec<ArticleWithTags>, diesel::result::Error> {
+    // FIXME rewrite most functions to this return type
     let articles_query = articles_table
         .filter(
             articles_objects::draft
@@ -187,18 +187,12 @@ pub fn get_visible_articles(
             articles_objects::modification_date.desc(),
         ))
         .load::<Article>(conn);
-
     match articles_query {
         Ok(articles) => {
             let mut articles_out: Vec<ArticleWithTags> = Vec::new();
             for article_in in articles {
                 let mut article_with_tags: ArticleWithTags = article_in.clone().into();
-                match article_in.id {
-                    Some(article_id) => {
-                        article_with_tags.tags = get_tags_for_article(article_id, conn);
-                    }
-                    None => {}
-                }
+                article_with_tags.tags = get_tags_for_article(conn, article_in.id);
                 articles_out.push(article_with_tags);
             }
             Ok(articles_out)
@@ -211,8 +205,9 @@ pub fn get_visible_articles(
 pub fn get_visible_articles_by_series(
     conn: &mut SqliteConnection,
     series: &str,
-) -> QueryResult<Vec<Article>> {
-    articles_table
+) -> Vec<ArticleWithTags> {
+    let res = articles_table
+        .filter(articles_objects::series.eq(series))
         .filter(
             articles_objects::draft
                 .eq(false)
@@ -223,42 +218,104 @@ pub fn get_visible_articles_by_series(
                 .eq(false)
                 .or(articles_objects::special_page.is_null()),
         )
-        .filter(articles_objects::series.eq(series))
         .order((
             sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
             articles_objects::modification_date.desc(),
         ))
-        .load(conn)
+        .load::<Article>(conn);
+    match res {
+        Ok(articles) => {
+            let mut articles_out: Vec<ArticleWithTags> = Vec::new();
+            for article_in in articles {
+                let mut article_with_tags: ArticleWithTags = article_in.clone().into();
+                article_with_tags.tags = get_tags_for_article(conn, article_in.id);
+                articles_out.push(article_with_tags);
+            }
+            articles_out
+        }
+        Err(e) => {
+            vec![]
+        }
+    }
 }
 
 // func (a *ArticlesDb) ArticlesByTag(tagName string) ([]Article, error) {
 pub fn get_visible_articles_by_tag(
     conn: &mut SqliteConnection,
     tag: String,
-) -> QueryResult<Vec<String>> {
-    tags_table.select(tags_objects::name).load(conn)
+) -> Vec<ArticleWithTags> {
+    let res = articles_table
+        .inner_join(
+            article_tags_table.on(articles_objects::id.eq(article_tags_objects::article_id)),
+        )
+        .inner_join(tags_table.on(article_tags_objects::tag_id.eq(tags_objects::id)))
+        .filter(tags_objects::name.eq(tag))
+        .select(articles_table::all_columns())
+        .load::<Article>(conn);
+    match res {
+        Ok(articles) => {
+            let mut articles_out: Vec<ArticleWithTags> = Vec::new();
+            for article_in in articles {
+                let mut article_with_tags: ArticleWithTags = article_in.clone().into();
+                article_with_tags.tags = get_tags_for_article(conn, article_in.id);
+                articles_out.push(article_with_tags);
+            }
+            articles_out
+        }
+        Err(e) => {
+            vec![]
+        }
+    }
 }
 
 // func (a *ArticlesDb) Drafts() ([]Article, error) {
-pub fn get_drafts(conn: &mut SqliteConnection) -> QueryResult<Vec<Article>> {
-    articles_table
+pub fn get_drafts(conn: &mut SqliteConnection) -> Vec<ArticleWithTags> {
+    let res = articles_table
         .filter(articles_objects::draft.eq(true))
         .order((
             sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
             articles_objects::modification_date.desc(),
         ))
-        .load(conn)
+        .load::<Article>(conn);
+    match res {
+        Ok(articles) => {
+            let mut articles_out: Vec<ArticleWithTags> = Vec::new();
+            for article_in in articles {
+                let mut article_with_tags: ArticleWithTags = article_in.clone().into();
+                article_with_tags.tags = get_tags_for_article(conn, article_in.id);
+                articles_out.push(article_with_tags);
+            }
+            articles_out
+        }
+        Err(e) => {
+            vec![]
+        }
+    }
 }
 
 // func (a *ArticlesDb) SpecialPages() ([]Article, error) {
-pub fn get_special_pages(conn: &mut SqliteConnection) -> QueryResult<Vec<Article>> {
-    articles_table
+pub fn get_special_pages(conn: &mut SqliteConnection) -> Vec<ArticleWithTags> {
+    let res = articles_table
         .filter(articles_objects::special_page.eq(true))
         .order((
-            sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"), // NULLs last
+            sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
             articles_objects::modification_date.desc(),
         ))
-        .load(conn)
+        .load::<Article>(conn);
+    match res {
+        Ok(articles) => {
+            let mut articles_out: Vec<ArticleWithTags> = Vec::new();
+            for article_in in articles {
+                let mut article_with_tags: ArticleWithTags = article_in.clone().into();
+                article_with_tags.tags = get_tags_for_article(conn, article_in.id);
+                articles_out.push(article_with_tags);
+            }
+            articles_out
+        }
+        Err(e) => {
+            vec![]
+        }
+    }
 }
 
 // func (a *ArticlesDb) Set(article *Article) (*Article, []string, error) {
@@ -278,16 +335,17 @@ pub fn get_special_pages(conn: &mut SqliteConnection) -> QueryResult<Vec<Article
 // 1. b) it doesn't exist, create it
 // follow 2./3./4.
 pub fn set(conn: &mut SqliteConnection, new_article_with_tags: &ArticleWithTags) {
-    let article: Article = new_article_with_tags.clone().into();
+    //let article: Article = new_article_with_tags.clone().into();
+    let new_article: NewArticle = new_article_with_tags.clone().into();
 
     let _ = conn.transaction(|mut conn| {
         let articles_result = diesel::insert_into(articles_table)
-            .values(article)
+            .values(new_article)
             .get_results::<Article>(conn);
 
         match articles_result {
             Ok(ref articles_result) => {
-                let article_id: i32 = articles_result[0].id.unwrap(); // FIXME error handling
+                let article_id: i32 = articles_result[0].id; // FIXME error handling
 
                 if let Some(tags) = new_article_with_tags.tags.clone() {
                     // add to tags table and reference it in article_tags table
@@ -304,8 +362,7 @@ pub fn set(conn: &mut SqliteConnection, new_article_with_tags: &ArticleWithTags)
                                 let inserted_tag = tags_table
                                     .filter(tags_objects::name.eq(tag))
                                     .select(tags_objects::id)
-                                    .first::<Option<i32>>(conn)
-                                    .unwrap();
+                                    .first::<i32>(conn);
                                 inserted_tag.unwrap()
                             }
                             Err(_) => {
@@ -313,8 +370,7 @@ pub fn set(conn: &mut SqliteConnection, new_article_with_tags: &ArticleWithTags)
                                 let existing_tag = tags_table
                                     .filter(tags_objects::name.eq(tag))
                                     .select(tags_objects::id)
-                                    .first::<Option<i32>>(conn)
-                                    .unwrap();
+                                    .first::<i32>(conn);
                                 existing_tag.unwrap()
                             }
                         };
@@ -337,32 +393,181 @@ pub fn set(conn: &mut SqliteConnection, new_article_with_tags: &ArticleWithTags)
     });
 }
 
-// // func (a *ArticlesDb) Del(SrcFileName string) ([]string, error) {
-// pub fn del(conn: &mut SqliteConnection, src_file_name: &str) -> QueryResult<usize> {
-//     let s: String = src_file_name.to_string()
+// func (a *ArticlesDb) Del(SrcFileName string) ([]string, error) {
+pub fn del_by_src_file_name(
+    conn: &mut SqliteConnection,
+    src_file_name: String,
+) -> Result<(), String> {
+    let num_deleted = diesel::delete(
+        articles_table.filter(articles_objects::src_file_name.eq(src_file_name.clone())),
+    )
+    .execute(conn);
 
-//     // let num_deleted = diesel::delete(
-//     //     articles::table.filter(src_file_name.eq(s))
-//     // )
-//         //
-//         //.filter(special_page.eq(false)))
-//         .execute(conn);
+    match num_deleted {
+        Ok(0) => Err(format!("Article not found: {}", src_file_name)),
+        Ok(_) => Ok(()),
+        Err(e) => Err(format!("Failed to delete article: {}", e)),
+    }
+}
 
-//     num_deleted
-// }
+pub fn del_by_id(conn: &mut SqliteConnection, id: i32) -> Result<(), String> {
+    let num_deleted =
+        diesel::delete(articles_table.filter(articles_objects::id.eq(id))).execute(conn);
+
+    match num_deleted {
+        Ok(0) => Err(format!("Article with id '{}' not found", id)),
+        Ok(_) => Ok(()),
+        Err(e) => Err(format!("Failed to delete article: {}", e)),
+    }
+}
 
 // func (a *ArticlesDb) AllTagsInDB() ([]string, error) {
 pub fn get_all_tags(conn: &mut SqliteConnection) -> QueryResult<Vec<String>> {
     tags_table.select(tags_objects::name).load(conn)
 }
 
-// func (a *ArticlesDb) QueryRawBySrcFileName(SrcFileName string) (*Article, error) {
+// func (a *ArticlesDb) AllSeriesInDB() ([]string, error) {
+pub fn get_all_series_from_visible_articles(conn: &mut SqliteConnection) -> Vec<String> {
+    let res: QueryResult<Vec<Article>> = articles_table
+        .filter(articles_objects::series.is_not_null())
+        .order((
+            sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
+            articles_objects::modification_date.desc(),
+        ))
+        .load(conn);
+    match res {
+        Ok(articles) => {
+            let mut results: Vec<String> = Vec::new();
+            for article in articles.iter() {
+                match &article.series.clone() {
+                    Some(series) => {
+                        results.push(series.clone());
+                    }
+                    None => {}
+                }
+            }
+            results
+        }
+        Err(e) => {
+            vec![]
+        }
+    }
+}
+
+pub struct Neighbours {
+    prev: Option<ArticleWithTags>,
+    next: Option<ArticleWithTags>,
+}
+
 // func (a *ArticlesDb) NextArticle(article Article) (*Article, error) {
 // func (a *ArticlesDb) PrevArticle(article Article) (*Article, error) {
+pub fn get_prev_and_next_article(
+    conn: &mut SqliteConnection,
+    id: i32,
+) -> Result<Neighbours, diesel::result::Error> {
+    let articles_query: QueryResult<Vec<Article>> = articles_table
+        .filter(
+            articles_objects::draft
+                .eq(false)
+                .or(articles_objects::draft.is_null()),
+        )
+        .filter(
+            articles_objects::special_page
+                .eq(false)
+                .or(articles_objects::special_page.is_null()),
+        )
+        .order((
+            sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
+            articles_objects::modification_date.desc(),
+        ))
+        .load::<Article>(conn);
+    match articles_query {
+        Ok(articles) => {
+            let mut prev_article: Option<ArticleWithTags> = None;
+            let mut next_article: Option<ArticleWithTags> = None;
+            if let Some(pos) = articles.iter().position(|article| article.id == id) {
+                if pos > 0 {
+                    let p: Article = articles[pos - 1].clone();
+                    let mut prev: ArticleWithTags = p.clone().into();
+                    prev.tags = get_tags_for_article(conn, p.id);
+                    prev_article = Some(prev);
+                }
+                if pos < articles.len() - 1 {
+                    let n: Article = articles[pos + 1].clone();
+                    let mut next: ArticleWithTags = n.clone().into();
+                    next.tags = get_tags_for_article(conn, n.id);
+                    next_article = Some(next);
+                }
+            }
 
-// func (a *ArticlesDb) GetRelatedArticles(article Article) map[string]bool {
-
-// func (a *ArticlesDb) AllSeriesInDB() ([]string, error) {
+            let n = Neighbours {
+                prev: prev_article,
+                next: next_article,
+            };
+            Ok(n)
+        }
+        Err(e) => {
+            println!("Error: {}", e);
+            Err(e)
+        }
+    }
+}
 
 // func (a *ArticlesDb) NextArticleInSeries(article Article) (Article, error) {
 // func (a *ArticlesDb) PrevArticleInSeries(article Article) (Article, error) {
+pub fn get_prev_and_next_article_for_series(
+    conn: &mut SqliteConnection,
+    id: i32,
+    series: String,
+) -> Result<Neighbours, diesel::result::Error> {
+    let articles_query: QueryResult<Vec<Article>> = articles_table
+        .filter(articles_objects::series.eq(series))
+        .filter(
+            articles_objects::draft
+                .eq(false)
+                .or(articles_objects::draft.is_null()),
+        )
+        .filter(
+            articles_objects::special_page
+                .eq(false)
+                .or(articles_objects::special_page.is_null()),
+        )
+        .order((
+            sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
+            articles_objects::modification_date.desc(),
+        ))
+        .load::<Article>(conn);
+    match articles_query {
+        Ok(articles) => {
+            let mut prev_article: Option<ArticleWithTags> = None;
+            let mut next_article: Option<ArticleWithTags> = None;
+            if let Some(pos) = articles.iter().position(|article| article.id == id) {
+                if pos > 0 {
+                    let p: Article = articles[pos - 1].clone();
+                    let mut prev: ArticleWithTags = p.clone().into();
+                    prev.tags = get_tags_for_article(conn, p.id);
+                    prev_article = Some(prev);
+                }
+                if pos < articles.len() - 1 {
+                    let n: Article = articles[pos + 1].clone();
+                    let mut next: ArticleWithTags = n.clone().into();
+                    next.tags = get_tags_for_article(conn, n.id);
+                    next_article = Some(next);
+                }
+            }
+
+            let n = Neighbours {
+                prev: prev_article,
+                next: next_article,
+            };
+            Ok(n)
+        }
+        Err(e) => {
+            println!("Error: {}", e);
+            Err(e)
+        }
+    }
+}
+
+// func (a *ArticlesDb) GetRelatedArticles(article Article) map[string]bool {
+// func (a *ArticlesDb) QueryRawBySrcFileName(SrcFileName string) (*Article, error) {

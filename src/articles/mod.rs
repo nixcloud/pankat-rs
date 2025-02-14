@@ -36,6 +36,42 @@ pub struct ArticleWithTags {
     pub live_updates: Option<bool>,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Insertable)]
+#[diesel(table_name = crate::db::schema::articles)]
+pub struct NewArticle {
+    pub src_file_name: String,
+    pub dst_file_name: String,
+    pub title: Option<String>,
+    pub modification_date: Option<chrono::NaiveDateTime>,
+    pub summary: Option<String>,
+    pub series: Option<String>,
+    pub draft: Option<bool>,
+    pub special_page: Option<bool>,
+    pub timeline: Option<bool>,
+    pub anchorjs: Option<bool>,
+    pub tocify: Option<bool>,
+    pub live_updates: Option<bool>,
+}
+
+impl From<ArticleWithTags> for NewArticle {
+    fn from(article: ArticleWithTags) -> Self {
+        NewArticle {
+            src_file_name: article.src_file_name,
+            dst_file_name: article.dst_file_name,
+            title: article.title,
+            modification_date: article.modification_date,
+            summary: article.summary,
+            series: article.series,
+            draft: article.draft,
+            special_page: article.special_page,
+            timeline: article.timeline,
+            anchorjs: article.anchorjs,
+            tocify: article.tocify,
+            live_updates: article.live_updates,
+        }
+    }
+}
+
 pub fn scan_articles(pool: DbPool) {
     let cfg = config::Config::get();
     let input_path: PathBuf = cfg.input.clone();
@@ -82,6 +118,11 @@ pub fn scan_articles(pool: DbPool) {
         Err(_) => { /* Handle errors if necessary */ }
     }
 
+    let articles = crate::db::article::get_visible_articles_by_tag(&mut conn, "test1".to_string());
+    for article in articles {
+        println!(" xxx Article {:#?}", article);
+    }
+
     let duration = start_time.elapsed();
     println!("Time taken to execute: {:?}", duration);
 }
@@ -94,7 +135,8 @@ fn write_article_to_disk(conn: &mut SqliteConnection, article: &ArticleWithTags)
 
     match get_cache(conn, article.src_file_name.clone()) {
         Some(cache_entry) => {
-            let content: String = create_html_from_content_template(article.clone(), cache_entry.html).unwrap();
+            let content: String =
+                create_html_from_content_template(article.clone(), cache_entry.html).unwrap();
 
             let standalone_html: String =
                 create_html_from_standalone_template(article.clone(), content).unwrap();
@@ -104,7 +146,10 @@ fn write_article_to_disk(conn: &mut SqliteConnection, article: &ArticleWithTags)
             std::fs::write(output_filename, standalone_html).expect("Unable to write HTML file");
         }
         None => {
-            println!("Error retrieving cache for path: {}", &article.src_file_name);
+            println!(
+                "Error retrieving cache for path: {}",
+                &article.src_file_name
+            );
         }
     }
 }
