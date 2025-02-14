@@ -23,21 +23,20 @@ pub fn establish_connection_pool() -> DbPool {
     if !Path::new(database_url).exists() {
         println!("Creating SQLite database file...");
         std::fs::File::create(database_url).expect("Failed to create SQLite database file");
-        initialize_schema(&database_url);
     }
 
     let manager = ConnectionManager::<SqliteConnection>::new(database_url);
-    r2d2::Pool::builder()
+    let db_pool = r2d2::Pool::builder()
         .build(manager)
-        .expect("Failed to create pool")
+        .expect("Failed to create pool");
+    initialize_schema(&mut db_pool.get().unwrap());
+
+    db_pool
 }
 
-fn initialize_schema(database_url: &str) {
+pub fn initialize_schema(connection: &mut SqliteConnection) {
     use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
-
     const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
-    let mut connection =
-        SqliteConnection::establish(database_url).expect("Failed to connect to SQLite database");
 
     connection
         .run_pending_migrations(MIGRATIONS)

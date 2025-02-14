@@ -337,14 +337,18 @@ pub fn get_special_pages(conn: &mut SqliteConnection) -> Vec<ArticleWithTags> {
 pub fn set(conn: &mut SqliteConnection, new_article_with_tags: &ArticleWithTags) {
     //let article: Article = new_article_with_tags.clone().into();
     let new_article: NewArticle = new_article_with_tags.clone().into();
+    println!("asdf");
 
     let _ = conn.transaction(|mut conn| {
         let articles_result = diesel::insert_into(articles_table)
             .values(new_article)
             .get_results::<Article>(conn);
+        //println!("asdf1 {:#?}", articles_result);
 
         match articles_result {
             Ok(ref articles_result) => {
+                println!("asdf2");
+
                 let article_id: i32 = articles_result[0].id; // FIXME error handling
 
                 if let Some(tags) = new_article_with_tags.tags.clone() {
