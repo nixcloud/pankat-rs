@@ -1,3 +1,6 @@
+use crate::db::article::{
+    get_prev_and_next_article, get_prev_and_next_article_for_series, ArticleNeighbours,
+};
 use crate::db::cache::{get_cache, set_cache};
 use crate::db::DbPool;
 
@@ -36,7 +39,7 @@ pub struct ArticleWithTags {
     pub live_updates: Option<bool>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Insertable)]
+#[derive(Debug, Clone, Eq, PartialEq, Insertable, AsChangeset)]
 #[diesel(table_name = crate::db::schema::articles)]
 pub struct NewArticle {
     pub src_file_name: String,
@@ -118,11 +121,6 @@ pub fn scan_articles(pool: DbPool) {
         Err(_) => { /* Handle errors if necessary */ }
     }
 
-    let articles = crate::db::article::get_visible_articles_by_tag(&mut conn, "test1".to_string());
-    for article in articles {
-        println!(" xxx Article {:#?}", article);
-    }
-
     let duration = start_time.elapsed();
     println!("Time taken to execute: {:?}", duration);
 }
@@ -131,12 +129,28 @@ fn write_article_to_disk(conn: &mut SqliteConnection, article: &ArticleWithTags)
     let cfg = config::Config::get();
     let output_path: PathBuf = cfg.output.clone();
 
-    //let relative_path: String = String::new(); // FIXME move code from html.rs here
+    let article_id = article.id.unwrap();
+    let article_neighbours: ArticleNeighbours = match get_prev_and_next_article(conn, article_id) {
+        Ok(neighbours) => neighbours,
+        Err(e) => ArticleNeighbours::new(),
+    };
+    let article_series_neighbours: ArticleNeighbours = match article.series.clone() {
+        Some(series) => match get_prev_and_next_article_for_series(conn, article_id, series) {
+            Ok(neighbours) => neighbours,
+            Err(e) => ArticleNeighbours::new(),
+        },
+        None => ArticleNeighbours::new(),
+    };
 
     match get_cache(conn, article.src_file_name.clone()) {
         Some(cache_entry) => {
-            let content: String =
-                create_html_from_content_template(article.clone(), cache_entry.html).unwrap();
+            let content: String = create_html_from_content_template(
+                article.clone(),
+                cache_entry.html,
+                article_neighbours,
+                article_series_neighbours,
+            )
+            .unwrap();
 
             let standalone_html: String =
                 create_html_from_standalone_template(article.clone(), content).unwrap();

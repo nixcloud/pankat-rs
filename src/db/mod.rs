@@ -35,6 +35,7 @@ pub fn establish_connection_pool() -> DbPool {
 }
 
 pub fn initialize_schema(connection: &mut SqliteConnection) {
+    println!("Initializing schema...");
     use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
     const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 

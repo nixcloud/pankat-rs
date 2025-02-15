@@ -1,5 +1,6 @@
 use crate::articles::ArticleWithTags;
 use crate::config;
+use crate::db::article::ArticleNeighbours;
 use crate::renderer::utils::{date_and_time, tag_links_to_timeline};
 use handlebars::Handlebars;
 use serde_json::json;
@@ -65,6 +66,8 @@ pub fn create_html_from_standalone_template(
 pub fn create_html_from_content_template(
     article: ArticleWithTags,
     html: String,
+    article_neighbours: ArticleNeighbours,
+    article_series_neighbours: ArticleNeighbours,
 ) -> Result<String, Box<dyn Error>> {
     let cfg = config::Config::get();
 
@@ -77,13 +80,27 @@ pub fn create_html_from_content_template(
 
     handlebars.register_template_string("content_template", &template_content)?;
 
-    let articles_nav =
-        create_html_from_navigation_articles_template("previous".to_string(), "next".to_string())?;
+    let articles_nav = create_html_from_navigation_articles_template(
+        match article_neighbours.prev.clone() {
+            Some(p) => p.dst_file_name,
+            None => "".to_string(),
+        },
+        match article_neighbours.prev.clone() {
+            Some(n) => n.dst_file_name,
+            None => "".to_string(),
+        },
+    )?;
 
     let series_nav = create_html_from_navigation_series_template(
-        "series".to_string(),
-        "previous".to_string(),
-        "next".to_string(),
+        article.series.unwrap_or("".to_string()).clone(),
+        match article_series_neighbours.prev.clone() {
+            Some(p) => p.dst_file_name,
+            None => "".to_string(),
+        },
+        match article_series_neighbours.next.clone() {
+            Some(n) => n.dst_file_name,
+            None => "".to_string(),
+        },
     )?;
 
     let date_and_time: String = format!(

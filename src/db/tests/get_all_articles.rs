@@ -5,5 +5,5 @@ use diesel::sqlite::SqliteConnection;
 #[test]
 fn test_get_all_visible_articles() {
     let mut conn: SqliteConnection = establish_connection();
-    assert!(true);
+    // assert!(false);
 }

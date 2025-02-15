@@ -5,5 +5,5 @@ use diesel::sqlite::SqliteConnection;
 #[test]
 fn test_db_get_all_tags() {
     let mut conn: SqliteConnection = establish_connection();
-    assert!(true);
+    // assert!(false);
 }

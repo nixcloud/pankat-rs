@@ -7,11 +7,15 @@ mod get_special_pages;
 mod get_visible_articles;
 mod set;
 
+use crate::db::initialize_schema;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 
 pub fn establish_connection() -> SqliteConnection {
-    SqliteConnection::establish(":memory:").expect("Failed to create SQLite in-memory database")
+    let mut conn = SqliteConnection::establish(":memory:")
+        .expect("Failed to create SQLite in-memory database");
+    //initialize_schema(&mut conn);
+    conn
 }
 
 #[test]

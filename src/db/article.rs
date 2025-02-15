@@ -110,7 +110,29 @@ pub fn get_article_with_tags_by_id(
     match res {
         Ok(article) => {
             let mut article_with_tags: ArticleWithTags = article.clone().into();
-            match get_tags_for_article(conn, article_id) {
+            match get_tags_for_article(conn, article.id) {
+                Ok(tags) => {
+                    article_with_tags.tags = tags;
+                    Ok(Some(article_with_tags))
+                }
+                Err(e) => Err(e),
+            }
+        }
+        Err(e) => Err(e),
+    }
+}
+
+pub fn get_article_with_tags_by_src_file_name(
+    conn: &mut SqliteConnection,
+    src_file_name: String,
+) -> Result<Option<ArticleWithTags>, diesel::result::Error> {
+    let res = articles_table
+        .filter(articles_objects::src_file_name.eq(src_file_name))
+        .first::<Article>(conn);
+    match res {
+        Ok(article) => {
+            let mut article_with_tags: ArticleWithTags = article.clone().into();
+            match get_tags_for_article(conn, article.id) {
                 Ok(tags) => {
                     article_with_tags.tags = tags;
                     Ok(Some(article_with_tags))
@@ -375,65 +397,172 @@ pub fn get_special_pages(
 //  4. finish transaction
 // 1. b) it doesn't exist, create it
 // follow 2./3./4.
+
+// pub struct AffectedNeighbours {
+//     most_recent_article: Option<Article>,
+//     articles_old: Article,
+//     articles_new: Article,
+//     series_old: Article,
+//     series_new: Article,
+// }
+
+fn tag_difference<'a>(
+    tags_a: &'a Option<Vec<String>>,
+    tags_b: &'a Option<Vec<String>>,
+) -> Vec<String> {
+    use std::collections::HashMap;
+
+    let mut map: HashMap<&str, i32> = HashMap::new();
+
+    if let Some(tags) = tags_a {
+        for tag in tags {
+            *map.entry(tag.as_str()).or_insert(0) += 1;
+        }
+    }
+
+    if let Some(tags) = tags_b {
+        for tag in tags {
+            *map.entry(tag.as_str()).or_insert(0) -= 1;
+        }
+    }
+
+    map.into_iter()
+        .filter(|&(_, count)| count > 0)
+        .map(|(tag, _)| tag.to_string())
+        .collect()
+}
+
 pub fn set(
     conn: &mut SqliteConnection,
     new_article_with_tags: &ArticleWithTags,
 ) -> Result<(), diesel::result::Error> {
     let new_article: NewArticle = new_article_with_tags.clone().into();
+    let new_tags: Option<Vec<String>> = new_article_with_tags.tags.clone();
     conn.transaction(|conn| {
-        let articles_result: Result<Vec<Article>, diesel::result::Error> =
-            diesel::insert_into(articles_table)
-                .values(new_article)
-                .get_results::<Article>(conn);
-        match articles_result {
-            Ok(articles_result) => {
-                println!("asdf2");
+        let existing_article_reply = articles_table
+            .filter(articles_objects::src_file_name.eq(new_article_with_tags.src_file_name.clone()))
+            .get_result::<Article>(conn);
 
-                let article_id: i32 = articles_result[0].id; // FIXME error handling
+        if let Err(e) = existing_article_reply {
+            return Err(e);
+        }
 
-                if let Some(tags) = new_article_with_tags.tags.clone() {
-                    // add to tags table and reference it in article_tags table
-                    for tag in tags.iter() {
-                        let tag_result = diesel::insert_into(tags_table)
-                            .values(tags_objects::name.eq(tag))
-                            .on_conflict(tags_objects::name)
-                            .do_nothing()
-                            .get_result::<Tag>(conn);
-
-                        let tag_id: i32 = match tag_result {
-                            Ok(tag_result) => {
-                                // If the insert was successful, query the inserted tag to get its ID
-                                let inserted_tag = tags_table
-                                    .filter(tags_objects::name.eq(tag))
-                                    .select(tags_objects::id)
-                                    .first::<i32>(conn);
-                                inserted_tag.unwrap()
-                            }
-                            Err(e) => {
-                                // If the insert failed due to a conflict, query the existing tag by name and get its ID
-                                let existing_tag = tags_table
-                                    .filter(tags_objects::name.eq(tag))
-                                    .select(tags_objects::id)
-                                    .first::<i32>(conn);
-                                existing_tag.unwrap()
-                            }
-                        };
-
-                        let article_tag: ArticleTag = ArticleTag { article_id, tag_id };
-                        println!(" -> {} - {:?}", tag, article_tag);
-
-                        let _ = diesel::insert_into(article_tags_table)
-                            .values(article_tag)
-                            .execute(conn);
-                    }
+        if let Ok(existing_article) = existing_article_reply {
+            let mut existing_article_with_tags: ArticleWithTags = existing_article.clone().into();
+            let existing_article_id = existing_article.id;
+            match get_tags_for_article(conn, existing_article_id) {
+                Ok(tags) => {
+                    existing_article_with_tags.tags = tags;
                 }
-                return Ok(());
+                Err(e) => return Err(e),
             }
-            Err(e) => {
-                println!("Error on creating article: {:?}", e);
-                return Err(e);
+            // update existing article
+            //println!("update existing article");
+
+            let existing_article_update =
+                diesel::update(articles_table.filter(articles_objects::id.eq(existing_article_id)))
+                    .set(&new_article)
+                    .execute(conn);
+
+            // update tags
+            //println!("update tags");
+
+            let tags_to_remove: Vec<String> =
+                tag_difference(&existing_article_with_tags.tags, &new_tags);
+            let tags_to_add: Vec<String> =
+                tag_difference(&new_tags, &existing_article_with_tags.tags);
+
+            for tag_name in tags_to_remove {
+                let tag_id_res: QueryResult<i32> = tags_table
+                    .filter(tags_objects::name.eq(&tag_name))
+                    .select(tags_objects::id)
+                    .first(conn);
+                if let Ok(tag_id) = tag_id_res {
+                    let _ = diesel::delete(
+                        article_tags_table.filter(
+                            article_tags_objects::article_id
+                                .eq(existing_article_id)
+                                .and(article_tags_objects::tag_id.eq(tag_id)),
+                        ),
+                    )
+                    .execute(conn);
+                }
             }
-        };
+
+            for tag_name in tags_to_add {
+                let tag_result = diesel::insert_into(tags_table)
+                    .values(tags_objects::name.eq(&tag_name))
+                    .on_conflict(tags_objects::name)
+                    .do_nothing()
+                    .get_result::<Tag>(conn);
+                let tag_id: i32 = match tag_result {
+                    Ok(tag) => tag.id,
+                    Err(_) => tags_table
+                        .filter(tags_objects::name.eq(&tag_name))
+                        .select(tags_objects::id)
+                        .first::<i32>(conn)
+                        .unwrap(),
+                };
+                let article_tag = ArticleTag {
+                    article_id: existing_article_id,
+                    tag_id,
+                };
+                let _ = diesel::insert_into(article_tags_table)
+                    .values(article_tag)
+                    .execute(conn);
+            }
+
+            Ok(())
+        } else {
+            // insert as new article
+            let articles_result: Result<Vec<Article>, diesel::result::Error> =
+                diesel::insert_into(articles_table)
+                    .values(new_article)
+                    .get_results::<Article>(conn);
+            match articles_result {
+                Ok(articles_result) => {
+                    let article_id: i32 = articles_result[0].id; // FIXME error handling
+                    if let Some(tags) = new_article_with_tags.tags.clone() {
+                        // add to tags table and reference it in article_tags table
+                        for tag in tags.iter() {
+                            let tag_result = diesel::insert_into(tags_table)
+                                .values(tags_objects::name.eq(tag))
+                                .on_conflict(tags_objects::name)
+                                .do_nothing()
+                                .get_result::<Tag>(conn);
+                            let tag_id: i32 = match tag_result {
+                                Ok(tag_result) => {
+                                    // If the insert was successful, query the inserted tag to get its ID
+                                    let inserted_tag = tags_table
+                                        .filter(tags_objects::name.eq(tag))
+                                        .select(tags_objects::id)
+                                        .first::<i32>(conn);
+                                    inserted_tag.unwrap()
+                                }
+                                Err(e) => {
+                                    // If the insert failed due to a conflict, query the existing tag by name and get its ID
+                                    let existing_tag = tags_table
+                                        .filter(tags_objects::name.eq(tag))
+                                        .select(tags_objects::id)
+                                        .first::<i32>(conn);
+                                    existing_tag.unwrap()
+                                }
+                            };
+                            let article_tag: ArticleTag = ArticleTag { article_id, tag_id };
+                            println!(" -> {} - {:?}", tag, article_tag);
+                            let _ = diesel::insert_into(article_tags_table)
+                                .values(article_tag)
+                                .execute(conn);
+                        }
+                    }
+                    return Ok(());
+                }
+                Err(e) => {
+                    println!("Error on creating article: {:?}", e);
+                    return Err(e);
+                }
+            };
+        }
     })
 }
 
@@ -498,9 +627,18 @@ pub fn get_all_series_from_visible_articles(conn: &mut SqliteConnection) -> Vec<
     }
 }
 
-pub struct Neighbours {
-    prev: Option<ArticleWithTags>,
-    next: Option<ArticleWithTags>,
+pub struct ArticleNeighbours {
+    pub prev: Option<ArticleWithTags>,
+    pub next: Option<ArticleWithTags>,
+}
+
+impl ArticleNeighbours {
+    pub fn new() -> Self {
+        ArticleNeighbours {
+            prev: None,
+            next: None,
+        }
+    }
 }
 
 // func (a *ArticlesDb) NextArticle(article Article) (*Article, error) {
@@ -508,7 +646,7 @@ pub struct Neighbours {
 pub fn get_prev_and_next_article(
     conn: &mut SqliteConnection,
     id: i32,
-) -> Result<Neighbours, diesel::result::Error> {
+) -> Result<ArticleNeighbours, diesel::result::Error> {
     let articles_query: QueryResult<Vec<Article>> = articles_table
         .filter(
             articles_objects::draft
@@ -554,7 +692,7 @@ pub fn get_prev_and_next_article(
                 }
             }
 
-            let n = Neighbours {
+            let n = ArticleNeighbours {
                 prev: prev_article,
                 next: next_article,
             };
@@ -573,7 +711,8 @@ pub fn get_prev_and_next_article_for_series(
     conn: &mut SqliteConnection,
     id: i32,
     series: String,
-) -> Result<Neighbours, diesel::result::Error> {
+) -> Result<ArticleNeighbours, diesel::result::Error> {
+    // FIXME use series from the article query based on the id, don't assume it is set
     let articles_query: QueryResult<Vec<Article>> = articles_table
         .filter(articles_objects::series.eq(series))
         .filter(
@@ -591,6 +730,7 @@ pub fn get_prev_and_next_article_for_series(
             articles_objects::modification_date.desc(),
         ))
         .load::<Article>(conn);
+
     match articles_query {
         Ok(articles) => {
             let mut prev_article: Option<ArticleWithTags> = None;
@@ -620,7 +760,7 @@ pub fn get_prev_and_next_article_for_series(
                 }
             }
 
-            let n = Neighbours {
+            let n = ArticleNeighbours {
                 prev: prev_article,
                 next: next_article,
             };
