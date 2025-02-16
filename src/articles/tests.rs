@@ -2,7 +2,6 @@
 mod tests {
     use crate::articles::eval_plugins;
     use crate::articles::ArticleWithTags;
-    use std::time::{Duration, UNIX_EPOCH};
 
     #[test]
     fn test_title() {

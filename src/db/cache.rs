@@ -59,7 +59,7 @@ pub fn set_cache(
             .set(&new_cache)
             .execute(conn)
             {
-                Ok(rows) => {
+                Ok(_rows) => {
                     //println!("Successfully updated cache entry. Rows affected: {}", rows);
                     Ok(())
                 }

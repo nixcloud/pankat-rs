@@ -114,12 +114,12 @@ pub fn scan_articles(pool: DbPool) {
     match crate::db::article::get_visible_articles(&mut conn) {
         Ok(articles) => {
             for article in articles {
-                // let article_id = article.id.unwrap();
-                // println!(
-                //     "Writing article {} with id {} to disk",
-                //     article.clone().dst_file_name,
-                //     article_id
-                // );
+                let article_id = article.id.unwrap();
+                println!(
+                    "Writing article {} (id: {}) to disk",
+                    article.clone().dst_file_name,
+                    article_id
+                );
                 // let res = get_prev_and_next_article(&mut conn, article_id);
                 // match res {
                 //     Ok(article_neighbours) => {
@@ -156,12 +156,12 @@ fn write_article_to_disk(conn: &mut SqliteConnection, article: &ArticleWithTags)
     let article_id = article.id.unwrap();
     let article_neighbours: ArticleNeighbours = match get_prev_and_next_article(conn, article_id) {
         Ok(neighbours) => neighbours,
-        Err(e) => ArticleNeighbours::new(),
+        Err(_) => ArticleNeighbours::new(),
     };
     let article_series_neighbours: ArticleNeighbours = match article.series.clone() {
         Some(series) => match get_prev_and_next_article_for_series(conn, article_id, series) {
             Ok(neighbours) => neighbours,
-            Err(e) => ArticleNeighbours::new(),
+            Err(_) => ArticleNeighbours::new(),
         },
         None => ArticleNeighbours::new(),
     };

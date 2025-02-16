@@ -466,10 +466,11 @@ pub fn set(
             // update existing article
             //println!("update existing article");
 
-            let existing_article_update =
+            let _ =
                 diesel::update(articles_table.filter(articles_objects::id.eq(existing_article_id)))
                     .set(&new_article)
-                    .execute(conn);
+                    .execute(conn)
+                    .unwrap();
 
             // update tags
             //println!("update tags");
@@ -539,7 +540,7 @@ pub fn set(
                                 .do_nothing()
                                 .get_result::<Tag>(conn);
                             let tag_id: i32 = match tag_result {
-                                Ok(tag_result) => {
+                                Ok(_) => {
                                     // If the insert was successful, query the inserted tag to get its ID
                                     let inserted_tag = tags_table
                                         .filter(tags_objects::name.eq(tag))
@@ -547,7 +548,7 @@ pub fn set(
                                         .first::<i32>(conn);
                                     inserted_tag.unwrap()
                                 }
-                                Err(e) => {
+                                Err(_) => {
                                     // If the insert failed due to a conflict, query the existing tag by name and get its ID
                                     let existing_tag = tags_table
                                         .filter(tags_objects::name.eq(tag))

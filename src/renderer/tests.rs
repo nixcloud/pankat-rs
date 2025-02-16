@@ -2,9 +2,7 @@
 mod tests {
     use crate::articles::ArticleWithTags;
     use crate::config;
-    use crate::renderer::html::{
-        create_html_from_content_template, create_html_from_standalone_template,
-    };
+    use crate::renderer::html::create_html_from_standalone_template;
     use std::path::PathBuf;
 
     // #[test]
