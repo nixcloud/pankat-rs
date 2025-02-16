@@ -1,4 +1,4 @@
-use crate::db::article::{get_all_articles, set};
+use crate::db::article::{del_by_id, get_all_articles, set};
 use crate::db::tests::establish_connection_and_initialize_schema;
 use diesel::sqlite::SqliteConnection;
 
@@ -6,7 +6,7 @@ use crate::articles::ArticleWithTags;
 use crate::articles::NewArticle;
 
 #[test]
-fn test_db_get_all_visible_articles() {
+fn test_db_del_by_id() {
     let mut conn: SqliteConnection = establish_connection_and_initialize_schema();
 
     let article_with_tags1 = ArticleWithTags {
@@ -70,9 +70,12 @@ fn test_db_get_all_visible_articles() {
 
     set(&mut conn, &article_with_tags3).unwrap();
 
+    let ret = del_by_id(&mut conn, 1);
+    assert!(ret.is_ok());
+
     match get_all_articles(&mut conn) {
         Ok(articles_with_tags) => {
-            assert_eq!(articles_with_tags.len(), 3);
+            assert_eq!(articles_with_tags.len(), 2);
         }
         Err(e) => {
             println!("Error: {}", e);

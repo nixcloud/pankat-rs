@@ -1,6 +1,4 @@
-use crate::db::article::{
-    get_prev_and_next_article, get_special_pages, get_visible_articles, set, ArticleNeighbours,
-};
+use crate::db::article::{get_prev_and_next_article, get_visible_articles, set, ArticleNeighbours};
 use crate::db::initialize_schema;
 use crate::db::tests::establish_connection_and_initialize_schema;
 use diesel::sqlite::SqliteConnection;
@@ -10,7 +8,7 @@ use crate::articles::NewArticle;
 use chrono::NaiveDateTime;
 
 #[test]
-fn test_db_get_special_pages() {
+fn test_db_get_prev_and_next_article() {
     let mut conn: SqliteConnection = establish_connection_and_initialize_schema();
     let parsed_time1 = NaiveDateTime::parse_from_str("2001-01-01 01:01", "%Y-%m-%d %H:%M").unwrap();
     let article_with_tags1 = ArticleWithTags {
@@ -114,9 +112,9 @@ fn test_db_get_special_pages() {
     let res = set(&mut conn, &article_with_tags_draft);
     assert!(res.is_ok());
 
-    let parsed_time_special_page1 =
+    let parsed_time_special_page =
         NaiveDateTime::parse_from_str("2002-02-02 02:02", "%Y-%m-%d %H:%M").unwrap();
-    let article_with_tags_special_page1 = ArticleWithTags {
+    let article_with_tags_special_page = ArticleWithTags {
         id: None,
         src_file_name: "foo/bartest_db_set5.mdwn".to_string(),
         dst_file_name: "test_db_set5.html".to_string(),
@@ -125,7 +123,7 @@ fn test_db_get_special_pages() {
         summary: Some("Test5".to_string()),
         tags: Some(vec!["test5".to_string()]),
         series: Some("Test5".to_string()),
-        draft: Some(true),
+        draft: None,
         special_page: Some(true),
         timeline: None,
         anchorjs: None,
@@ -133,55 +131,44 @@ fn test_db_get_special_pages() {
         live_updates: None,
     };
 
-    let res = set(&mut conn, &article_with_tags_special_page1);
+    let res = set(&mut conn, &article_with_tags_special_page);
     assert!(res.is_ok());
 
-    let parsed_time_special_page2 =
-        NaiveDateTime::parse_from_str("2002-03-03 03:03", "%Y-%m-%d %H:%M").unwrap();
-    let article_with_tags_special_page2 = ArticleWithTags {
-        id: None,
-        src_file_name: "foo/bartest_db_set9.mdwn".to_string(),
-        dst_file_name: "test_db_set9.html".to_string(),
-        title: Some("Test9".to_string()),
-        modification_date: Some(parsed_time_draft),
-        summary: Some("Test9".to_string()),
-        tags: Some(vec!["test9".to_string()]),
-        series: Some("Test9".to_string()),
-        draft: Some(true),
-        special_page: Some(true),
-        timeline: None,
-        anchorjs: None,
-        tocify: None,
-        live_updates: None,
-    };
-
-    let res = set(&mut conn, &article_with_tags_special_page2);
-    assert!(res.is_ok());
-
-    match get_special_pages(&mut conn) {
+    match get_visible_articles(&mut conn) {
         Ok(articles_with_tags) => {
-            assert_eq!(articles_with_tags.len(), 2);
-            assert_eq!(articles_with_tags[0].id.unwrap(), 5);
-            assert_eq!(articles_with_tags[1].id.unwrap(), 6);
+            assert_eq!(articles_with_tags.len(), 3);
+            assert_eq!(articles_with_tags[0].id.unwrap(), 1);
+            assert_eq!(articles_with_tags[1].id.unwrap(), 3);
+            assert_eq!(articles_with_tags[2].id.unwrap(), 2);
         }
         Err(e) => {
             println!("Error: {}", e);
         }
     }
-    let res = get_prev_and_next_article(&mut conn, 5);
+    let res = get_prev_and_next_article(&mut conn, 1);
     match res {
         Ok(article_neighbours) => {
             assert_eq!(article_neighbours.prev, None);
-            assert_eq!(article_neighbours.next, None);
+            assert_eq!(article_neighbours.next.unwrap().id.unwrap(), 3);
         }
         Err(e) => {
             println!("Error: {}", e);
         }
     }
-    let res = get_prev_and_next_article(&mut conn, 6);
+    let res = get_prev_and_next_article(&mut conn, 3);
     match res {
         Ok(article_neighbours) => {
-            assert_eq!(article_neighbours.prev, None);
+            assert_eq!(article_neighbours.prev.unwrap().id.unwrap(), 1);
+            assert_eq!(article_neighbours.next.unwrap().id.unwrap(), 2);
+        }
+        Err(e) => {
+            println!("Error: {}", e);
+        }
+    }
+    let res = get_prev_and_next_article(&mut conn, 2);
+    match res {
+        Ok(article_neighbours) => {
+            assert_eq!(article_neighbours.prev.unwrap().id.unwrap(), 3);
             assert_eq!(article_neighbours.next, None);
         }
         Err(e) => {

@@ -1,4 +1,4 @@
-use crate::db::article::{get_all_articles, set};
+use crate::db::article::{get_all_articles, get_all_series_from_visible_articles, set};
 use crate::db::tests::establish_connection_and_initialize_schema;
 use diesel::sqlite::SqliteConnection;
 
@@ -6,7 +6,7 @@ use crate::articles::ArticleWithTags;
 use crate::articles::NewArticle;
 
 #[test]
-fn test_db_get_all_visible_articles() {
+fn test_db_get_all_series_from_visible_articles() {
     let mut conn: SqliteConnection = establish_connection_and_initialize_schema();
 
     let article_with_tags1 = ArticleWithTags {
@@ -70,9 +70,11 @@ fn test_db_get_all_visible_articles() {
 
     set(&mut conn, &article_with_tags3).unwrap();
 
-    match get_all_articles(&mut conn) {
-        Ok(articles_with_tags) => {
-            assert_eq!(articles_with_tags.len(), 3);
+    match get_all_series_from_visible_articles(&mut conn) {
+        Ok(series) => {
+            assert_eq!(series.len(), 2);
+            assert_eq!(series[0], "Test");
+            assert_eq!(series[1], "Test2");
         }
         Err(e) => {
             println!("Error: {}", e);

@@ -27,11 +27,11 @@ fn test_db_get_drafts() {
         live_updates: None,
     };
 
-    let _ = set(&mut conn, &article_with_tags1);
+    let res = set(&mut conn, &article_with_tags1);
+    assert!(res.is_ok());
 
     match get_drafts(&mut conn) {
-        Ok(result) => {
-            let articles_with_tags: Vec<ArticleWithTags> = result;
+        Ok(articles_with_tags) => {
             assert_eq!(articles_with_tags.len(), 0);
         }
         Err(e) => {
@@ -46,7 +46,7 @@ fn test_db_get_drafts() {
         title: Some("Test2".to_string()),
         modification_date: None,
         summary: Some("Test2".to_string()),
-        tags: Some(vec!["test2 test3".to_string()]),
+        tags: Some(vec!["test2".to_string(), " test3".to_string()]),
         series: Some("Test2".to_string()),
         draft: Some(true),
         special_page: None,
@@ -56,11 +56,10 @@ fn test_db_get_drafts() {
         live_updates: None,
     };
 
-    let _ = set(&mut conn, &article_with_tags2);
+    set(&mut conn, &article_with_tags2).unwrap();
 
     match get_drafts(&mut conn) {
-        Ok(result) => {
-            let articles_with_tags: Vec<ArticleWithTags> = result;
+        Ok(articles_with_tags) => {
             assert_eq!(articles_with_tags.len(), 1);
         }
         Err(e) => {
@@ -85,11 +84,10 @@ fn test_db_get_drafts() {
         live_updates: None,
     };
 
-    let _ = set(&mut conn, &article_with_tags3);
+    set(&mut conn, &article_with_tags3).unwrap();
 
     match get_drafts(&mut conn) {
-        Ok(result) => {
-            let articles_with_tags: Vec<ArticleWithTags> = result;
+        Ok(articles_with_tags) => {
             assert_eq!(articles_with_tags.len(), 2);
         }
         Err(e) => {

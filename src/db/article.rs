@@ -300,6 +300,11 @@ pub fn get_visible_articles_by_tag(
         )
         .inner_join(tags_table.on(article_tags_objects::tag_id.eq(tags_objects::id)))
         .filter(tags_objects::name.eq(tag))
+        .filter(
+            articles_objects::draft
+                .eq(false)
+                .or(articles_objects::draft.is_null()),
+        )
         .select(articles_table::all_columns())
         .load::<Article>(conn);
     match res {
@@ -573,39 +578,48 @@ pub fn set(
 pub fn del_by_src_file_name(
     conn: &mut SqliteConnection,
     src_file_name: String,
-) -> Result<(), String> {
-    let num_deleted = diesel::delete(
-        articles_table.filter(articles_objects::src_file_name.eq(src_file_name.clone())),
-    )
-    .execute(conn);
+) -> Result<(), diesel::result::Error> {
+    let res: QueryResult<i32> = articles_table
+        .filter(articles_objects::src_file_name.eq(src_file_name.clone()))
+        .select(articles_objects::id)
+        .first(conn);
 
-    match num_deleted {
-        Ok(0) => Err(format!("Article not found: {}", src_file_name)),
-        Ok(_) => Ok(()),
-        Err(e) => Err(format!("Failed to delete article: {}", e)),
+    match res {
+        Ok(id) => del_by_id(conn, id),
+        Err(e) => Err(e),
     }
 }
 
-pub fn del_by_id(conn: &mut SqliteConnection, id: i32) -> Result<(), String> {
+pub fn del_by_id(conn: &mut SqliteConnection, id: i32) -> Result<(), diesel::result::Error> {
     let num_deleted =
         diesel::delete(articles_table.filter(articles_objects::id.eq(id))).execute(conn);
 
     match num_deleted {
-        Ok(0) => Err(format!("Article with id '{}' not found", id)),
         Ok(_) => Ok(()),
-        Err(e) => Err(format!("Failed to delete article: {}", e)),
+        Err(e) => Err(e),
     }
 }
 
 // func (a *ArticlesDb) AllTagsInDB() ([]string, error) {
-pub fn get_all_tags(conn: &mut SqliteConnection) -> QueryResult<Vec<String>> {
-    tags_table.select(tags_objects::name).load(conn)
+pub fn get_all_tags(conn: &mut SqliteConnection) -> Result<Vec<String>, diesel::result::Error> {
+    let res = tags_table.select(tags_objects::name).load(conn);
+    match res {
+        Ok(tags) => Ok(tags),
+        Err(e) => Err(e),
+    }
 }
 
 // func (a *ArticlesDb) AllSeriesInDB() ([]string, error) {
-pub fn get_all_series_from_visible_articles(conn: &mut SqliteConnection) -> Vec<String> {
+pub fn get_all_series_from_visible_articles(
+    conn: &mut SqliteConnection,
+) -> Result<Vec<String>, diesel::result::Error> {
     let res: QueryResult<Vec<Article>> = articles_table
         .filter(articles_objects::series.is_not_null())
+        .filter(
+            articles_objects::draft
+                .eq(false)
+                .or(articles_objects::draft.is_null()),
+        )
         .order((
             sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
             articles_objects::modification_date.asc(),
@@ -622,11 +636,9 @@ pub fn get_all_series_from_visible_articles(conn: &mut SqliteConnection) -> Vec<
                     None => {}
                 }
             }
-            results
+            Ok(results)
         }
-        Err(e) => {
-            vec![]
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -642,6 +654,45 @@ impl ArticleNeighbours {
             next: None,
         }
     }
+}
+
+fn find_prev_and_next_articles(
+    conn: &mut SqliteConnection,
+    articles: &Vec<Article>,
+    id: i32,
+) -> Result<ArticleNeighbours, diesel::result::Error> {
+    let mut prev_article: Option<ArticleWithTags> = None;
+    let mut next_article: Option<ArticleWithTags> = None;
+    if let Some(pos) = articles.iter().position(|article| article.id == id) {
+        if pos > 0 {
+            let p: Article = articles[pos - 1].clone();
+            let mut prev: ArticleWithTags = p.clone().into();
+            match get_tags_for_article(conn, p.id) {
+                Ok(tags) => {
+                    prev.tags = tags;
+                    prev_article = Some(prev);
+                }
+                Err(e) => return Err(e),
+            }
+        }
+        if pos < articles.len() - 1 {
+            let n: Article = articles[pos + 1].clone();
+            let mut next: ArticleWithTags = n.clone().into();
+            match get_tags_for_article(conn, n.id) {
+                Ok(tags) => {
+                    next.tags = tags;
+                    next_article = Some(next);
+                }
+                Err(e) => return Err(e),
+            }
+        }
+    }
+
+    let n = ArticleNeighbours {
+        prev: prev_article,
+        next: next_article,
+    };
+    Ok(n)
 }
 
 // func (a *ArticlesDb) NextArticle(article Article) (*Article, error) {
@@ -667,40 +718,7 @@ pub fn get_prev_and_next_article(
         ))
         .load::<Article>(conn);
     match articles_query {
-        Ok(articles) => {
-            let mut prev_article: Option<ArticleWithTags> = None;
-            let mut next_article: Option<ArticleWithTags> = None;
-            if let Some(pos) = articles.iter().position(|article| article.id == id) {
-                if pos > 0 {
-                    let p: Article = articles[pos - 1].clone();
-                    let mut prev: ArticleWithTags = p.clone().into();
-                    match get_tags_for_article(conn, p.id) {
-                        Ok(tags) => {
-                            prev.tags = tags;
-                            prev_article = Some(prev);
-                        }
-                        Err(e) => return Err(e),
-                    }
-                }
-                if pos < articles.len() - 1 {
-                    let n: Article = articles[pos + 1].clone();
-                    let mut next: ArticleWithTags = n.clone().into();
-                    match get_tags_for_article(conn, n.id) {
-                        Ok(tags) => {
-                            next.tags = tags;
-                            next_article = Some(next);
-                        }
-                        Err(e) => return Err(e),
-                    }
-                }
-            }
-
-            let n = ArticleNeighbours {
-                prev: prev_article,
-                next: next_article,
-            };
-            Ok(n)
-        }
+        Ok(articles) => find_prev_and_next_articles(conn, &articles, id),
         Err(e) => {
             println!("Error: {}", e);
             Err(e)
@@ -735,40 +753,7 @@ pub fn get_prev_and_next_article_for_series(
         .load::<Article>(conn);
 
     match articles_query {
-        Ok(articles) => {
-            let mut prev_article: Option<ArticleWithTags> = None;
-            let mut next_article: Option<ArticleWithTags> = None;
-            if let Some(pos) = articles.iter().position(|article| article.id == id) {
-                if pos > 0 {
-                    let p: Article = articles[pos - 1].clone();
-                    let mut prev: ArticleWithTags = p.clone().into();
-                    match get_tags_for_article(conn, p.id) {
-                        Ok(tags) => {
-                            prev.tags = tags;
-                            prev_article = Some(prev);
-                        }
-                        Err(e) => return Err(e),
-                    }
-                }
-                if pos < articles.len() - 1 {
-                    let n: Article = articles[pos + 1].clone();
-                    let mut next: ArticleWithTags = n.clone().into();
-                    match get_tags_for_article(conn, n.id) {
-                        Ok(tags) => {
-                            next.tags = tags;
-                            next_article = Some(next);
-                        }
-                        Err(e) => return Err(e),
-                    }
-                }
-            }
-
-            let n = ArticleNeighbours {
-                prev: prev_article,
-                next: next_article,
-            };
-            Ok(n)
-        }
+        Ok(articles) => find_prev_and_next_articles(conn, &articles, id),
         Err(e) => {
             println!("Error: {}", e);
             Err(e)

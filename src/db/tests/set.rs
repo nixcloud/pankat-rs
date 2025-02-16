@@ -35,7 +35,7 @@ fn test_db_set() {
         title: Some("Test2".to_string()),
         modification_date: None,
         summary: Some("Test2".to_string()),
-        tags: Some(vec!["test2 test3".to_string()]),
+        tags: Some(vec!["test2".to_string(), "test3".to_string()]),
         series: Some("Test2".to_string()),
         draft: None,
         special_page: None,
@@ -48,8 +48,7 @@ fn test_db_set() {
     set(&mut conn, &article_with_tags2).unwrap();
 
     match get_all_articles(&mut conn) {
-        Ok(result) => {
-            let articles_with_tags: Vec<ArticleWithTags> = result;
+        Ok(articles_with_tags) => {
             assert_eq!(articles_with_tags.len(), 2);
         }
         Err(e) => {
