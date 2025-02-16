@@ -85,7 +85,7 @@ pub fn create_html_from_content_template(
             Some(p) => Some(p.dst_file_name),
             None => None,
         },
-        match article_neighbours.prev.clone() {
+        match article_neighbours.next.clone() {
             Some(n) => Some(n.dst_file_name),
             None => None,
         },

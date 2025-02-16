@@ -114,7 +114,31 @@ pub fn scan_articles(pool: DbPool) {
     match crate::db::article::get_visible_articles(&mut conn) {
         Ok(articles) => {
             for article in articles {
-                println!("Writing article {} to disk", article.clone().dst_file_name);
+                // let article_id = article.id.unwrap();
+                // println!(
+                //     "Writing article {} with id {} to disk",
+                //     article.clone().dst_file_name,
+                //     article_id
+                // );
+                // let res = get_prev_and_next_article(&mut conn, article_id);
+                // match res {
+                //     Ok(article_neighbours) => {
+                //         println!(
+                //             "  -- prev: {}, next: {}",
+                //             match article_neighbours.prev {
+                //                 Some(x) => x.id.unwrap(),
+                //                 None => -1,
+                //             },
+                //             match article_neighbours.next {
+                //                 Some(x) => x.id.unwrap(),
+                //                 None => -1,
+                //             }
+                //         );
+                //     }
+                //     Err(e) => {
+                //         println!("Error: {}", e);
+                //     }
+                // }
                 write_article_to_disk(&mut conn, &article);
             }
         }

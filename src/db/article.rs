@@ -74,7 +74,7 @@ pub struct ArticleTag {
     pub tag_id: i32,
 }
 
-fn get_tags_for_article(
+pub fn get_tags_for_article(
     conn: &mut SqliteConnection,
     article_id: i32,
 ) -> Result<Option<Vec<String>>, diesel::result::Error> {
@@ -438,6 +438,12 @@ pub fn set(
 ) -> Result<(), diesel::result::Error> {
     let new_article: NewArticle = new_article_with_tags.clone().into();
     let new_tags: Option<Vec<String>> = new_article_with_tags.tags.clone();
+    if new_article_with_tags.src_file_name.is_empty() {
+        return Err(diesel::result::Error::NotFound);
+    }
+    if new_article_with_tags.dst_file_name.is_empty() {
+        return Err(diesel::result::Error::NotFound);
+    }
     conn.transaction(|conn| {
         let existing_article_reply = articles_table
             .filter(articles_objects::src_file_name.eq(new_article_with_tags.src_file_name.clone()))
@@ -546,7 +552,7 @@ pub fn set(
                                 }
                             };
                             let article_tag: ArticleTag = ArticleTag { article_id, tag_id };
-                            println!(" -> {} - {:?}", tag, article_tag);
+                            //println!(" -> {} - {:?}", tag, article_tag);
                             let _ = diesel::insert_into(article_tags_table)
                                 .values(article_tag)
                                 .execute(conn);
