@@ -1,16 +1,20 @@
 <div id="headerContainer">
     <header class="header">
+{{#if article_previous_link}}
         <span id="articleNavLeft">
             <a href="{{{article_previous_link}}}">
                 <span class="glyphiconLink glyphicon glyphicon-chevron-left" aria-hidden="true" title="previous article"></span>
                 prev. article
             </a>
         </span>
+{{/if}}
+{{#if article_next_link}}
         <span id="articleNavRight">
             <a href="{{{article_next_link}}}">
                 next article
                 <span class="glyphiconLink glyphicon glyphicon-chevron-right" aria-hidden="true" title="next article"></span>
             </a>
         </span>
+{{/if}}
     </header>
 </div>

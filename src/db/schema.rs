@@ -53,10 +53,4 @@ diesel::table! {
 diesel::joinable!(article_tags -> articles (article_id));
 diesel::joinable!(article_tags -> tags (tag_id));
 
-diesel::allow_tables_to_appear_in_same_query!(
-    article_tags,
-    articles,
-    cache,
-    tags,
-    users,
-);
+diesel::allow_tables_to_appear_in_same_query!(article_tags, articles, cache, tags, users,);

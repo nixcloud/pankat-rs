@@ -161,7 +161,7 @@ pub fn get_most_recent_article(
         )
         .order((
             sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
-            articles_objects::modification_date.desc(),
+            articles_objects::modification_date.asc(),
         ))
         .first::<Article>(conn);
     match res {
@@ -186,7 +186,7 @@ pub fn get_all_articles(
     let res: QueryResult<Vec<Article>> = articles_table
         .order((
             sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
-            articles_objects::modification_date.desc(),
+            articles_objects::modification_date.asc(),
         ))
         .load(conn);
     match res {
@@ -226,7 +226,7 @@ pub fn get_visible_articles(
         )
         .order((
             sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
-            articles_objects::modification_date.desc(),
+            articles_objects::modification_date.asc(),
         ))
         .load::<Article>(conn);
     match articles_query {
@@ -267,7 +267,7 @@ pub fn get_visible_articles_by_series(
         )
         .order((
             sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
-            articles_objects::modification_date.desc(),
+            articles_objects::modification_date.asc(),
         ))
         .load::<Article>(conn);
     match res {
@@ -329,7 +329,7 @@ pub fn get_drafts(
         .filter(articles_objects::draft.eq(true))
         .order((
             sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
-            articles_objects::modification_date.desc(),
+            articles_objects::modification_date.asc(),
         ))
         .load::<Article>(conn);
     match res {
@@ -359,7 +359,7 @@ pub fn get_special_pages(
         .filter(articles_objects::special_page.eq(true))
         .order((
             sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
-            articles_objects::modification_date.desc(),
+            articles_objects::modification_date.asc(),
         ))
         .load::<Article>(conn);
     match res {
@@ -443,10 +443,6 @@ pub fn set(
             .filter(articles_objects::src_file_name.eq(new_article_with_tags.src_file_name.clone()))
             .get_result::<Article>(conn);
 
-        if let Err(e) = existing_article_reply {
-            return Err(e);
-        }
-
         if let Ok(existing_article) = existing_article_reply {
             let mut existing_article_with_tags: ArticleWithTags = existing_article.clone().into();
             let existing_article_id = existing_article.id;
@@ -514,6 +510,7 @@ pub fn set(
 
             Ok(())
         } else {
+            //println!("creating new article");
             // insert as new article
             let articles_result: Result<Vec<Article>, diesel::result::Error> =
                 diesel::insert_into(articles_table)
@@ -605,7 +602,7 @@ pub fn get_all_series_from_visible_articles(conn: &mut SqliteConnection) -> Vec<
         .filter(articles_objects::series.is_not_null())
         .order((
             sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
-            articles_objects::modification_date.desc(),
+            articles_objects::modification_date.asc(),
         ))
         .load(conn);
     match res {
@@ -660,7 +657,7 @@ pub fn get_prev_and_next_article(
         )
         .order((
             sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
-            articles_objects::modification_date.desc(),
+            articles_objects::modification_date.asc(),
         ))
         .load::<Article>(conn);
     match articles_query {
@@ -727,7 +724,7 @@ pub fn get_prev_and_next_article_for_series(
         )
         .order((
             sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
-            articles_objects::modification_date.desc(),
+            articles_objects::modification_date.asc(),
         ))
         .load::<Article>(conn);
 

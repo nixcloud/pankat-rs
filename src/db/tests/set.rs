@@ -1,5 +1,5 @@
 use crate::db::article::{get_all_articles, set};
-use crate::db::tests::establish_connection;
+use crate::db::tests::establish_connection_and_initialize_schema;
 use diesel::sqlite::SqliteConnection;
 
 use crate::articles::ArticleWithTags;
@@ -7,7 +7,7 @@ use crate::articles::NewArticle;
 
 #[test]
 fn test_db_set() {
-    let mut conn: SqliteConnection = establish_connection();
+    let mut conn: SqliteConnection = establish_connection_and_initialize_schema();
 
     let article_with_tags1 = ArticleWithTags {
         id: None,
@@ -26,7 +26,7 @@ fn test_db_set() {
         live_updates: None,
     };
 
-    let _ = set(&mut conn, &article_with_tags1);
+    set(&mut conn, &article_with_tags1).unwrap();
 
     let article_with_tags2 = ArticleWithTags {
         id: None,
@@ -45,7 +45,7 @@ fn test_db_set() {
         live_updates: None,
     };
 
-    let _ = set(&mut conn, &article_with_tags2);
+    set(&mut conn, &article_with_tags2).unwrap();
 
     match get_all_articles(&mut conn) {
         Ok(result) => {
@@ -60,7 +60,7 @@ fn test_db_set() {
 
 #[test]
 fn test_db_set_update() {
-    let mut conn: SqliteConnection = establish_connection();
+    let mut conn: SqliteConnection = establish_connection_and_initialize_schema();
     //initialize_schema(&mut conn);
 
     let original_tags = vec!["test1 test2".to_string()];

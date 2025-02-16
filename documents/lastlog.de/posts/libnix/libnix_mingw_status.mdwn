@@ -1,6 +1,6 @@
 [[!meta date="2024-04-17 20:53"]]
 [[!tag nix nixos libnix]]
-[[!series libnix]]
+[[!series floo]]
 [[!summary mingw nix - nix-instantiate.exe works on windows!]]
 
 [[!img media/nlnet-logo.gif class="noFancy" style="float: right"]]

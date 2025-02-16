@@ -82,24 +82,24 @@ pub fn create_html_from_content_template(
 
     let articles_nav = create_html_from_navigation_articles_template(
         match article_neighbours.prev.clone() {
-            Some(p) => p.dst_file_name,
-            None => "".to_string(),
+            Some(p) => Some(p.dst_file_name),
+            None => None,
         },
         match article_neighbours.prev.clone() {
-            Some(n) => n.dst_file_name,
-            None => "".to_string(),
+            Some(n) => Some(n.dst_file_name),
+            None => None,
         },
     )?;
 
     let series_nav = create_html_from_navigation_series_template(
         article.series.unwrap_or("".to_string()).clone(),
         match article_series_neighbours.prev.clone() {
-            Some(p) => p.dst_file_name,
-            None => "".to_string(),
+            Some(p) => Some(p.dst_file_name),
+            None => None,
         },
         match article_series_neighbours.next.clone() {
-            Some(n) => n.dst_file_name,
-            None => "".to_string(),
+            Some(n) => Some(n.dst_file_name),
+            None => None,
         },
     )?;
 
@@ -130,8 +130,8 @@ pub fn create_html_from_content_template(
 }
 
 pub fn create_html_from_navigation_articles_template(
-    article_previous_link: String,
-    article_next_link: String,
+    article_previous_link: Option<String>,
+    article_next_link: Option<String>,
 ) -> Result<String, Box<dyn Error>> {
     let cfg = config::Config::get();
 
@@ -156,8 +156,8 @@ pub fn create_html_from_navigation_articles_template(
 
 pub fn create_html_from_navigation_series_template(
     series: String,
-    series_previous_link: String,
-    series_next_link: String,
+    series_previous_link: Option<String>,
+    series_next_link: Option<String>,
 ) -> Result<String, Box<dyn Error>> {
     let cfg = config::Config::get();
 

@@ -1,15 +1,15 @@
 use crate::db::article::{get_all_articles, get_drafts, set};
 use crate::db::initialize_schema;
-use crate::db::tests::establish_connection;
+use crate::db::tests::establish_connection_and_initialize_schema;
 use diesel::sqlite::SqliteConnection;
 
 use crate::articles::ArticleWithTags;
 use crate::articles::NewArticle;
 
 #[test]
-fn test_get_drafts() {
-    let mut conn: SqliteConnection = establish_connection();
-    //initialize_schema(&mut conn);
+fn test_db_get_drafts() {
+    let mut conn: SqliteConnection = establish_connection_and_initialize_schema();
+
     let article_with_tags1 = ArticleWithTags {
         id: None,
         src_file_name: "foo/bartest_db_set1.mdwn".to_string(),

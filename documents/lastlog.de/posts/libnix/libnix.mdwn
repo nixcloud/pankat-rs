@@ -1,6 +1,6 @@
 [[!meta date="2024-04-12 20:53"]]
 [[!tag nix nixos libnix]]
-[[!series libnix]]
+[[!series floo]]
 [[!summary libnix motivation, the future of cross platform nix]]
 
 [[!img media/nlnet-logo.gif class="noFancy" style="float: right"]]

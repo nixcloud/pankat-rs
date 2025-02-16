@@ -53,11 +53,14 @@ pub fn set_cache(
     match existing_cache {
         Ok(Some(_)) => {
             // Update the existing cache entry
-            match diesel::update(cache_objects::cache.filter(cache_objects::src_file_name.eq(src_file_name.clone())))
-                .set(&new_cache)
-                .execute(conn) {
+            match diesel::update(
+                cache_objects::cache.filter(cache_objects::src_file_name.eq(src_file_name.clone())),
+            )
+            .set(&new_cache)
+            .execute(conn)
+            {
                 Ok(rows) => {
-                    println!("Successfully updated cache entry. Rows affected: {}", rows);
+                    //println!("Successfully updated cache entry. Rows affected: {}", rows);
                     Ok(())
                 }
                 Err(e) => {
@@ -74,7 +77,8 @@ pub fn set_cache(
             // Insert new cache entry if it does not exist
             match diesel::insert_into(cache_table::table)
                 .values(&new_cache)
-                .execute(conn) {
+                .execute(conn)
+            {
                 Ok(rows) => {
                     println!("Successfully inserted cache entry. Rows affected: {}", rows);
                     Ok(())
