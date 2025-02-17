@@ -97,6 +97,8 @@ mod tests {
 
     #[test]
     fn test_db_del_by_id_series() {
+        use chrono::NaiveDateTime;
+
         let mut conn: SqliteConnection = establish_connection_and_initialize_schema();
 
         let article_with_tags1 = ArticleWithTags {
@@ -160,12 +162,14 @@ mod tests {
 
         set(&mut conn, &article_with_tags3).unwrap();
 
+        let parsed_time =
+            NaiveDateTime::parse_from_str("2024-07-19 14:33", "%Y-%m-%d %H:%M").unwrap();
         let article_with_tags4 = ArticleWithTags {
             id: None,
             src_file_name: "foo/bartest_db_set4.mdwn".to_string(),
             dst_file_name: "test_db_set4.html".to_string(),
             title: Some("Test2".to_string()),
-            modification_date: None,
+            modification_date: Some(parsed_time),
             summary: Some("Test2".to_string()),
             tags: Some(vec!["test2".to_string(), "test3".to_string()]),
             series: Some("Test2".to_string()),
@@ -195,9 +199,9 @@ mod tests {
         match get_visible_articles(&mut conn) {
             Ok(articles_with_tags) => {
                 assert_eq!(articles_with_tags.len(), 3);
-                assert_eq!(articles_with_tags[0].id, Some(1));
-                assert_eq!(articles_with_tags[1].id, Some(3));
-                assert_eq!(articles_with_tags[2].id, Some(4));
+                assert_eq!(articles_with_tags[0].id, Some(4));
+                assert_eq!(articles_with_tags[1].id, Some(1));
+                assert_eq!(articles_with_tags[2].id, Some(3));
             }
             Err(e) => {
                 println!("Error: {}", e);

@@ -3,6 +3,7 @@ mod tests {
     use crate::db::article::{get_all_articles, get_tags_for_article, set};
     use crate::db::tests::establish_connection_and_initialize_schema;
     use diesel::sqlite::SqliteConnection;
+    use std::collections::HashSet;
 
     use crate::articles::ArticleWithTags;
 
@@ -27,7 +28,17 @@ mod tests {
             live_updates: None,
         };
 
-        set(&mut conn, &article_with_tags1).unwrap();
+        let ret = set(&mut conn, &article_with_tags1);
+
+        match ret {
+            Ok(affected_articles) => {
+                let assumed_result: HashSet<i32> = vec![1].into_iter().collect();
+                assert_eq!(affected_articles, assumed_result);
+            }
+            Err(e) => {
+                panic!("Failed to set article with tags: {}", e);
+            }
+        }
 
         let article_with_tags2 = ArticleWithTags {
             id: None,
@@ -79,7 +90,15 @@ mod tests {
             tocify: None,
             live_updates: None,
         };
-        let _ = set(&mut conn, &article_with_tags1);
+        let res = set(&mut conn, &article_with_tags1);
+
+        match res {
+            Ok(affected_articles) => {
+                let assumed_result: HashSet<i32> = vec![1].into_iter().collect();
+                assert_eq!(affected_articles, assumed_result);
+            }
+            Err(_) => {}
+        }
 
         let new_tags = vec!["test2".to_string(), "test3".to_string()];
 
@@ -100,7 +119,15 @@ mod tests {
             live_updates: None,
         };
 
-        let _ = set(&mut conn, &article_with_tags2);
+        let res = set(&mut conn, &article_with_tags2);
+
+        match res {
+            Ok(affected_articles) => {
+                let assumed_result: HashSet<i32> = vec![1].into_iter().collect();
+                assert_eq!(affected_articles, assumed_result);
+            }
+            Err(_) => {}
+        }
 
         match get_all_articles(&mut conn) {
             Ok(articles_with_tags) => {
@@ -202,6 +229,117 @@ mod tests {
             Err(e) => {
                 println!("Error: {}", e);
             }
+        }
+    }
+
+    #[test]
+    fn test_db_set_middle() {
+        let mut conn: SqliteConnection = establish_connection_and_initialize_schema();
+
+        let article_with_tags1 = ArticleWithTags {
+            id: None,
+            src_file_name: "foo/bartest_db_set1.mdwn".to_string(),
+            dst_file_name: "test_db_set1.html".to_string(),
+            title: Some("Test".to_string()),
+            modification_date: None,
+            summary: Some("Test".to_string()),
+            tags: Some(vec![
+                "test1".to_string(),
+                "test2".to_string(),
+                "test3".to_string(),
+            ]),
+            series: Some("Test2".to_string()),
+            draft: None,
+            special_page: None,
+            timeline: None,
+            anchorjs: None,
+            tocify: None,
+            live_updates: None,
+        };
+
+        set(&mut conn, &article_with_tags1).unwrap();
+
+        let article_with_tags2 = ArticleWithTags {
+            id: None,
+            src_file_name: "foo/bartest_db_set2.mdwn".to_string(),
+            dst_file_name: "test_db_set2.html".to_string(),
+            title: Some("Test2".to_string()),
+            modification_date: None,
+            summary: Some("Test2".to_string()),
+            tags: Some(vec!["test2".to_string(), "test3".to_string()]),
+            series: Some("Test2".to_string()),
+            draft: None,
+            special_page: None,
+            timeline: None,
+            anchorjs: None,
+            tocify: None,
+            live_updates: None,
+        };
+
+        set(&mut conn, &article_with_tags2).unwrap();
+
+        let article_with_tags3 = ArticleWithTags {
+            id: None,
+            src_file_name: "foo/bartest_db_set3.mdwn".to_string(),
+            dst_file_name: "test_db_set3.html".to_string(),
+            title: Some("Test2".to_string()),
+            modification_date: None,
+            summary: Some("Test2".to_string()),
+            tags: Some(vec!["test2".to_string(), "test3".to_string()]),
+            series: Some("Test2".to_string()),
+            draft: None,
+            special_page: None,
+            timeline: None,
+            anchorjs: None,
+            tocify: None,
+            live_updates: None,
+        };
+
+        set(&mut conn, &article_with_tags3).unwrap();
+
+        let article_with_tags4 = ArticleWithTags {
+            id: None,
+            src_file_name: "foo/bartest_db_set4.mdwn".to_string(),
+            dst_file_name: "test_db_set4.html".to_string(),
+            title: Some("Test2".to_string()),
+            modification_date: None,
+            summary: Some("Test2".to_string()),
+            tags: Some(vec!["test2".to_string(), "test3".to_string()]),
+            series: Some("Test2".to_string()),
+            draft: None,
+            special_page: None,
+            timeline: None,
+            anchorjs: None,
+            tocify: None,
+            live_updates: None,
+        };
+
+        set(&mut conn, &article_with_tags4).unwrap();
+
+        let article_with_tags3_update = ArticleWithTags {
+            id: None,
+            src_file_name: "foo/bartest_db_set3.mdwn".to_string(),
+            dst_file_name: "test_db_set3.html".to_string(),
+            title: Some("Test2".to_string()),
+            modification_date: None,
+            summary: Some("Test2".to_string()),
+            tags: Some(vec!["test2".to_string(), "test3".to_string()]),
+            series: Some("Test3".to_string()),
+            draft: Some(true),
+            special_page: None,
+            timeline: None,
+            anchorjs: None,
+            tocify: None,
+            live_updates: None,
+        };
+
+        let ret = set(&mut conn, &article_with_tags3_update);
+        match ret {
+            Ok(affected_articles) => {
+                let assumed_result: HashSet<i32> = vec![4, 2].into_iter().collect();
+                assert_eq!(affected_articles, assumed_result);
+            }
+            Err(_) => {}
         }
     }
 }

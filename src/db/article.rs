@@ -387,23 +387,6 @@ pub fn get_special_pages(
     }
 }
 
-// func (a *ArticlesDb) Set(article *Article) (*Article, []string, error) {
-// returns affected neighbours like:
-// * next/prev neighbours
-// * next/prev tags neighbours
-// * next/prev series neighbours
-// * most recent article (if changed)
-// * add/del on draft (so leptos can display an adapted list using /ws)
-// * add/del on special_pages (so leptos can display an adapted list using /ws)
-
-// 1. check if article is exists
-// 1. a) it exists, update it but track old neigbours
-//  2. update tags
-//  3. update article_tags bindings
-//  4. finish transaction
-// 1. b) it doesn't exist, create it
-// follow 2./3./4.
-
 fn tag_difference<'a>(
     tags_a: &'a Option<Vec<String>>,
     tags_b: &'a Option<Vec<String>>,
@@ -430,11 +413,11 @@ fn tag_difference<'a>(
         .collect()
 }
 
+// func (a *ArticlesDb) Set(article *Article) (*Article, []string, error) {
 pub fn set(
     conn: &mut SqliteConnection,
     new_article_with_tags: &ArticleWithTags,
 ) -> Result<HashSet<i32>, diesel::result::Error> {
-    let affected_articles: HashSet<i32> = HashSet::new();
     let new_article: NewArticle = new_article_with_tags.clone().into();
     let new_tags: Option<Vec<String>> = new_article_with_tags.tags.clone();
     if new_article_with_tags.src_file_name.is_empty() {
@@ -451,6 +434,12 @@ pub fn set(
         if let Ok(existing_article) = existing_article_reply {
             let mut existing_article_with_tags: ArticleWithTags = existing_article.clone().into();
             let existing_article_id = existing_article.id;
+
+            let affected_articles_before: AllArticleNeighbours =
+                get_neighbours_helper(conn, existing_article_id).unwrap();
+
+            //println!("{:#?}", affected_articles_after);
+
             match get_tags_for_article(conn, existing_article_id) {
                 Ok(tags) => {
                     existing_article_with_tags.tags = tags;
@@ -465,6 +454,9 @@ pub fn set(
                     .set(&new_article)
                     .execute(conn)
                     .unwrap();
+
+            let affected_articles_after: AllArticleNeighbours =
+                get_neighbours_helper(conn, existing_article_id).unwrap();
 
             // update tags
             //println!("update tags");
@@ -514,8 +506,17 @@ pub fn set(
                     .execute(conn);
             }
 
+            let affected_articles = affected_articles_before.diff(&affected_articles_after);
+            //affected_articles.remove(&existing_article_id);
             Ok(affected_articles)
         } else {
+            let most_recent_article = match get_most_recent_article(conn) {
+                Ok(article_option) => article_option,
+                Err(_) => None,
+            };
+            let mut affected_articles_before: AllArticleNeighbours = AllArticleNeighbours::new();
+            affected_articles_before.most_recent_article = most_recent_article;
+
             //println!("creating new article");
             // insert as new article
             let articles_result: Result<Vec<Article>, diesel::result::Error> =
@@ -558,6 +559,9 @@ pub fn set(
                                 .execute(conn);
                         }
                     }
+                    let affected_articles_after: AllArticleNeighbours =
+                        get_neighbours_helper(conn, article_id).unwrap();
+                    let affected_articles = affected_articles_before.diff(&affected_articles_after);
                     return Ok(affected_articles);
                 }
                 Err(e) => {
@@ -615,7 +619,7 @@ pub fn del_by_id(
     id: i32,
 ) -> Result<HashSet<i32>, diesel::result::Error> {
     let affected_articles_before: AllArticleNeighbours = get_neighbours_helper(conn, id).unwrap();
-    println!("{:#?}", affected_articles_before);
+    //println!("{:#?}", affected_articles_before);
     let num_deleted =
         diesel::delete(articles_table.filter(articles_objects::id.eq(id))).execute(conn);
     match num_deleted {
@@ -629,7 +633,7 @@ pub fn del_by_id(
             };
             let mut affected_articles_after: AllArticleNeighbours = AllArticleNeighbours::new();
             affected_articles_after.most_recent_article = most_recent_article;
-            println!("{:#?}", affected_articles_after);
+            //println!("{:#?}", affected_articles_after);
             let mut affected_articles = affected_articles_before.diff(&affected_articles_after);
             affected_articles.remove(&id);
             Ok(affected_articles)
