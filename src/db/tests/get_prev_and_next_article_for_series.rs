@@ -120,7 +120,8 @@ mod tests {
         let res = set(&mut conn, &article_with_tags_special_page);
         assert!(res.is_ok());
 
-        match get_prev_and_next_article_for_series(&mut conn, 1, "Test".to_string()) {
+        match get_prev_and_next_article_for_series(&mut conn, 1) {
+            // "Test"
             Ok(article_neighbours) => {
                 assert_eq!(article_neighbours.prev, None);
                 assert_eq!(article_neighbours.next.unwrap().id.unwrap(), 5);
@@ -129,7 +130,8 @@ mod tests {
                 println!("Error: {}", e);
             }
         }
-        match get_prev_and_next_article_for_series(&mut conn, 5, "Test".to_string()) {
+        match get_prev_and_next_article_for_series(&mut conn, 5) {
+            // "Test"
             Ok(article_neighbours) => {
                 assert_eq!(article_neighbours.prev.unwrap().id.unwrap(), 1);
                 assert_eq!(article_neighbours.next, None);
@@ -138,7 +140,8 @@ mod tests {
                 println!("Error: {}", e);
             }
         }
-        match get_prev_and_next_article_for_series(&mut conn, 2, "Test".to_string()) {
+        match get_prev_and_next_article_for_series(&mut conn, 2) {
+            // "Test"
             Ok(article_neighbours) => {
                 assert_eq!(article_neighbours.prev, None);
                 assert_eq!(article_neighbours.next, None);

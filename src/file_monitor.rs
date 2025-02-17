@@ -1,4 +1,4 @@
-use crate::registry::PubSubRegistry;
+//use crate::registry::PubSubRegistry;
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::Path;
 use std::sync::Arc;
@@ -88,7 +88,7 @@ fn debounce(input: String) {
     use std::sync::Mutex;
     use std::time::Instant;
     use tokio::time::{sleep, Duration};
-    let news_sender = PubSubRegistry::instance().register_sender("news".to_string());
+    //let news_sender = PubSubRegistry::instance().register_sender("news".to_string());
     lazy_static::lazy_static! {
         static ref EVENT_CACHE: Mutex<HashMap<String, Instant>> = Mutex::new(HashMap::new());
     }

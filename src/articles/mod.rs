@@ -158,12 +158,9 @@ fn write_article_to_disk(conn: &mut SqliteConnection, article: &ArticleWithTags)
         Ok(neighbours) => neighbours,
         Err(_) => ArticleNeighbours::new(),
     };
-    let article_series_neighbours: ArticleNeighbours = match article.series.clone() {
-        Some(series) => match get_prev_and_next_article_for_series(conn, article_id, series) {
-            Ok(neighbours) => neighbours,
-            Err(_) => ArticleNeighbours::new(),
-        },
-        None => ArticleNeighbours::new(),
+    let article_series_neighbours = match get_prev_and_next_article_for_series(conn, article_id) {
+        Ok(neighbours) => neighbours,
+        Err(_) => ArticleNeighbours::new(),
     };
 
     match get_cache(conn, article.src_file_name.clone()) {

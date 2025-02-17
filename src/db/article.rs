@@ -17,6 +17,7 @@ use diesel::prelude::*;
 use diesel::sql_types::Nullable;
 
 use chrono::NaiveDateTime;
+use std::collections::HashSet;
 
 #[derive(Queryable, Insertable, Identifiable, Selectable, Debug, Clone, PartialEq)]
 #[diesel(table_name = schema::articles)]
@@ -403,14 +404,6 @@ pub fn get_special_pages(
 // 1. b) it doesn't exist, create it
 // follow 2./3./4.
 
-// pub struct AffectedNeighbours {
-//     most_recent_article: Option<Article>,
-//     articles_old: Article,
-//     articles_new: Article,
-//     series_old: Article,
-//     series_new: Article,
-// }
-
 fn tag_difference<'a>(
     tags_a: &'a Option<Vec<String>>,
     tags_b: &'a Option<Vec<String>>,
@@ -440,7 +433,8 @@ fn tag_difference<'a>(
 pub fn set(
     conn: &mut SqliteConnection,
     new_article_with_tags: &ArticleWithTags,
-) -> Result<(), diesel::result::Error> {
+) -> Result<HashSet<i32>, diesel::result::Error> {
+    let affected_articles: HashSet<i32> = HashSet::new();
     let new_article: NewArticle = new_article_with_tags.clone().into();
     let new_tags: Option<Vec<String>> = new_article_with_tags.tags.clone();
     if new_article_with_tags.src_file_name.is_empty() {
@@ -520,7 +514,7 @@ pub fn set(
                     .execute(conn);
             }
 
-            Ok(())
+            Ok(affected_articles)
         } else {
             //println!("creating new article");
             // insert as new article
@@ -564,7 +558,7 @@ pub fn set(
                                 .execute(conn);
                         }
                     }
-                    return Ok(());
+                    return Ok(affected_articles);
                 }
                 Err(e) => {
                     println!("Error on creating article: {:?}", e);
@@ -579,7 +573,7 @@ pub fn set(
 pub fn del_by_src_file_name(
     conn: &mut SqliteConnection,
     src_file_name: String,
-) -> Result<(), diesel::result::Error> {
+) -> Result<HashSet<i32>, diesel::result::Error> {
     let res: QueryResult<i32> = articles_table
         .filter(articles_objects::src_file_name.eq(src_file_name.clone()))
         .select(articles_objects::id)
@@ -590,13 +584,56 @@ pub fn del_by_src_file_name(
         Err(e) => Err(e),
     }
 }
+fn get_neighbours_helper(
+    conn: &mut SqliteConnection,
+    id: i32,
+) -> Result<AllArticleNeighbours, diesel::result::Error> {
+    let mut all_article_neighbours = AllArticleNeighbours::new();
+    match get_most_recent_article(conn) {
+        Ok(article_option) => {
+            all_article_neighbours.most_recent_article = article_option;
+        }
+        Err(_) => {}
+    }
+    match get_prev_and_next_article(conn, id) {
+        Ok(neighbours) => {
+            all_article_neighbours.prev_next_article = neighbours;
+        }
+        Err(e) => return Err(e),
+    }
+    match get_prev_and_next_article_for_series(conn, id) {
+        Ok(neighbours) => {
+            all_article_neighbours.prev_next_article_series = neighbours;
+        }
+        Err(e) => return Err(e),
+    }
+    Ok(all_article_neighbours)
+}
 
-pub fn del_by_id(conn: &mut SqliteConnection, id: i32) -> Result<(), diesel::result::Error> {
+pub fn del_by_id(
+    conn: &mut SqliteConnection,
+    id: i32,
+) -> Result<HashSet<i32>, diesel::result::Error> {
+    let affected_articles_before: AllArticleNeighbours = get_neighbours_helper(conn, id).unwrap();
+    println!("{:#?}", affected_articles_before);
     let num_deleted =
         diesel::delete(articles_table.filter(articles_objects::id.eq(id))).execute(conn);
-
     match num_deleted {
-        Ok(_) => Ok(()),
+        Ok(0) => {
+            return Err(diesel::result::Error::NotFound);
+        }
+        Ok(_) => {
+            let most_recent_article = match get_most_recent_article(conn) {
+                Ok(article_option) => article_option,
+                Err(_) => None,
+            };
+            let mut affected_articles_after: AllArticleNeighbours = AllArticleNeighbours::new();
+            affected_articles_after.most_recent_article = most_recent_article;
+            println!("{:#?}", affected_articles_after);
+            let mut affected_articles = affected_articles_before.diff(&affected_articles_after);
+            affected_articles.remove(&id);
+            Ok(affected_articles)
+        }
         Err(e) => Err(e),
     }
 }
@@ -643,6 +680,47 @@ pub fn get_all_series_from_visible_articles(
     }
 }
 
+#[derive(Debug)]
+pub struct AllArticleNeighbours {
+    most_recent_article: Option<ArticleWithTags>,
+    prev_next_article: ArticleNeighbours,
+    prev_next_article_series: ArticleNeighbours,
+}
+
+impl AllArticleNeighbours {
+    pub fn new() -> Self {
+        AllArticleNeighbours {
+            most_recent_article: None,
+            prev_next_article: ArticleNeighbours::new(),
+            prev_next_article_series: ArticleNeighbours::new(),
+        }
+    }
+
+    pub fn diff(&self, other: &AllArticleNeighbours) -> HashSet<i32> {
+        let mut differences = HashSet::new();
+
+        if self.most_recent_article != other.most_recent_article {
+            if let Some(article) = &self.most_recent_article {
+                differences.insert(article.id.unwrap());
+            }
+            if let Some(article) = &other.most_recent_article {
+                differences.insert(article.id.unwrap());
+            }
+        }
+        for id in self.prev_next_article.diff(&other.prev_next_article) {
+            differences.insert(id);
+        }
+        for id in self
+            .prev_next_article_series
+            .diff(&other.prev_next_article_series)
+        {
+            differences.insert(id);
+        }
+        differences
+    }
+}
+
+#[derive(Debug)]
 pub struct ArticleNeighbours {
     pub prev: Option<ArticleWithTags>,
     pub next: Option<ArticleWithTags>,
@@ -654,6 +732,26 @@ impl ArticleNeighbours {
             prev: None,
             next: None,
         }
+    }
+    pub fn diff(&self, other: &ArticleNeighbours) -> HashSet<i32> {
+        let mut differences = HashSet::new();
+        if &self.prev != &other.prev {
+            match &self.prev {
+                Some(article) => {
+                    differences.insert(article.id.unwrap());
+                }
+                None => {}
+            }
+        }
+        if &self.next != &other.next {
+            match &self.next {
+                Some(article) => {
+                    differences.insert(article.id.unwrap());
+                }
+                None => {}
+            }
+        }
+        differences
     }
 }
 
@@ -732,31 +830,45 @@ pub fn get_prev_and_next_article(
 pub fn get_prev_and_next_article_for_series(
     conn: &mut SqliteConnection,
     id: i32,
-    series: String,
 ) -> Result<ArticleNeighbours, diesel::result::Error> {
-    // FIXME use series from the article query based on the id, don't assume it is set
-    let articles_query: QueryResult<Vec<Article>> = articles_table
-        .filter(articles_objects::series.eq(series))
-        .filter(
-            articles_objects::draft
-                .eq(false)
-                .or(articles_objects::draft.is_null()),
-        )
-        .filter(
-            articles_objects::special_page
-                .eq(false)
-                .or(articles_objects::special_page.is_null()),
-        )
-        .order((
-            sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
-            articles_objects::modification_date.asc(),
-        ))
-        .load::<Article>(conn);
+    let res = articles_table
+        .select(articles_objects::series)
+        .first::<Option<String>>(conn);
 
-    match articles_query {
-        Ok(articles) => find_prev_and_next_articles(conn, &articles, id),
+    match res {
+        Ok(series_option) => match series_option {
+            Some(series) => {
+                // FIXME use series from the article query based on the id, don't assume it is set
+                let articles_query: QueryResult<Vec<Article>> = articles_table
+                    .filter(articles_objects::series.eq(series))
+                    .filter(
+                        articles_objects::draft
+                            .eq(false)
+                            .or(articles_objects::draft.is_null()),
+                    )
+                    .filter(
+                        articles_objects::special_page
+                            .eq(false)
+                            .or(articles_objects::special_page.is_null()),
+                    )
+                    .order((
+                        sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
+                        articles_objects::modification_date.asc(),
+                    ))
+                    .load::<Article>(conn);
+
+                match articles_query {
+                    Ok(articles) => find_prev_and_next_articles(conn, &articles, id),
+                    Err(e) => {
+                        println!("Error: {}", e);
+                        Err(e)
+                    }
+                }
+            }
+            None => Ok(ArticleNeighbours::new()),
+        },
         Err(e) => {
-            println!("Error: {}", e);
+            println!("Error loading article from db: {}", e);
             Err(e)
         }
     }
