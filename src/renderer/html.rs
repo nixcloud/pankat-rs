@@ -71,6 +71,13 @@ pub fn create_html_from_content_template(
 ) -> Result<String, Box<dyn Error>> {
     let cfg = config::Config::get();
 
+    println!("article: {:#?}", article);
+
+    println!(
+        "article_series_neighbours: {:#?}",
+        article_series_neighbours
+    );
+
     let mut handlebars = Handlebars::new();
 
     let mut assets: PathBuf = PathBuf::from(cfg.assets.clone());
@@ -91,17 +98,20 @@ pub fn create_html_from_content_template(
         },
     )?;
 
-    let series_nav = create_html_from_navigation_series_template(
-        article.series.unwrap_or("".to_string()).clone(),
-        match article_series_neighbours.prev.clone() {
-            Some(p) => Some(p.dst_file_name),
-            None => None,
-        },
-        match article_series_neighbours.next.clone() {
-            Some(n) => Some(n.dst_file_name),
-            None => None,
-        },
-    )?;
+    let series_nav = match article.series {
+        Some(series) => create_html_from_navigation_series_template(
+            series,
+            match article_series_neighbours.prev.clone() {
+                Some(p) => Some(p.dst_file_name),
+                None => None,
+            },
+            match article_series_neighbours.next.clone() {
+                Some(n) => Some(n.dst_file_name),
+                None => None,
+            },
+        )?,
+        None => "".to_string(),
+    };
 
     let date_and_time: String = format!(
         r#"<div id="date"><p><span id="lastupdated">{}</span></p></div>"#,

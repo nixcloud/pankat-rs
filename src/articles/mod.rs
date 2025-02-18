@@ -75,18 +75,72 @@ impl From<ArticleWithTags> for NewArticle {
     }
 }
 
+static PANKAT_FILE: &str = ".pankat_maintained_output_folder";
+
+pub fn output_folder_check(output_folder: &PathBuf) -> Result<(), Box<dyn Error>> {
+    let output_path_check_file = output_folder.join(PANKAT_FILE);
+
+    if output_path_check_file.exists() {
+        return Ok(());
+    }
+
+    if std::fs::read_dir(output_folder)?.next().is_none() {
+        std::fs::File::create(output_path_check_file)?;
+        Ok(())
+    } else {
+        Err(format!(
+            "Output directory contains unexpected files or subdirectories but no '{}' file!",
+            PANKAT_FILE
+        )
+        .into())
+    }
+}
+
 pub fn collect_garbage(conn: &mut SqliteConnection) {
     let cfg = config::Config::get();
     let input_path: PathBuf = cfg.input.clone();
+    let output_path: PathBuf = cfg.output.clone();
 
     match crate::db::article::get_all_articles(conn) {
         Ok(articles) => {
             println!("====== Running GC on 'articles table' ======");
-            for article in articles {
+            for article in articles.clone() {
                 let path = input_path.join(article.src_file_name);
                 if !path.exists() {
                     println!("Removing garbage 'article table' entry: {:?}", path);
                     let _ = crate::db::article::del_by_id(conn, article.id.unwrap());
+                }
+            }
+            println!("====== Running GC on 'output' directory ======");
+            match output_folder_check(&output_path) {
+                Ok(_) => {
+                    let lookup_artibles_set: std::collections::HashSet<String> = articles
+                        .iter()
+                        .map(|article| article.dst_file_name.clone())
+                        .collect();
+                    for entry in std::fs::read_dir(output_path.clone()).unwrap() {
+                        let entry = entry.unwrap();
+                        let relative_entry = entry
+                            .path()
+                            .strip_prefix(&output_path)
+                            .unwrap()
+                            .to_path_buf();
+                        let relative_entry_string: String = relative_entry.display().to_string();
+                        if relative_entry_string == PANKAT_FILE {
+                            continue;
+                        }
+                        if !lookup_artibles_set.contains(relative_entry_string.as_str()) {
+                            println!("Removing garbage 'output' entry: {:?}", relative_entry);
+                            std::fs::remove_file(entry.path()).unwrap();
+                        }
+                    }
+                }
+                Err(e) => {
+                    println!(
+                        "Warning! Not doing any GC of output dir '{}': {}",
+                        output_path.display(),
+                        e
+                    );
                 }
             }
         }
@@ -200,10 +254,11 @@ fn write_article_to_disk(conn: &mut SqliteConnection, article: &ArticleWithTags)
         Ok(neighbours) => neighbours,
         Err(_) => ArticleNeighbours::new(),
     };
-    let article_series_neighbours = match get_prev_and_next_article_for_series(conn, article_id) {
-        Ok(neighbours) => neighbours,
-        Err(_) => ArticleNeighbours::new(),
-    };
+    let article_series_neighbours: ArticleNeighbours =
+        match get_prev_and_next_article_for_series(conn, article_id) {
+            Ok(neighbours) => neighbours,
+            Err(_) => ArticleNeighbours::new(),
+        };
 
     match get_cache(conn, article.src_file_name.clone()) {
         Some(cache_entry) => {

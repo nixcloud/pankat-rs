@@ -842,7 +842,6 @@ pub fn get_prev_and_next_article_for_series(
     match res {
         Ok(series_option) => match series_option {
             Some(series) => {
-                // FIXME use series from the article query based on the id, don't assume it is set
                 let articles_query: QueryResult<Vec<Article>> = articles_table
                     .filter(articles_objects::series.eq(series))
                     .filter(
@@ -869,7 +868,10 @@ pub fn get_prev_and_next_article_for_series(
                     }
                 }
             }
-            None => Ok(ArticleNeighbours::new()),
+            None => {
+                println!("No series found for article with id {}", id);
+                Ok(ArticleNeighbours::new())
+            }
         },
         Err(e) => {
             println!("Error loading article from db: {}", e);
