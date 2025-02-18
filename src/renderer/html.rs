@@ -71,12 +71,12 @@ pub fn create_html_from_content_template(
 ) -> Result<String, Box<dyn Error>> {
     let cfg = config::Config::get();
 
-    println!("article: {:#?}", article);
+    // println!("article: {:#?}", article);
 
-    println!(
-        "article_series_neighbours: {:#?}",
-        article_series_neighbours
-    );
+    // println!(
+    //     "article_series_neighbours: {:#?}",
+    //     article_series_neighbours
+    // );
 
     let mut handlebars = Handlebars::new();
 

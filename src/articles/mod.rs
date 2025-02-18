@@ -193,6 +193,7 @@ pub fn scan_articles(pool: DbPool) {
                             if ext == "mdwn" {
                                 match parse_article(conn, &path, &input_path) {
                                     Ok(article) => {
+                                        //println!("Parsed article: {:#?}", article);
                                         let _ = crate::db::article::set(conn, &article);
                                     }
                                     Err(_) => { /* Handle errors if necessary */ }
@@ -342,7 +343,12 @@ fn parse_article(
                 //println!(" ... cache outdated, regenerating");
                 match pandoc_mdwn_2_html(article_mdwn_refined_source.clone()) {
                     Ok(html) => {
-                        match set_cache(conn, relative_article_path_string.clone(), html.clone(), hash) {
+                        match set_cache(
+                            conn,
+                            relative_article_path_string.clone(),
+                            html.clone(),
+                            hash,
+                        ) {
                             Ok(_) => {}
                             Err(e) => {
                                 println!("Error udpating cache: {}", e);
@@ -358,7 +364,7 @@ fn parse_article(
                     }
                 };
             } else {
-                println!(" ... skipping call to pankat, already in cache");
+                println!(" ... skipping call to pandoc, already in cache");
             };
             if new_article.title == None {
                 let title = utils::article_src_file_name_to_title(&article_path);

@@ -836,12 +836,14 @@ pub fn get_prev_and_next_article_for_series(
     id: i32,
 ) -> Result<ArticleNeighbours, diesel::result::Error> {
     let res = articles_table
+        .filter(articles_objects::id.eq(id))
         .select(articles_objects::series)
         .first::<Option<String>>(conn);
 
     match res {
         Ok(series_option) => match series_option {
             Some(series) => {
+                //println!("------------- {} -----------", series);
                 let articles_query: QueryResult<Vec<Article>> = articles_table
                     .filter(articles_objects::series.eq(series))
                     .filter(
