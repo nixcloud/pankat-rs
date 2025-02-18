@@ -1,5 +1,3 @@
-use sha2::{Digest, Sha256};
-
 use crate::db::schema;
 use crate::db::schema::cache::dsl as cache_objects;
 use crate::db::schema::cache::dsl::cache as cache_table;
@@ -62,19 +60,26 @@ pub fn get_cache(conn: &mut SqliteConnection, src_file_name: String) -> Option<C
     }
 }
 
+pub fn compute_hash(html: String) -> String {
+    use twox_hash::XxHash64;
+    use std::hash::Hasher;
+
+    let mut hasher = XxHash64::default();
+    hasher.write(html.as_bytes());
+    let xxhash64_hash = hasher.finish();
+    format!("{:x}", xxhash64_hash)
+}
+
 pub fn set_cache(
     conn: &mut SqliteConnection,
     src_file_name: String,
     html: String,
+    hash: String,
 ) -> Result<(), String> {
-    let mut hasher = Sha256::new();
-    hasher.update(html.clone().as_bytes());
-    let sha256_hash: String = format!("{:x}", hasher.finalize());
-
     let new_cache = Cache {
         id: None, // SQLite will auto-increment this if not provided
         src_file_name: src_file_name.clone(),
-        hash: sha256_hash,
+        hash: hash,
         html: html.clone(),
     };
 

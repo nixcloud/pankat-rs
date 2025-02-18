@@ -1,7 +1,7 @@
 use crate::db::article::{
     get_prev_and_next_article, get_prev_and_next_article_for_series, ArticleNeighbours,
 };
-use crate::db::cache::{get_cache, set_cache};
+use crate::db::cache::{compute_hash, get_cache, set_cache};
 use crate::db::DbPool;
 
 use regex::Regex;
@@ -322,23 +322,49 @@ fn parse_article(
     let article_mdwn_raw_string = std::fs::read_to_string(article_path).unwrap();
     match eval_plugins(&article_mdwn_raw_string, &mut new_article) {
         Ok(article_mdwn_refined_source) => {
-            match pandoc_mdwn_2_html(article_mdwn_refined_source.clone()) {
-                Ok(html) => {
-                    let _ = set_cache(conn, relative_article_path_string.clone(), html.clone());
-                    if new_article.title == None {
-                        let title = utils::article_src_file_name_to_title(&article_path);
-                        new_article.title = Some(title);
+            let hash: String = compute_hash(article_mdwn_refined_source.clone());
+            // println!(
+            //     "relative_article_path_string.clone(): {}",
+            //     relative_article_path_string.clone()
+            // );
+            let renew_cache: bool = match get_cache(conn, relative_article_path_string.clone()) {
+                Some(cache_entry) => {
+                    //println!("Cache_entry.hash: {}, hash: {}", cache_entry.hash, hash);
+                    if cache_entry.hash == hash {
+                        false
+                    } else {
+                        true
                     }
-                    Ok(new_article)
                 }
-                Err(e) => {
-                    println!(
-                        "Error: No entry in cache for path: {}: {}",
-                        relative_article_path_string, e,
-                    );
-                    Err(e)
-                }
+                None => true,
+            };
+            if renew_cache {
+                //println!(" ... cache outdated, regenerating");
+                match pandoc_mdwn_2_html(article_mdwn_refined_source.clone()) {
+                    Ok(html) => {
+                        match set_cache(conn, relative_article_path_string.clone(), html.clone(), hash) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                println!("Error udpating cache: {}", e);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        println!(
+                            "Error: No entry in cache for path: {}: {}",
+                            relative_article_path_string, e,
+                        );
+                        return Err(e);
+                    }
+                };
+            } else {
+                println!(" ... skipping call to pankat, already in cache");
+            };
+            if new_article.title == None {
+                let title = utils::article_src_file_name_to_title(&article_path);
+                new_article.title = Some(title);
             }
+            Ok(new_article)
         }
         Err(e) => {
             println!(
