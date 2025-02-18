@@ -1,17 +1,51 @@
 use sha2::{Digest, Sha256};
 
-use crate::db::schema::cache as cache_table;
+use crate::db::schema;
 use crate::db::schema::cache::dsl as cache_objects;
+use crate::db::schema::cache::dsl::cache as cache_table;
+
 use diesel::prelude::*;
 
 #[derive(Queryable, Insertable, Clone, Debug, AsChangeset)]
 #[diesel(belongs_to(Article))]
-#[diesel(table_name = cache_table)]
+#[diesel(table_name = schema::cache)]
 pub struct Cache {
     pub id: Option<i32>,
     pub src_file_name: String,
     pub hash: String,
     pub html: String,
+}
+
+pub fn get_cache_src_file_names(
+    conn: &mut SqliteConnection,
+) -> Result<Vec<(Option<i32>, String)>, diesel::result::Error> {
+    let res: QueryResult<Vec<(Option<i32>, String)>> = cache_table
+        .select((cache_objects::id, cache_objects::src_file_name))
+        .load::<(Option<i32>, String)>(conn);
+    match res {
+        Ok(r) => Ok(r),
+        Err(e) => {
+            println!("get_cache_src_file_names: Loading all 'src_file_name' from cache failed");
+            Err(e)
+        }
+    }
+}
+
+pub fn del_cache_by_id(conn: &mut SqliteConnection, id: i32) -> Result<(), diesel::result::Error> {
+    let ret = diesel::delete(cache_table.filter(cache_objects::id.eq(id))).execute(conn);
+
+    match ret {
+        Ok(r) => {
+            if r == 0 {
+                println!("Cache entry with id {} not found", id);
+            }
+            Ok(())
+        }
+        Err(e) => {
+            println!("Error deleting cache entry with id {}: {}", id, e);
+            Err(e)
+        }
+    }
 }
 
 pub fn get_cache(conn: &mut SqliteConnection, src_file_name: String) -> Option<Cache> {
@@ -75,12 +109,12 @@ pub fn set_cache(
         }
         Ok(None) => {
             // Insert new cache entry if it does not exist
-            match diesel::insert_into(cache_table::table)
+            match diesel::insert_into(cache_table)
                 .values(&new_cache)
                 .execute(conn)
             {
-                Ok(rows) => {
-                    println!("Successfully inserted cache entry. Rows affected: {}", rows);
+                Ok(_) => {
+                    //println!("Successfully inserted cache entry. Rows affected: {}", rows);
                     Ok(())
                 }
                 Err(e) => {

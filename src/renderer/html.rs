@@ -30,7 +30,7 @@ pub fn create_html_from_standalone_template(
     {
         input_path.push(""); // Ensures trailing separator
     }
-    let article_source_code_fs: PathBuf = PathBuf::from(article.src_file_name.clone());
+    let article_source_code_fs: PathBuf = input_path.join(article.src_file_name.clone());
     // FIXME move code above to mod.rs
     let relative_path = match article_source_code_fs.strip_prefix(&input_path) {
         Ok(res) => res,

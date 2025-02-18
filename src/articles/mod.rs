@@ -75,6 +75,39 @@ impl From<ArticleWithTags> for NewArticle {
     }
 }
 
+pub fn collect_garbage(conn: &mut SqliteConnection) {
+    let cfg = config::Config::get();
+    let input_path: PathBuf = cfg.input.clone();
+
+    match crate::db::article::get_all_articles(conn) {
+        Ok(articles) => {
+            println!("====== Running GC on 'articles table' ======");
+            for article in articles {
+                let path = input_path.join(article.src_file_name);
+                if !path.exists() {
+                    println!("Removing garbage 'article table' entry: {:?}", path);
+                    let _ = crate::db::article::del_by_id(conn, article.id.unwrap());
+                }
+            }
+        }
+        Err(_) => {}
+    };
+
+    match crate::db::cache::get_cache_src_file_names(conn) {
+        Ok(entries) => {
+            println!("====== Running GC on 'cache table' ======");
+            for (id, path) in entries {
+                let path = input_path.join(path);
+                if !path.exists() {
+                    println!("Removing garbage 'cache table' entry: {:?}", path);
+                    let _ = crate::db::cache::del_cache_by_id(conn, id.unwrap());
+                }
+            }
+        }
+        Err(_) => {}
+    };
+}
+
 pub fn scan_articles(pool: DbPool) {
     let cfg = config::Config::get();
     let input_path: PathBuf = cfg.input.clone();
@@ -85,17 +118,26 @@ pub fn scan_articles(pool: DbPool) {
 
     let start_time = std::time::Instant::now();
 
-    fn traverse_and_collect_articles(conn: &mut SqliteConnection, dir: &PathBuf) {
+    collect_garbage(&mut conn);
+
+    println!("====== Parsing input for mdwn documents ======");
+
+    fn traverse_and_collect_articles(
+        conn: &mut SqliteConnection,
+        dir: &PathBuf,
+        input_path: &PathBuf,
+    ) {
         if dir.is_dir() {
             if let Ok(entries) = std::fs::read_dir(dir) {
                 for entry in entries {
                     if let Ok(entry) = entry {
                         let path = entry.path();
+                        //println!("{}", path.clone().display());
                         if path.is_dir() {
-                            traverse_and_collect_articles(conn, &path);
+                            traverse_and_collect_articles(conn, &path, &input_path);
                         } else if let Some(ext) = path.extension() {
                             if ext == "mdwn" {
-                                match parse_article(conn, &path) {
+                                match parse_article(conn, &path, &input_path) {
                                     Ok(article) => {
                                         let _ = crate::db::article::set(conn, &article);
                                     }
@@ -109,7 +151,7 @@ pub fn scan_articles(pool: DbPool) {
         }
     }
 
-    traverse_and_collect_articles(&mut conn, &input_path);
+    traverse_and_collect_articles(&mut conn, &input_path, &input_path);
 
     match crate::db::article::get_visible_articles(&mut conn) {
         Ok(articles) => {
@@ -192,18 +234,23 @@ fn write_article_to_disk(conn: &mut SqliteConnection, article: &ArticleWithTags)
 fn parse_article(
     conn: &mut SqliteConnection,
     article_path: &PathBuf,
+    input_path: &PathBuf,
 ) -> Result<ArticleWithTags, Box<dyn Error>> {
+    let relative_article_path: PathBuf =
+        article_path.strip_prefix(input_path).unwrap().to_path_buf();
+    let relative_article_path_string = relative_article_path.display().to_string();
+
     println!(
         "Parsing article {} from disk",
-        article_path.clone().display()
+        relative_article_path.clone().display()
     );
 
-    let src_file_name = article_path.display().to_string();
+    //println!("xxx {}", relative_article_path_string.clone());
 
     let mut new_article: ArticleWithTags = ArticleWithTags {
         id: None,
-        src_file_name: src_file_name.clone(),
-        dst_file_name: utils::create_dst_file_name(article_path),
+        src_file_name: relative_article_path_string.clone(),
+        dst_file_name: utils::create_dst_file_name(&relative_article_path),
         title: None,
         modification_date: None,
         summary: None,
@@ -222,7 +269,7 @@ fn parse_article(
         Ok(article_mdwn_refined_source) => {
             match pandoc_mdwn_2_html(article_mdwn_refined_source.clone()) {
                 Ok(html) => {
-                    let _ = set_cache(conn, src_file_name.clone(), html.clone());
+                    let _ = set_cache(conn, relative_article_path_string.clone(), html.clone());
                     if new_article.title == None {
                         let title = utils::article_src_file_name_to_title(&article_path);
                         new_article.title = Some(title);
@@ -232,14 +279,17 @@ fn parse_article(
                 Err(e) => {
                     println!(
                         "Error: No entry in cache for path: {}: {}",
-                        src_file_name, e,
+                        relative_article_path_string, e,
                     );
                     Err(e)
                 }
             }
         }
         Err(e) => {
-            println!("Error: Evaluating plugins on: {}: {}", src_file_name, e,);
+            println!(
+                "Error: Evaluating plugins on: {}: {}",
+                relative_article_path_string, e,
+            );
             Err(e)
         }
     }

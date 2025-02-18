@@ -42,11 +42,14 @@ pub fn article_src_file_name_to_title(article_src_file_name: &PathBuf) -> String
 }
 
 pub fn create_dst_file_name(article_path: &PathBuf) -> String {
-    let dst_file_name: PathBuf = article_path
+    let dst_file_name: String = article_path
         .with_extension("html")
         .file_name()
         .unwrap()
-        .into();
+        .to_string_lossy()
+        .replace(" ", "_")
+        .to_string();
+    let dst_file_name: PathBuf = PathBuf::from(dst_file_name);
     dst_file_name.display().to_string()
 }
 
