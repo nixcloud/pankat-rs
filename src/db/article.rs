@@ -162,7 +162,7 @@ pub fn get_most_recent_article(
         )
         .order((
             sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
-            articles_objects::modification_date.asc(),
+            articles_objects::modification_date.desc(),
         ))
         .first::<Article>(conn);
     match res {
@@ -871,7 +871,7 @@ pub fn get_prev_and_next_article_for_series(
                 }
             }
             None => {
-                println!("No series found for article with id {}", id);
+                //println!("No series found for article with id {}", id);
                 Ok(ArticleNeighbours::new())
             }
         },

@@ -190,3 +190,26 @@ pub fn create_html_from_navigation_series_template(
 
     Ok(result)
 }
+
+pub fn create_index_from_most_recent_article_template(
+    most_recent_article: String,
+) -> Result<String, Box<dyn Error>> {
+    let cfg = config::Config::get();
+
+    let mut handlebars = Handlebars::new();
+
+    let mut assets: PathBuf = PathBuf::from(cfg.assets.clone());
+    assets.push("templates/most-recent-article.html");
+    let template = assets.as_path();
+    let template_content = fs::read_to_string(template)?;
+
+    handlebars.register_template_string("most-recent-article", &template_content)?;
+
+    let data = json!({
+        "most_recent_article": most_recent_article,
+    });
+
+    let result = handlebars.render("most-recent-article", &data)?;
+
+    Ok(result)
+}

@@ -4,6 +4,7 @@ use crate::db::article::{
 use crate::db::cache::{compute_hash, get_cache, set_cache};
 use crate::db::DbPool;
 
+use lazy_static::lazy_static;
 use regex::Regex;
 use std::error::Error;
 use std::path::PathBuf;
@@ -15,6 +16,7 @@ mod utils;
 use crate::config;
 use crate::renderer::html::{
     create_html_from_content_template, create_html_from_standalone_template,
+    create_index_from_most_recent_article_template,
 };
 use crate::renderer::pandoc::pandoc_mdwn_2_html;
 
@@ -242,8 +244,33 @@ pub fn scan_articles(pool: DbPool) {
         Err(_) => { /* Handle errors if necessary */ }
     }
 
+    update_more_recent_article(&mut conn);
+
     let duration = start_time.elapsed();
     println!("Time taken to execute: {:?}", duration);
+}
+
+pub fn update_more_recent_article(conn: &mut SqliteConnection) {
+    match crate::db::article::get_most_recent_article(conn) {
+        Ok(article_option) => match article_option {
+            Some(article) => {
+                match create_index_from_most_recent_article_template(article.dst_file_name) {
+                    Ok(html) => {
+                        let cfg = config::Config::get();
+                        let output_path: PathBuf = cfg.output.clone();
+                        let mut output_filename = output_path.clone();
+                        output_filename.push("index.html");
+                        write_to_disk(&html, &output_filename);
+                    }
+                    Err(e) => {
+                        println!("Error: {}", e);
+                    }
+                }
+            }
+            None => {}
+        },
+        Err(_) => {}
+    };
 }
 
 fn write_article_to_disk(conn: &mut SqliteConnection, article: &ArticleWithTags) {
@@ -276,7 +303,7 @@ fn write_article_to_disk(conn: &mut SqliteConnection, article: &ArticleWithTags)
 
             let mut output_filename = output_path.clone();
             output_filename.push(article.dst_file_name.clone());
-            std::fs::write(output_filename, standalone_html).expect("Unable to write HTML file");
+            write_to_disk(&standalone_html, &output_filename)
         }
         None => {
             println!(
@@ -285,6 +312,45 @@ fn write_article_to_disk(conn: &mut SqliteConnection, article: &ArticleWithTags)
             );
         }
     }
+}
+
+fn write_to_disk(content: &String, filename: &PathBuf) {
+    std::fs::write(filename, content.as_str()).expect("Unable to write HTML file");
+}
+
+/// Prettify HTML input
+pub fn prettify(input: &str) -> String {
+    lazy_static! {
+        static ref OPEN_TAG: Regex = Regex::new("(?P<tag><[A-z])").unwrap();
+    }
+
+    // First get all tags on their own lines
+    let mut stage1 = input.to_string();
+    stage1 = stage1.replace("<!--", "\n<!--");
+    stage1 = stage1.replace("-->", "-->\n");
+    stage1 = stage1.replace("</", "\n</");
+    stage1 = OPEN_TAG.replace_all(&stage1, "\n$tag").to_string();
+    stage1 = stage1.trim().to_string();
+
+    // Now fix indentation
+    let mut stage2: Vec<String> = vec![];
+    let mut indent = 0;
+    for line in stage1.split('\n') {
+        let mut post_add = 0;
+        if line.starts_with("</") {
+            indent -= 1;
+        } else if line.ends_with("/>") || line.starts_with("<!DOCTYPE") {
+            // Self-closing, nothing
+            // or DOCTYPE, also nothing
+        } else if line.starts_with('<') {
+            post_add += 1;
+        }
+
+        stage2.push(format!("{}{}", "  ".repeat(indent), line));
+        indent += post_add;
+    }
+
+    stage2.join("\n")
 }
 
 fn parse_article(
