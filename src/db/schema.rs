@@ -18,7 +18,6 @@ diesel::table! {
         series -> Nullable<Text>,
         draft -> Nullable<Bool>,
         special_page -> Nullable<Bool>,
-        timeline -> Nullable<Bool>,
         anchorjs -> Nullable<Bool>,
         tocify -> Nullable<Bool>,
         live_updates -> Nullable<Bool>,

@@ -1,4 +1,4 @@
-[[!meta date="2024-04-17 20:53"]]
+[[!meta date="2021-04-17 20:53"]]
 [[!tag nix nixos libnix]]
 [[!series floo]]
 [[!summary mingw nix - nix-instantiate.exe works on windows!]]

@@ -8,30 +8,17 @@ use std::error::Error;
 use std::fs;
 use std::path::{PathBuf, MAIN_SEPARATOR};
 
-pub fn create_html_from_standalone_template(
+pub fn create_html_from_standalone_template_by_article(
     article: ArticleWithTags,
     html: String,
-    //relative_path: String,
 ) -> Result<String, Box<dyn Error>> {
     let cfg = config::Config::get();
-
-    let mut handlebars = Handlebars::new();
-
-    let mut assets: PathBuf = PathBuf::from(cfg.assets.clone());
-    assets.push("templates/standalone-template.html");
-    let article_template = assets.as_path();
-    let template_content = fs::read_to_string(article_template)?;
-
-    handlebars.register_template_string("standalone-template", &template_content)?;
-
-    // FIXME move code below to mod.rs
     let mut input_path: PathBuf = cfg.input.clone();
     if !input_path.as_os_str().is_empty() && !input_path.to_string_lossy().ends_with(MAIN_SEPARATOR)
     {
         input_path.push(""); // Ensures trailing separator
     }
     let article_source_code_fs: PathBuf = input_path.join(article.src_file_name.clone());
-    // FIXME move code above to mod.rs
     let relative_path = match article_source_code_fs.strip_prefix(&input_path) {
         Ok(res) => res,
         Err(e) => {
@@ -45,10 +32,10 @@ pub fn create_html_from_standalone_template(
         }
     };
 
-    let data = json!({
+    let data: serde_json::Value = json!({
         "SiteBrandTitle": "Sample Brand",
         "Title": article.title,
-        "NavAndArticle": html,
+        "NavAndContent": html,
         "ArticleSrcURL": relative_path,
         "ArticleSrcFileName": article.src_file_name,
         "ArticleDstFileName": article.dst_file_name,
@@ -56,8 +43,25 @@ pub fn create_html_from_standalone_template(
         "SpecialPage": article.special_page,
         "Anchorjs": article.anchorjs,
         "Tocify": article.tocify,
-        "Timeline": article.timeline,
+        "Timeline": false,
     });
+
+    create_html_from_standalone_template(data)
+}
+
+pub fn create_html_from_standalone_template(
+    data: serde_json::Value,
+) -> Result<String, Box<dyn Error>> {
+    let cfg = config::Config::get();
+
+    let mut handlebars = Handlebars::new();
+
+    let mut assets: PathBuf = PathBuf::from(cfg.assets.clone());
+    assets.push("templates/standalone-template.html");
+    let template = assets.as_path();
+    let template_content = fs::read_to_string(template)?;
+
+    handlebars.register_template_string("standalone-template", &template_content)?;
 
     let result = handlebars.render("standalone-template", &data)?;
     Ok(result)

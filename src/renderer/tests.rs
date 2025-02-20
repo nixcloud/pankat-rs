@@ -2,7 +2,7 @@
 mod tests {
     use crate::articles::ArticleWithTags;
     use crate::config;
-    use crate::renderer::html::create_html_from_standalone_template;
+    use crate::renderer::html::create_html_from_standalone_template_by_article;
     use std::path::PathBuf;
 
     // #[test]
@@ -65,7 +65,6 @@ mod tests {
             series: None,
             special_page: Some(true),
             draft: None,
-            timeline: None,
             anchorjs: None,
             tocify: None,
             live_updates: None,
@@ -73,7 +72,7 @@ mod tests {
         };
         let html_content = "<p>This is a test body.</p>".to_string();
 
-        let result = create_html_from_standalone_template(article, html_content.clone());
+        let result = create_html_from_standalone_template_by_article(article, html_content.clone());
 
         assert!(result.is_ok());
         let rendered_html = result.unwrap();

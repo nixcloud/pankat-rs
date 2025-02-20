@@ -11,11 +11,12 @@ use std::path::PathBuf;
 
 mod plugins;
 mod tests;
+mod timeline;
 mod utils;
 
 use crate::config;
 use crate::renderer::html::{
-    create_html_from_content_template, create_html_from_standalone_template,
+    create_html_from_content_template, create_html_from_standalone_template_by_article,
     create_index_from_most_recent_article_template,
 };
 use crate::renderer::pandoc::pandoc_mdwn_2_html;
@@ -35,7 +36,6 @@ pub struct ArticleWithTags {
     pub series: Option<String>,
     pub draft: Option<bool>,
     pub special_page: Option<bool>,
-    pub timeline: Option<bool>,
     pub anchorjs: Option<bool>,
     pub tocify: Option<bool>,
     pub live_updates: Option<bool>,
@@ -52,7 +52,6 @@ pub struct NewArticle {
     pub series: Option<String>,
     pub draft: Option<bool>,
     pub special_page: Option<bool>,
-    pub timeline: Option<bool>,
     pub anchorjs: Option<bool>,
     pub tocify: Option<bool>,
     pub live_updates: Option<bool>,
@@ -69,7 +68,6 @@ impl From<ArticleWithTags> for NewArticle {
             series: article.series,
             draft: article.draft,
             special_page: article.special_page,
-            timeline: article.timeline,
             anchorjs: article.anchorjs,
             tocify: article.tocify,
             live_updates: article.live_updates,
@@ -212,6 +210,8 @@ pub fn scan_articles(pool: DbPool) {
 
     match crate::db::article::get_visible_articles(&mut conn) {
         Ok(articles) => {
+            crate::articles::timeline::update_timeline(&articles);
+
             for article in articles {
                 let article_id = article.id.unwrap();
                 println!(
@@ -244,13 +244,32 @@ pub fn scan_articles(pool: DbPool) {
         Err(_) => { /* Handle errors if necessary */ }
     }
 
-    update_more_recent_article(&mut conn);
+    update_special_pages(&mut conn);
+    update_most_recent_article(&mut conn);
 
     let duration = start_time.elapsed();
     println!("Time taken to execute: {:?}", duration);
 }
 
-pub fn update_more_recent_article(conn: &mut SqliteConnection) {
+pub fn update_special_pages(conn: &mut SqliteConnection) {
+    match crate::db::article::get_special_pages(conn) {
+        Ok(special_pages) => {
+            for article in special_pages {
+                let article_id = article.id.unwrap();
+                println!(
+                    "Writing special_page article {} (id: {}) to disk",
+                    article.clone().dst_file_name,
+                    article_id
+                );
+                write_article_to_disk(conn, &article);
+            }
+        }
+        Err(_) => { /* Handle errors if necessary */ }
+    }
+}
+
+pub fn update_most_recent_article(conn: &mut SqliteConnection) {
+    println!("====== Updating 'more_recent_article' ======");
     match crate::db::article::get_most_recent_article(conn) {
         Ok(article_option) => match article_option {
             Some(article) => {
@@ -299,7 +318,7 @@ fn write_article_to_disk(conn: &mut SqliteConnection, article: &ArticleWithTags)
             .unwrap();
 
             let standalone_html: String =
-                create_html_from_standalone_template(article.clone(), content).unwrap();
+                create_html_from_standalone_template_by_article(article.clone(), content).unwrap();
 
             let mut output_filename = output_path.clone();
             output_filename.push(article.dst_file_name.clone());
@@ -314,7 +333,7 @@ fn write_article_to_disk(conn: &mut SqliteConnection, article: &ArticleWithTags)
     }
 }
 
-fn write_to_disk(content: &String, filename: &PathBuf) {
+pub fn write_to_disk(content: &String, filename: &PathBuf) {
     std::fs::write(filename, content.as_str()).expect("Unable to write HTML file");
 }
 
@@ -380,7 +399,6 @@ fn parse_article(
         series: None,
         draft: None,
         special_page: None,
-        timeline: None,
         anchorjs: Some(true),
         tocify: Some(true),
         live_updates: Some(true),

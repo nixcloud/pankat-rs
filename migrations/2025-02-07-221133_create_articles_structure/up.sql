@@ -8,7 +8,6 @@ CREATE TABLE articles (
   series TEXT,
   draft BOOLEAN,
   special_page BOOLEAN,
-  timeline BOOLEAN,
   anchorjs BOOLEAN,
   tocify BOOLEAN,
   live_updates BOOLEAN
