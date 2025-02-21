@@ -92,17 +92,21 @@ fn series_to_link_list(series: Option<String>) -> String {
     }
 }
 
-fn tag_to_link_list_in_timeline(article: &ArticleWithTags) -> String {
-    let mut output = String::new();
-    if let Some(tags) = &article.tags {
-        for tag in tags {
-            output.push_str(&format!(
-                "<a href=\"timeline.html?filter=tag::{}\" class=\"tagbtn btn btn-primary\">{}</a>",
-                tag, tag
-            ));
+pub fn tag_links_to_timeline(tags: Option<Vec<String>>) -> String {
+    match tags {
+        Some(tags) => {
+            let mut result = String::new();
+            for tag in tags {
+                result.push_str(
+                    &format!(
+                    r#"<a href="timeline.html?filter=tag::{}" class="tagbtn btn btn-primary">{}</a>"#,
+                    tag, tag
+                ));
+            }
+            result
         }
+        None => String::new(),
     }
-    output
 }
 
 fn tag_to_link_list(article: &ArticleWithTags) -> String {
@@ -241,7 +245,7 @@ fn generate_article_references_by_year(articles: &Vec<ArticleWithTags>) -> Strin
                 <div class="timeline-title-timestamp">{{article_date}}</div>
                 <a href="{{dst_file_name}}" style="flex: 1;">open complete article</a>
               </div>
-              <p class="summary">{{{summary}}}</p>
+              <div class="summary">{{{summary}}}</div>
             </div>
             <p class="tag">{{{tagToLinkList}}}{{{seriesToLinkList}}}</p>
           </div>

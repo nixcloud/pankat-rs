@@ -1,7 +1,8 @@
+use crate::articles::timeline::tag_links_to_timeline;
 use crate::articles::ArticleWithTags;
 use crate::config;
 use crate::db::article::ArticleNeighbours;
-use crate::renderer::utils::{date_and_time, tag_links_to_timeline};
+use crate::renderer::utils::date_and_time;
 use handlebars::Handlebars;
 use serde_json::json;
 use std::error::Error;

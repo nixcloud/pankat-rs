@@ -11,7 +11,7 @@ use std::path::PathBuf;
 
 mod plugins;
 mod tests;
-mod timeline;
+pub mod timeline;
 mod utils;
 
 use crate::config;
@@ -335,41 +335,6 @@ fn write_article_to_disk(conn: &mut SqliteConnection, article: &ArticleWithTags)
 
 pub fn write_to_disk(content: &String, filename: &PathBuf) {
     std::fs::write(filename, content.as_str()).expect("Unable to write HTML file");
-}
-
-/// Prettify HTML input
-pub fn prettify(input: &str) -> String {
-    lazy_static! {
-        static ref OPEN_TAG: Regex = Regex::new("(?P<tag><[A-z])").unwrap();
-    }
-
-    // First get all tags on their own lines
-    let mut stage1 = input.to_string();
-    stage1 = stage1.replace("<!--", "\n<!--");
-    stage1 = stage1.replace("-->", "-->\n");
-    stage1 = stage1.replace("</", "\n</");
-    stage1 = OPEN_TAG.replace_all(&stage1, "\n$tag").to_string();
-    stage1 = stage1.trim().to_string();
-
-    // Now fix indentation
-    let mut stage2: Vec<String> = vec![];
-    let mut indent = 0;
-    for line in stage1.split('\n') {
-        let mut post_add = 0;
-        if line.starts_with("</") {
-            indent -= 1;
-        } else if line.ends_with("/>") || line.starts_with("<!DOCTYPE") {
-            // Self-closing, nothing
-            // or DOCTYPE, also nothing
-        } else if line.starts_with('<') {
-            post_add += 1;
-        }
-
-        stage2.push(format!("{}{}", "  ".repeat(indent), line));
-        indent += post_add;
-    }
-
-    stage2.join("\n")
 }
 
 fn parse_article(
