@@ -1,6 +1,7 @@
 /* ============ TIMELINER.JS ============= */
 
 .timeline-title {
+  border-bottom: 2px #E8EFF3 dotted;
   font-size: 30px;
 }
 .timeline-title-timestamp {
@@ -26,6 +27,7 @@
   white-space: nowrap;
 }
 .timeline-wrapper {
+  width: inherit;
   clear: left;
   float: left;
   margin: 0 0 12px;
@@ -49,6 +51,7 @@
   padding: 3px 5px 1px;
 }
 .timeline-series {
+  width: inherit;
   clear: left;
   float: left;
   margin: 0 12px 0 0;
@@ -92,6 +95,7 @@
 
 .posting_div {
   display: none;
+  margin-bottom: 20px;
 }
 
 .timeline-event-content p {
@@ -147,21 +151,9 @@
   padding-left: 25px;
 }
 
-.tag {
-  display: flex
-  flex-wrap: wrap;
-  justify-content: left;
-  gap: 2px;
-  padding-bottom: 30px;
-  padding-top: 3px;
-}
-
 .summary {
   background-color: #F3FAFF;
-  margin: 4px;
-  padding: 4px;
-  padding-left: 10px;
-  padding-right: 10px;
+  padding-bottom: 2px;
   -webkit-border-radius: 4px;
   -moz-border-radius: 4px;
   border-radius: 4px;

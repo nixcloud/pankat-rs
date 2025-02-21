@@ -52,6 +52,7 @@ mod tests {
             PathBuf::from("documents/assets"),
             PathBuf::from("documents"),
             23,
+            "".to_string(),
         );
         config::Config::initialize(config).expect("Failed to initialize config");
 

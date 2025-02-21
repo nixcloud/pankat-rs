@@ -63,6 +63,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .required(true),
         )
         .arg(
+            Arg::new("brand")
+                .short('b')
+                .long("brand")
+                .value_name("URL")
+                .help("A brand name like lastlog.de/blog (default)")
+                .required(false)
+                .default_value("lastlog.de/blog"),
+        )
+        .arg(
             Arg::new("port")
                 .short('p')
                 .long("port")
@@ -78,6 +87,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         std::path::Path::new(matches.get_one::<String>("assets").unwrap()).into(),
         std::path::Path::new(matches.get_one::<String>("database").unwrap()).into(),
         matches.get_one::<String>("port").unwrap().parse().unwrap(),
+        matches.get_one::<String>("brand").unwrap().parse().unwrap(),
     );
     config::Config::initialize(config).expect("Failed to initialize config");
     let cfg = config::Config::get();

@@ -120,6 +120,7 @@ fn tag_to_link_list(article: &ArticleWithTags) -> String {
 
 pub fn update_timeline(articles: &Vec<ArticleWithTags>) -> Result<(), Box<dyn Error>> {
     println!("====== Updating 'timeline' ======");
+    let cfg = config::Config::get();
 
     let html: String = format!(
         r#"
@@ -137,7 +138,7 @@ pub fn update_timeline(articles: &Vec<ArticleWithTags>) -> Result<(), Box<dyn Er
     );
 
     let data: serde_json::Value = json!({
-        "SiteBrandTitle": "Sample Brand", // FIXME
+        "SiteBrandTitle": cfg.brand,
         "Title": "timeline",
         "NavAndContent": html,
         "ArticleSrcURL": "",

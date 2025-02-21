@@ -188,6 +188,13 @@ header.seriesHeader {
     top: 5px;
 }
 
+.tag {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: left;
+  gap: 2px;
+}
+
 .tagbtn {
     padding-right: 2px;
     padding-left: 2px;

@@ -33,7 +33,7 @@ pub fn create_html_from_standalone_template_by_article(
     };
 
     let data: serde_json::Value = json!({
-        "SiteBrandTitle": "Sample Brand",
+        "SiteBrandTitle": cfg.brand,
         "Title": article.title,
         "NavAndContent": html,
         "ArticleSrcURL": relative_path,
@@ -124,7 +124,7 @@ pub fn create_html_from_content_template(
     .to_string();
 
     let tags: String = format!(
-        r#"<div id="tags"><p>{}</p></div>"#,
+        r#"<div class="tag">{}</div>"#,
         tag_links_to_timeline(article.tags)
     )
     .to_string();

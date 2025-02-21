@@ -8,6 +8,7 @@ pub struct Config {
     pub assets: PathBuf,
     pub database: PathBuf,
     pub port: u16,
+    pub brand: String,
 }
 
 impl Config {
@@ -17,6 +18,7 @@ impl Config {
         assets: PathBuf,
         database: PathBuf,
         port: u16,
+        brand: String,
     ) -> Self {
         Config {
             input,
@@ -24,6 +26,7 @@ impl Config {
             assets,
             database,
             port,
+            brand,
         }
     }
 
