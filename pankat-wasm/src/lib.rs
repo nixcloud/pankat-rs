@@ -107,11 +107,11 @@ pub fn foo() {
 #[wasm_bindgen(start)]
 pub fn main_js() -> Result<(), JsValue> {
     console_log::init_with_level(log::Level::Debug).expect("error initializing log");
-    log::info!("WASM hello world");
+    log::info!("Now executing WASM code from lib.rs in pankat_wasm");
 
     spawn_local({
         async move {
-            let id: String = "ws-div".to_string();
+            let id: String = "NavAndContent".to_string();
             let mut dom_updater: DomUpdater = DomUpdater::new(id.clone());
 
             loop {
@@ -124,12 +124,12 @@ pub fn main_js() -> Result<(), JsValue> {
 
                 let host = location.host().unwrap();
                 let websocket_address = format!("{protocol}://{host}/ws");
-                
+
                 match WebSocket::open(&websocket_address) {
                     Ok(ws) => {
                         log::info!("WebSocket connected");
                         let (_write, mut read) = ws.split();
-                        
+
                         while let Some(Ok(msg)) = read.next().await {
                             match msg {
                                 Message::Text(message) => {
@@ -141,7 +141,9 @@ pub fn main_js() -> Result<(), JsValue> {
                                 }
                             }
                         }
-                        log::info!("WebSocket disconnected, attempting to reconnect in 1 second...");
+                        log::info!(
+                            "WebSocket disconnected, attempting to reconnect in 1 second..."
+                        );
                     }
                     Err(e) => {
                         log::error!("Failed to connect: {}", e);
@@ -151,6 +153,7 @@ pub fn main_js() -> Result<(), JsValue> {
 
                 // Wait 1 second before reconnecting
                 gloo_timers::future::sleep(std::time::Duration::from_secs(1)).await;
+                log::info!("trying to reconnect to ws");
             }
         }
     });

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- this document is auto-generated from pankat document editor -->
+<!-- this document is auto-generated from https://github.com/nixcloud/pankat document editor -->
 <html xmlns="http://www.w3.org/1999/xhtml">
 
 <head data-article-dst-filename="{{ArticleDstFileName}}">
@@ -20,10 +20,11 @@
 
 {{#if LiveUpdates}}
 <script type="module">
-    import init from 'assets/pankat-wasm/pankat_wasm.js';
+    import init from '../assets/pankat-wasm/pankat_wasm.js';
     async function run() {
+        console.log("pankat_wasm call to init()!");
         await init();
-        console.log("Hello World from module init context!");
+        console.log("pankat_wasm after init()!");
     }
     run();
 </script>
