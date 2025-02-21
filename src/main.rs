@@ -13,7 +13,7 @@ use axum::{
     Router,
 };
 
-use clap::{Arg, Command};
+use clap::{Arg, ArgAction, Command};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations};
 use std::net::SocketAddr;
 use tokio::signal;
@@ -25,8 +25,7 @@ pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     tracing_subscriber::fmt::init();
-
-    let matches = Command::new("pankat cli")
+    let matches = Command::new("pankat")
         .version(env!("CARGO_PKG_VERSION"))
         .author("Joachim Schiele <js@lastlog.de")
         .about("https://github.com/nixcloud/pankat - static site generator")
@@ -36,15 +35,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .long("input")
                 .value_name("PATH")
                 .help("Absolute path where the media/*.jpg and posts/*.md files of your blog are located")
-                .required(true),
+                .required(true)
         )
         .arg(
             Arg::new("output")
                 .short('o')
                 .long("output")
                 .value_name("PATH")
-                .help("Absolute path, where pankat 'maintains' the generated html files")
-                .required(true),
+                .help("Absolute path, where pankat 'maintains' the generated html files by adding/deleting/updating them")
+                .required(true)
         )
         .arg(
             Arg::new("assets")
@@ -52,7 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .long("assets")
                 .value_name("PATH")
                 .help("An absolute assets path, where js/wasm/css/templates/lua/... files are stored")
-                .required(true),
+                .required(true)
         )
         .arg(
             Arg::new("database")
@@ -60,16 +59,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .long("database")
                 .value_name("PATH")
                 .help("An absolute path where 'only' the database is stored (don't put this into output!)")
-                .required(true),
+                .required(true)
         )
         .arg(
             Arg::new("brand")
                 .short('b')
                 .long("brand")
                 .value_name("URL")
-                .help("A brand name like lastlog.de/blog (default)")
+                .help("A brand name shown on every page top left")
                 .required(false)
-                .default_value("lastlog.de/blog"),
+                .default_value("lastlog.de/blog")
+        )
+        .arg(
+            Arg::new("static")
+                .short('s')
+                .long("static")
+                .help("Only build documents and exit (static blog generator)")
+                .required(false)
+                .action(ArgAction::SetTrue)
         )
         .arg(
             Arg::new("port")
@@ -88,6 +95,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         std::path::Path::new(matches.get_one::<String>("database").unwrap()).into(),
         matches.get_one::<String>("port").unwrap().parse().unwrap(),
         matches.get_one::<String>("brand").unwrap().parse().unwrap(),
+        matches.get_flag("static"),
     );
     config::Config::initialize(config).expect("Failed to initialize config");
     let cfg = config::Config::get();
@@ -98,6 +106,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("Assets Path: {:?}", cfg.assets);
     println!("Database Path: {:?}", cfg.database);
     println!("Port Number: {}", cfg.port);
+    println!("Brand: {}", cfg.brand);
+    println!("Static build only: {}", cfg.static_build_only);
     println!("-------------------------------------------------");
 
     // Setup broadcast channel for shutdown coordination
@@ -151,6 +161,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     };
 
     articles::scan_articles(pool);
+
+    if cfg.static_build_only {
+        println!("Static build only, exiting...");
+        return Ok(());
+    }
 
     // Start server with graceful shutdown
     println!("Press Ctrl+C to stop the server...");

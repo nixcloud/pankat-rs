@@ -9,6 +9,7 @@ pub struct Config {
     pub database: PathBuf,
     pub port: u16,
     pub brand: String,
+    pub static_build_only: bool,
 }
 
 impl Config {
@@ -19,6 +20,7 @@ impl Config {
         database: PathBuf,
         port: u16,
         brand: String,
+        static_build_only: bool,
     ) -> Self {
         Config {
             input,
@@ -27,6 +29,7 @@ impl Config {
             database,
             port,
             brand,
+            static_build_only,
         }
     }
 

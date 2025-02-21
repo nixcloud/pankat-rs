@@ -4,7 +4,6 @@ use crate::db::article::{
 use crate::db::cache::{compute_hash, get_cache, set_cache};
 use crate::db::DbPool;
 
-use lazy_static::lazy_static;
 use regex::Regex;
 use std::error::Error;
 use std::path::PathBuf;
@@ -210,7 +209,7 @@ pub fn scan_articles(pool: DbPool) {
 
     match crate::db::article::get_visible_articles(&mut conn) {
         Ok(articles) => {
-            crate::articles::timeline::update_timeline(&articles);
+            let _ = crate::articles::timeline::update_timeline(&articles);
 
             for article in articles {
                 let article_id = article.id.unwrap();
