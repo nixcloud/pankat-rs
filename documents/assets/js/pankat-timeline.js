@@ -33,16 +33,17 @@ var setFilter = function(filter, addHistory) {
         var identifier = filter.split("::")[1]
     } catch(e) {
         console.log("removing filter selection because of split error handling")
-        for (i=0; i < MetaData.ArticleCount; i++) {
-            var n = ".posting_" + i;
-            $(n).css('display', 'block');
-        }
+        var timelineEvents = document.querySelectorAll('.posting_div');
+        timelineEvents.forEach(function(e) {
+            $(e).css('display', 'block');
+        });
         if (addHistory === 1) {
             history.pushState('', '',  window.location.pathname);
         }
         return
     }
     // hide all years
+    console.log("a filter was set")
     $(".pankat_year").css('display', 'none');
     if (type == "tag" && typeof(MetaData.Tags[identifier]) !== "undefined") {
         selection = MetaData.Tags[identifier]
@@ -50,10 +51,10 @@ var setFilter = function(filter, addHistory) {
         selection = MetaData.Series[identifier]
     } else {
         console.log("removing filter selection")
-        for (i=0; i < MetaData.ArticleCount; i++) {
-            var n = ".posting_" + i;
-            $(n).css('display', 'block');
-        }
+        var timelineEvents = document.querySelectorAll('.posting_div');
+        timelineEvents.forEach(function(e) {
+            $(e).css('display', 'block');
+        });
         $(".pankat_year").css('display', 'block');
         if (addHistory === 1) {
             history.pushState('', '',  window.location.pathname);
@@ -61,33 +62,34 @@ var setFilter = function(filter, addHistory) {
         return
     }
 
+    var timelineEvents = document.querySelectorAll('.posting_div');
+    timelineEvents.forEach(function(e) {
+        $(e).css('display', 'none');
+    });
+
     //console.log(selection, type, identifier)
 
-    for (i=0; i < MetaData.ArticleCount; i++) {
-        var n = ".posting_" + i;
-        if (selection.includes(i)) {
-            //console.log("show", n)
-            $(n).css('display', 'block');
-            // show respective year
-            Object.keys(MetaData.Years).forEach(function(key, index) {
-                MetaData.Years[key].forEach(function(article) {
-                    if (article === i) {
-                        year = parseInt(key);
-                        var n = ".pankat_year_" + year;
-                        console.log("Showing year with jquery class: ",  n)
+    // Loop over the selection array
+    for (let s of selection) {
+        var n = ".posting_" + s;
+        // Show selected posts
+        $(n).css('display', 'block');
+        // Show respective year
+        Object.keys(MetaData.Years).forEach(function(key, index) {
+            MetaData.Years[key].forEach(function(article) {
+                if (article === s) {
+                    year = parseInt(key);
+                    let n = ".pankat_year_" + year;
+                    //console.log("Showing year with jquery class: ",  n);
 
-                        $(n).css('display', 'block');
-                        var n = ".pankat_year_" + (year + 1);
-                        $(n).css('display', 'block');
-                        console.log("Showing year with jquery class: ",  n)
+                    $(n).css('display', 'block');
+                    n = ".pankat_year_" + (year + 1);
+                    $(n).css('display', 'block');
+                    //console.log("Showing year with jquery class: ",  n);
 
-                    }
-                })
+                }
             });
-        } else {
-            //console.log("hide", n)
-            $(n).css('display', 'none');
-        }
+        });
     }
 
     if (addHistory === 1) {

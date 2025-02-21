@@ -407,6 +407,9 @@ fn parse_article(
     let article_mdwn_raw_string = std::fs::read_to_string(article_path).unwrap();
     match eval_plugins(&article_mdwn_raw_string, &mut new_article) {
         Ok(article_mdwn_refined_source) => {
+            if new_article.special_page == Some(true) {
+                new_article.tocify = None;
+            }
             let hash: String = compute_hash(article_mdwn_refined_source.clone());
             // println!(
             //     "relative_article_path_string.clone(): {}",

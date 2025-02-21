@@ -1,6 +1,7 @@
 use crate::articles::ArticleWithTags;
 use crate::config;
 use serde_json::json;
+
 use std::collections::HashMap;
 use std::error::Error;
 use std::path::PathBuf;
@@ -18,9 +19,13 @@ fn create_json_metadata(articles: &Vec<ArticleWithTags>) -> String {
 
 #[derive(Debug, serde::Serialize)]
 struct MetaData {
+    #[serde(rename = "ArticleCount")]
     article_count: usize,
+    #[serde(rename = "Tags")]
     tags: HashMap<String, Vec<usize>>,
+    #[serde(rename = "Series")]
     series: HashMap<String, Vec<usize>>,
+    #[serde(rename = "Years")]
     years: HashMap<usize, Vec<usize>>,
 }
 
@@ -30,7 +35,7 @@ impl MetaData {
         let mut series_map: HashMap<String, Vec<usize>> = HashMap::new();
         let mut years_map: HashMap<usize, Vec<usize>> = HashMap::new();
 
-        for (i, article) in articles.iter().enumerate() {
+        for article in articles {
             let year = match article.modification_date {
                 Some(m_date) => m_date
                     .format("%Y")
@@ -39,12 +44,18 @@ impl MetaData {
                     .unwrap_or(0),
                 None => 0,
             };
-            years_map.entry(year).or_insert_with(Vec::new).push(i);
+            years_map
+                .entry(year)
+                .or_insert_with(Vec::new)
+                .push(article.id.unwrap() as usize);
 
             match &article.tags {
                 Some(tags) => {
                     for tag in tags {
-                        tags_map.entry(tag.clone()).or_insert_with(Vec::new).push(i);
+                        tags_map
+                            .entry(tag.clone())
+                            .or_insert_with(Vec::new)
+                            .push(article.id.unwrap() as usize);
                     }
                 }
                 None => {}
@@ -55,7 +66,7 @@ impl MetaData {
                     series_map
                         .entry(series.clone())
                         .or_insert_with(Vec::new)
-                        .push(i);
+                        .push(article.id.unwrap() as usize);
                 }
             }
         }
@@ -182,10 +193,10 @@ fn create_timeline_container(articles: &Vec<ArticleWithTags>) -> String {
     );
 
     for &year in &keys {
-        page_content.push_str(&genYear(year, &years_map[&year]));
+        page_content.push_str(&generate_year(year, &years_map[&year]));
         let y: usize = year - 1;
         if !years_map.contains_key(&y) {
-            page_content.push_str(&genYear(y, &Vec::new()));
+            page_content.push_str(&generate_year(y, &Vec::new()));
         }
     }
 
@@ -198,19 +209,19 @@ fn create_timeline_container(articles: &Vec<ArticleWithTags>) -> String {
     page_content
 }
 
-fn genYear(year: usize, articles: &Vec<ArticleWithTags>) -> String {
+fn generate_year(year: usize, articles: &Vec<ArticleWithTags>) -> String {
     let template = r#"
         <div class="timeline-wrapper pankat_year pankat_year_{{Year}}">
           <dl class="timeline-series">
             <h2 class="timeline-time"><span>{{Year}}</span></h2>
-              {{{genTimelineseries}}}
+              {{{generate_article_references_by_year}}}
           </dl><!-- /.timeline-series -->
         </div><!-- /.timeline-wrapper -->
         "#;
 
     let context = json!({
         "Year": year+1,
-        "genTimelineseries": genTimelineseries(articles),
+        "generate_article_references_by_year": generate_article_references_by_year(articles),
     });
 
     mustache::compile_str(template)
@@ -219,24 +230,30 @@ fn genYear(year: usize, articles: &Vec<ArticleWithTags>) -> String {
         .expect("Failed to render template")
 }
 
-fn genTimelineseries(articles: &Vec<ArticleWithTags>) -> String {
+fn generate_article_references_by_year(articles: &Vec<ArticleWithTags>) -> String {
     let template = r#"
-          <dt class="timeline-event posting_{{articleCount}}">{{article_title}}</dt>
-          <dd class="timeline-event-content posting_{{articleCount}}" style="display: block;">
-          <div class="postingsEntry">
-            <p class="summary">{{{summary}}} <a href="{{dst_file_name}}">open complete article</a></p>
+        <div class="posting_div posting_{{article_id}}">
+          <div class="timeline-event-content postingsEntry">
+            <div>
+              <div class="timeline-title">{{article_title}}</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                <div class="timeline-title-timestamp">{{article_date}}</div>
+                <a href="{{dst_file_name}}" style="flex: 1;">open complete article</a>
+              </div>
+              <p class="summary">{{{summary}}}</p>
+            </div>
             <p class="tag">{{{tagToLinkList}}}{{{seriesToLinkList}}}</p>
           </div>
-          <br class="clear">
-          </dd><!-- /.timeline-event-content -->
+        </div>
         "#;
 
     let mut output: String = String::new();
 
     for article in articles {
         let context = json!({
-            "articleCount": articles.len(),
+            "article_id": article.id.unwrap() as usize,
             "article_title": article.title,
+            "article_date": crate::renderer::utils::date_and_time(&article.modification_date),
             "summary": article.summary,
             "dst_file_name": article.dst_file_name,
             "tagToLinkList": tag_to_link_list(article),
@@ -276,7 +293,6 @@ fn create_filter_control(articles: &Vec<ArticleWithTags>) -> String {
         }
     }
 
-    // Sort the tags
     let tags_slice = rank_by_word_count(&tags_map);
 
     let mut page_content = String::new();
@@ -302,7 +318,7 @@ fn create_filter_control(articles: &Vec<ArticleWithTags>) -> String {
     );
 
     page_content.push_str("<p id=\"tagCloud\">");
-    for (tag, pos) in tags_slice.iter() {
+    for (tag, _) in tags_slice.iter() {
         page_content.push_str(&format!(
             "<a class=\"tagbtn btn btn-primary\" onClick=\"setFilter('tag::{}', 1)\">{}</a>",
             tag, tag
@@ -313,7 +329,7 @@ fn create_filter_control(articles: &Vec<ArticleWithTags>) -> String {
     let series_slice = rank_by_word_count(&series_map);
 
     page_content.push_str("<p id=\"seriesCloud\">");
-    for (series, pos) in series_slice.iter() {
+    for (series, _) in series_slice.iter() {
         page_content.push_str(&format!(
             "<a class=\"seriesbtn btn btn-primary\" onClick=\"setFilter('series::{}', 1)\">{}</a>",
             series, series

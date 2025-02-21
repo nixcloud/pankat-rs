@@ -1,5 +1,13 @@
 /* ============ TIMELINER.JS ============= */
 
+.timeline-title {
+  font-size: 30px;
+}
+.timeline-title-timestamp {
+  color: grey;
+  margin-left: 20px;
+  
+}
 .timeline-container {
   border-left: 2px solid #ccc;
   width: 97%;
@@ -23,7 +31,6 @@
   margin: 0 0 12px;
 }
 .timeline-wrapper h2 {
-  background: url(../images/timeline_century_tick.gif) left center no-repeat;
 /*   font-family: Palatino, "Times New Roman", Times, serif; */
 /*  cursor: pointer; */
   font-size: 3em;
@@ -50,7 +57,6 @@
 /*   width: 880px; */
 }
 .timeline-series dt {
-  background: url(../images/timeline_decade_tick.gif) left center no-repeat;
   clear: left;
   font-size: 1.6em;
   list-style-type: none;
@@ -83,12 +89,14 @@
   margin: 0;
   white-space: nowrap;
 }
-.timeline-event-content {
+
+.posting_div {
   display: none;
 }
+
 .timeline-event-content p {
-  clear: left;
-  float: left;
+  display: flex;
+  align-items: center;
   line-height: 1.5em;
 }
 
@@ -140,7 +148,11 @@
 }
 
 .tag {
-  padding-bottom: 30px; 
+  display: flex
+  flex-wrap: wrap;
+  justify-content: left;
+  gap: 2px;
+  padding-bottom: 30px;
   padding-top: 3px;
 }
 
@@ -153,6 +165,15 @@
   -webkit-border-radius: 4px;
   -moz-border-radius: 4px;
   border-radius: 4px;
+}
+
+#tagCloud {
+  text-align: center;
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
 }
 
 #FilterControl {
