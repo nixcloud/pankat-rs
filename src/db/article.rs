@@ -411,11 +411,18 @@ fn tag_difference<'a>(
         .collect()
 }
 
+#[derive(Debug, PartialEq)]
+pub struct DbReply {
+    pub most_recent_article_change: Option<i32>,
+    pub affected_articles: HashSet<i32>,
+    pub article_id: i32,
+}
+
 // func (a *ArticlesDb) Set(article *Article) (*Article, []string, error) {
 pub fn set(
     conn: &mut SqliteConnection,
     new_article_with_tags: &ArticleWithTags,
-) -> Result<HashSet<i32>, diesel::result::Error> {
+) -> Result<DbReply, diesel::result::Error> {
     let new_article: NewArticle = new_article_with_tags.clone().into();
     let new_tags: Option<Vec<String>> = new_article_with_tags.tags.clone();
     if new_article_with_tags.src_file_name.is_empty() {
@@ -504,9 +511,14 @@ pub fn set(
                     .execute(conn);
             }
 
-            let affected_articles = affected_articles_before.diff(&affected_articles_after);
-            //affected_articles.remove(&existing_article_id);
-            Ok(affected_articles)
+            let (most_recent_article_change, affected_articles) =
+                affected_articles_before.diff(&affected_articles_after);
+            let db_reply = DbReply {
+                article_id: existing_article_id,
+                most_recent_article_change,
+                affected_articles,
+            };
+            Ok(db_reply)
         } else {
             let most_recent_article = match get_most_recent_article(conn) {
                 Ok(article_option) => article_option,
@@ -559,23 +571,35 @@ pub fn set(
                     }
                     let affected_articles_after: AllArticleNeighbours =
                         get_neighbours_helper(conn, article_id).unwrap();
-                    let affected_articles = affected_articles_before.diff(&affected_articles_after);
-                    return Ok(affected_articles);
+
+                    let (most_recent_article_change, affected_articles) =
+                        affected_articles_before.diff(&affected_articles_after);
+                    Ok(DbReply {
+                        article_id,
+                        most_recent_article_change,
+                        affected_articles,
+                    })
                 }
                 Err(e) => {
                     println!("Error on creating article: {:?}", e);
                     return Err(e);
                 }
-            };
+            }
         }
     })
+}
+
+#[derive(Debug, PartialEq)]
+pub struct DbReplyDelete {
+    pub most_recent_article_change: Option<i32>,
+    pub affected_articles: HashSet<i32>,
 }
 
 // func (a *ArticlesDb) Del(SrcFileName string) ([]string, error) {
 pub fn del_by_src_file_name(
     conn: &mut SqliteConnection,
     src_file_name: String,
-) -> Result<HashSet<i32>, diesel::result::Error> {
+) -> Result<DbReplyDelete, diesel::result::Error> {
     let res: QueryResult<i32> = articles_table
         .filter(articles_objects::src_file_name.eq(src_file_name.clone()))
         .select(articles_objects::id)
@@ -586,6 +610,7 @@ pub fn del_by_src_file_name(
         Err(e) => Err(e),
     }
 }
+
 fn get_neighbours_helper(
     conn: &mut SqliteConnection,
     id: i32,
@@ -615,7 +640,7 @@ fn get_neighbours_helper(
 pub fn del_by_id(
     conn: &mut SqliteConnection,
     id: i32,
-) -> Result<HashSet<i32>, diesel::result::Error> {
+) -> Result<DbReplyDelete, diesel::result::Error> {
     let affected_articles_before: AllArticleNeighbours = get_neighbours_helper(conn, id).unwrap();
     //println!("{:#?}", affected_articles_before);
     let num_deleted =
@@ -632,9 +657,17 @@ pub fn del_by_id(
             let mut affected_articles_after: AllArticleNeighbours = AllArticleNeighbours::new();
             affected_articles_after.most_recent_article = most_recent_article;
             //println!("{:#?}", affected_articles_after);
-            let mut affected_articles = affected_articles_before.diff(&affected_articles_after);
+            let diff_result = affected_articles_before.diff(&affected_articles_after);
+
+            let most_recent_article_change = diff_result.0;
+            let mut affected_articles = diff_result.1;
             affected_articles.remove(&id);
-            Ok(affected_articles)
+
+            let db_reply = DbReplyDelete {
+                most_recent_article_change,
+                affected_articles,
+            };
+            Ok(db_reply)
         }
         Err(e) => Err(e),
     }
@@ -698,8 +731,17 @@ impl AllArticleNeighbours {
         }
     }
 
-    pub fn diff(&self, other: &AllArticleNeighbours) -> HashSet<i32> {
+    pub fn diff(&self, other: &AllArticleNeighbours) -> (Option<i32>, HashSet<i32>) {
         let mut differences = HashSet::new();
+        let most_recent_article_change: Option<i32> =
+            if self.most_recent_article != other.most_recent_article {
+                match &other.most_recent_article {
+                    Some(article) => Some(article.id.unwrap()),
+                    None => None,
+                }
+            } else {
+                None
+            };
 
         if self.most_recent_article != other.most_recent_article {
             if let Some(article) = &self.most_recent_article {
@@ -718,7 +760,7 @@ impl AllArticleNeighbours {
         {
             differences.insert(id);
         }
-        differences
+        (most_recent_article_change, differences)
     }
 }
 

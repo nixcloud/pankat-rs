@@ -1,9 +1,9 @@
 use crate::config;
 use diesel::prelude::*;
-use diesel::r2d2::{self, ConnectionManager};
 use std::path::Path;
 use std::path::PathBuf;
 
+use diesel::r2d2::{self, ConnectionManager};
 pub type DbPool = r2d2::Pool<ConnectionManager<SqliteConnection>>;
 
 pub mod article;

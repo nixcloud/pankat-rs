@@ -1,13 +1,40 @@
-//use crate::registry::PubSubRegistry;
+use crate::registry::PubSubRegistry;
+use diesel::prelude::*;
+use diesel::r2d2::{self, ConnectionManager};
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc, Mutex};
 use tokio::task::JoinHandle;
+pub type DbPool = r2d2::Pool<ConnectionManager<SqliteConnection>>;
+
+#[derive(Debug, Clone)]
+pub struct PankatFileMonitorEvent {
+    pub kind: EventKind,
+    pub path: PathBuf,
+}
+
+impl PartialEq for PankatFileMonitorEvent {
+    fn eq(&self, other: &Self) -> bool {
+        //println!("Comparing {:?} to {:?}", self, other);
+        self.path == other.path
+    }
+}
+
+impl std::hash::Hash for PankatFileMonitorEvent {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        //println!("Hashing {:?}", self);
+        self.path.hash(state);
+    }
+}
+
+impl Eq for PankatFileMonitorEvent {}
 
 const DEFAULT_CHANNEL_CAPACITY: usize = 100;
 
 pub fn spawn_async_monitor(
+    pool: DbPool,
     path: impl AsRef<Path>,
     mut shutdown_rx: broadcast::Receiver<()>,
 ) -> Result<JoinHandle<()>, Box<dyn std::error::Error + Send + Sync>> {
@@ -40,7 +67,7 @@ pub fn spawn_async_monitor(
             _ = async {
                 while let Some(event) = rx.recv().await {
                     match event {
-                        Ok(event) => handle_event(&event),
+                        Ok(event) => handle_event(&pool, &event),
                         Err(e) => eprintln!("Watch error: {:?}", e),
                     }
                 }
@@ -61,46 +88,65 @@ pub fn spawn_async_monitor(
     Ok(handle)
 }
 
-fn handle_event(event: &Event) {
+fn handle_event(pool: &DbPool, event: &Event) {
+    let cfg = crate::config::Config::get();
+    let input_path: PathBuf = cfg.input.clone();
+
     let event_type = match event.kind {
         EventKind::Create(_) => "📝 created",
         EventKind::Modify(_) => "✏️ modified",
         EventKind::Remove(_) => "🗑️ removed",
-        _ => return, // Ignore other events
+        _ => return,
     };
 
     for path in &event.paths {
         if let Some(extension) = path.extension() {
             if extension == "mdwn" {
                 if let Ok(relative_path) = path.strip_prefix(std::env::current_dir().unwrap()) {
-                    println!("  📍 Path: {} was {}", relative_path.display(), event_type);
-                    let path_string = path.to_string_lossy().into_owned();
-                    debounce(path_string);
+                    let relative_article_path: PathBuf = relative_path
+                        .strip_prefix(input_path.clone())
+                        .unwrap()
+                        .to_path_buf();
+                    // println!(
+                    //     "  📍 Path: {} was {}",
+                    //     relative_article_path.display(),
+                    //     event_type
+                    // );
+
+                    let pankat_event: PankatFileMonitorEvent = PankatFileMonitorEvent {
+                        kind: event.kind,
+                        path: relative_article_path.to_path_buf(),
+                    };
+                    debounce(pool, pankat_event);
                 }
             }
         }
     }
 }
 
-fn debounce(input: String) {
+fn debounce(pool: &DbPool, pankat_event: PankatFileMonitorEvent) {
     // Debounce logic
     use std::collections::HashMap;
     use std::sync::Mutex;
     use std::time::Instant;
     use tokio::time::{sleep, Duration};
-    //let news_sender = PubSubRegistry::instance().register_sender("news".to_string());
+    let news_sender = PubSubRegistry::instance().register_sender("news".to_string());
     lazy_static::lazy_static! {
-        static ref EVENT_CACHE: Mutex<HashMap<String, Instant>> = Mutex::new(HashMap::new());
+        static ref EVENT_CACHE: Mutex<HashMap<PankatFileMonitorEvent, Instant>> = Mutex::new(HashMap::new());
     }
 
     const DEBOUNCE_DURATION: Duration = Duration::from_millis(50);
 
     {
         let mut cache = EVENT_CACHE.lock().unwrap();
-        if !cache.contains_key(&input) {
-            cache.insert(input.clone(), Instant::now() + DEBOUNCE_DURATION);
+        if !cache.contains_key(&pankat_event) {
+            cache.insert(pankat_event.clone(), Instant::now() + DEBOUNCE_DURATION);
         }
     }
+
+    let mut conn = pool
+        .get()
+        .expect("Failed to get a connection from the pool");
 
     tokio::spawn(async move {
         loop {
@@ -113,19 +159,20 @@ fn debounce(input: String) {
             };
 
             match next_event {
-                Some((key, instant)) => {
+                Some((event, instant)) => {
                     let now = Instant::now();
                     if instant <= now {
                         // Remove the entry
                         {
                             let mut cache = EVENT_CACHE.lock().unwrap();
-                            cache.remove(&key);
+                            cache.remove(&event);
                         }
-                        todo!()
-                        // println!("Processing cached event for: {}", key);
-                        // if let Ok(result) = render_file(key) {
-                        //     let _ = news_sender.send(result);
-                        // }
+                        println!("Processing cached event for: {}", event.path.display());
+                        if let Ok(result) =
+                            crate::articles::file_monitor_articles_change(&mut conn, &event)
+                        {
+                            //let _ = news_sender.send("<b>hello world</b>".to_string());
+                        }
                     } else {
                         let duration = instant.duration_since(now);
                         sleep(duration).await;

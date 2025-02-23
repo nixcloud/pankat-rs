@@ -72,9 +72,9 @@ mod tests {
         assert!(ret.is_ok());
 
         match ret {
-            Ok(affected_articles) => {
+            Ok(db_reply) => {
                 let assumed_result: HashSet<i32> = vec![2].into_iter().collect();
-                assert_eq!(affected_articles, assumed_result);
+                assert_eq!(db_reply.affected_articles, assumed_result);
             }
             Err(e) => {
                 println!("Error: {}", e);
@@ -180,9 +180,9 @@ mod tests {
         assert!(ret.is_ok());
 
         match ret {
-            Ok(affected_articles) => {
+            Ok(db_reply) => {
                 let assumed_result: HashSet<i32> = vec![1, 3].into_iter().collect();
-                assert_eq!(affected_articles, assumed_result);
+                assert_eq!(db_reply.affected_articles, assumed_result);
             }
             Err(e) => {
                 println!("Error: {}", e);

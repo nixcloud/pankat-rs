@@ -7,7 +7,7 @@ copy-pankat-wasm:
 build-backend:
   cargo build
 
-run: build-backend
+run: build-backend copy-pankat-wasm
   cargo run -- --input documents/lastlog.de --output documents/output/ --assets documents/assets/ --database documents/
 
 run-all: build-pankat-wasm copy-pankat-wasm build-backend

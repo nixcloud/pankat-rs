@@ -27,7 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     tracing_subscriber::fmt::init();
     let matches = Command::new("pankat")
         .version(env!("CARGO_PKG_VERSION"))
-        .author("Joachim Schiele <js@lastlog.de")
+        .author("Joachim Schiele <js@lastlog.de>")
         .about("https://github.com/nixcloud/pankat - static site generator")
         .arg(
             Arg::new("input")
@@ -114,12 +114,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let (shutdown_tx, _) = broadcast::channel::<()>(1);
     let shutdown_rx = shutdown_tx.subscribe();
 
-    // Initialize file monitoring
-    let monitor_handle = file_monitor::spawn_async_monitor(cfg.input.clone(), shutdown_rx)
-        .map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(e))?;
-
     // Initialize SQLite database with Diesel
     let pool = db::establish_connection_pool();
+
+    // Initialize file monitoring
+    let monitor_handle =
+        file_monitor::spawn_async_monitor(pool.clone(), cfg.input.clone(), shutdown_rx)
+            .map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(e))?;
 
     // Create router
     let app = Router::new()

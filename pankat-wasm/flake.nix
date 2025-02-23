@@ -37,15 +37,16 @@
 
           devShells.default = mkShell {
             buildInputs = [
-              #cmake
+              nushell
+              just
               rust
+              binaryen                 # required to minify WASM files with wasm-opt
+              wasm-pack
+              #cmake
               #clang
               #trunk                    # required to bundle the frontend
-              #binaryen                 # required to minify WASM files with wasm-opt
               #git
-              #just                     # task runner
               #nodejs                   # required to install tailwind plugins
-              #wasm-pack
             ];
           };
         }

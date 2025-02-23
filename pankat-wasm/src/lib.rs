@@ -98,23 +98,21 @@ impl DomUpdater {
     }
 }
 
-#[wasm_bindgen]
-pub fn foo() {
-    //console_log::init_with_level(log::Level::Debug).expect("error initializing log");
-    log::info!("Hello, world!");
-}
-
 #[wasm_bindgen(start)]
 pub fn main_js() -> Result<(), JsValue> {
-    console_log::init_with_level(log::Level::Debug).expect("error initializing log");
+    console_log::init_with_level(log::Level::Info).expect("error initializing log");
     log::info!("Now executing WASM code from lib.rs in pankat_wasm");
 
     spawn_local({
         async move {
+            //log::info!("spawn_local");
+
             let id: String = "NavAndContent".to_string();
             let mut dom_updater: DomUpdater = DomUpdater::new(id.clone());
 
             loop {
+                log::info!("spawn_local");
+
                 let location = window().location();
                 let protocol = if location.protocol().unwrap() == "https:" {
                     "wss"
@@ -123,18 +121,20 @@ pub fn main_js() -> Result<(), JsValue> {
                 };
 
                 let host = location.host().unwrap();
-                let websocket_address = format!("{protocol}://{host}/ws");
+                let websocket_address = format!("{protocol}://{host}/api/ws");
 
                 match WebSocket::open(&websocket_address) {
                     Ok(ws) => {
-                        log::info!("WebSocket connected");
                         let (_write, mut read) = ws.split();
 
                         while let Some(Ok(msg)) = read.next().await {
                             match msg {
                                 Message::Text(message) => {
                                     log::info!("Received WS message");
-                                    dom_updater.update(format!("<div>{}</div>", message));
+                                    dom_updater.update(format!(
+                                        r#"<div class="article">{}</div>"#,
+                                        message
+                                    ));
                                 }
                                 Message::Bytes(_) => {
                                     log::warn!("Binary messages are not supported yet");
@@ -153,7 +153,7 @@ pub fn main_js() -> Result<(), JsValue> {
 
                 // Wait 1 second before reconnecting
                 gloo_timers::future::sleep(std::time::Duration::from_secs(1)).await;
-                log::info!("trying to reconnect to ws");
+                // log::info!("trying to reconnect to ws");
             }
         }
     });

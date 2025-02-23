@@ -218,25 +218,6 @@ pub fn scan_articles(pool: DbPool) {
                     article.clone().dst_file_name,
                     article_id
                 );
-                // let res = get_prev_and_next_article(&mut conn, article_id);
-                // match res {
-                //     Ok(article_neighbours) => {
-                //         println!(
-                //             "  -- prev: {}, next: {}",
-                //             match article_neighbours.prev {
-                //                 Some(x) => x.id.unwrap(),
-                //                 None => -1,
-                //             },
-                //             match article_neighbours.next {
-                //                 Some(x) => x.id.unwrap(),
-                //                 None => -1,
-                //             }
-                //         );
-                //     }
-                //     Err(e) => {
-                //         println!("Error: {}", e);
-                //     }
-                // }
                 write_article_to_disk(&mut conn, &article);
             }
         }
@@ -248,6 +229,42 @@ pub fn scan_articles(pool: DbPool) {
 
     let duration = start_time.elapsed();
     println!("Time taken to execute: {:?}", duration);
+}
+
+pub fn file_monitor_articles_change(
+    conn: &mut SqliteConnection,
+    event: &crate::file_monitor::PankatFileMonitorEvent,
+) -> Result<String, diesel::result::Error> {
+    //-> Result<(ArticleWithTags, String), Box<dyn Error>> {
+    use notify::EventKind;
+    match event.kind {
+        EventKind::Create(_) | EventKind::Modify(_) => {
+            println!(
+                "📝 created / ✏️ modified called on {}",
+                event.path.display()
+            );
+
+            // match parse_article(conn, &path, &input_path) {
+            //     Ok(article) => {
+            //         //println!("Parsed article: {:#?}", article);
+            //         let r: DbReply = crate::db::article::set(conn, &article);
+            //         write_article_to_disk(&mut conn, &article);
+
+            //     }
+            // }
+        }
+        EventKind::Remove(_) => {
+            println!("🗑️ removed called on {}", event.path.display());
+            let res =
+                crate::db::article::del_by_src_file_name(conn, event.path.display().to_string());
+            match res {
+                Ok(_) => {}
+                Err(_) => {}
+            };
+        }
+        _ => {} //Err(Error::new("asdf")), // Ignore other events
+    };
+    Ok("".to_string())
 }
 
 pub fn update_special_pages(conn: &mut SqliteConnection) {

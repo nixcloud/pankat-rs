@@ -30,9 +30,9 @@ mod tests {
         let ret = set(&mut conn, &article_with_tags1);
 
         match ret {
-            Ok(affected_articles) => {
+            Ok(db_reply) => {
                 let assumed_result: HashSet<i32> = vec![1].into_iter().collect();
-                assert_eq!(affected_articles, assumed_result);
+                assert_eq!(db_reply.affected_articles, assumed_result);
             }
             Err(e) => {
                 panic!("Failed to set article with tags: {}", e);
@@ -90,9 +90,9 @@ mod tests {
         let res = set(&mut conn, &article_with_tags1);
 
         match res {
-            Ok(affected_articles) => {
+            Ok(db_reply) => {
                 let assumed_result: HashSet<i32> = vec![1].into_iter().collect();
-                assert_eq!(affected_articles, assumed_result);
+                assert_eq!(db_reply.affected_articles, assumed_result);
             }
             Err(_) => {}
         }
@@ -118,9 +118,9 @@ mod tests {
         let res = set(&mut conn, &article_with_tags2);
 
         match res {
-            Ok(affected_articles) => {
+            Ok(db_reply) => {
                 let assumed_result: HashSet<i32> = vec![1].into_iter().collect();
-                assert_eq!(affected_articles, assumed_result);
+                assert_eq!(db_reply.affected_articles, assumed_result);
             }
             Err(_) => {}
         }
@@ -324,9 +324,9 @@ mod tests {
 
         let ret = set(&mut conn, &article_with_tags3_update);
         match ret {
-            Ok(affected_articles) => {
+            Ok(db_reply) => {
                 let assumed_result: HashSet<i32> = vec![4, 2].into_iter().collect();
-                assert_eq!(affected_articles, assumed_result);
+                assert_eq!(db_reply.affected_articles, assumed_result);
             }
             Err(_) => {}
         }
