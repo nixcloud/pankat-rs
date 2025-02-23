@@ -236,7 +236,7 @@ pub fn scan_articles(pool: DbPool) {
 pub fn file_monitor_articles_change(
     conn: &mut SqliteConnection,
     event: &crate::file_monitor::PankatFileMonitorEvent,
-) -> Result<String, diesel::result::Error> {
+) -> Result<String, String> {
     //-> Result<(ArticleWithTags, String), Box<dyn Error>> {
     use notify::EventKind;
     match event.kind {
@@ -247,27 +247,23 @@ pub fn file_monitor_articles_change(
             );
             match parse_article(conn, &event.path) {
                 Ok(article) => {
-                    println!("Parsed article: {:#?}", article);
+                    //println!("Parsed article: {:#?}", article);
                     let reply = crate::db::article::set(conn, &article);
                     match reply {
-                        Ok(db_reply) => {
-                            println!("Writing article to disk");
+                        Ok(_) => {
+                            //println!("Writing article to disk");
                             match crate::db::cache::get_cache(conn, article.src_file_name) {
                                 Some(cache) => {
-                                    println!("cache");
-                                    cache
+                                    //println!("cache: {}", cache.html);
+                                    Ok(cache.html)
                                 }
-                                None => {
-                                    todo!() // FIXME
-                                }
+                                None => Err("Error loading cache for Article".to_string()),
                             }
                         }
-                        Err(e) => {
-                            todo!()
-                        }
-                    };
+                        Err(e) => Err("FIXME".to_string()),
+                    }
                 }
-                Err(e) => {}
+                Err(e) => Err("FIXME".to_string()),
             }
         }
         EventKind::Remove(_) => {
@@ -275,15 +271,12 @@ pub fn file_monitor_articles_change(
             let res =
                 crate::db::article::del_by_src_file_name(conn, event.path.display().to_string());
             match res {
-                Ok(_) => {
-                    todo!()
-                }
-                Err(_) => {}
-            };
+                Ok(_) => Err("FIXME".to_string()),
+                Err(_) => Err("FIXME".to_string()),
+            }
         }
-        _ => {} //Err(Error::new("asdf")), // Ignore other events
-    };
-    Ok("".to_string())
+        _ => Err("file_monitor_articles_change: Unknown event type".to_string()),
+    }
 }
 
 pub fn update_special_pages(conn: &mut SqliteConnection) {

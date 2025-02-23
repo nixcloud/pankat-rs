@@ -170,10 +170,8 @@ fn debounce(pool: &DbPool, pankat_event: PankatFileMonitorEvent) {
                         println!("Processing cached event for: {}", event.path.display());
                         match crate::articles::file_monitor_articles_change(&mut conn, &event) {
                             Ok(html) => {
-                                let _ = {
-                                    println!("sending the good news");
-                                    news_sender.send(html)
-                                };
+                                //println!("sending the good news: {}", html);
+                                news_sender.send(html);
                             }
                             Err(e) => {
                                 todo!()
