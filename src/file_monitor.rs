@@ -168,10 +168,16 @@ fn debounce(pool: &DbPool, pankat_event: PankatFileMonitorEvent) {
                             cache.remove(&event);
                         }
                         println!("Processing cached event for: {}", event.path.display());
-                        if let Ok(result) =
-                            crate::articles::file_monitor_articles_change(&mut conn, &event)
-                        {
-                            //let _ = news_sender.send("<b>hello world</b>".to_string());
+                        match crate::articles::file_monitor_articles_change(&mut conn, &event) {
+                            Ok(html) => {
+                                let _ = {
+                                    println!("sending the good news");
+                                    news_sender.send(html)
+                                };
+                            }
+                            Err(e) => {
+                                todo!()
+                            }
                         }
                     } else {
                         let duration = instant.duration_since(now);

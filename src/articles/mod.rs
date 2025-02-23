@@ -190,7 +190,9 @@ pub fn scan_articles(pool: DbPool) {
                             traverse_and_collect_articles(conn, &path, &input_path);
                         } else if let Some(ext) = path.extension() {
                             if ext == "mdwn" {
-                                match parse_article(conn, &path, &input_path) {
+                                let article_path: PathBuf =
+                                    path.strip_prefix(input_path).unwrap().to_path_buf();
+                                match parse_article(conn, &article_path) {
                                     Ok(article) => {
                                         //println!("Parsed article: {:#?}", article);
                                         let _ = crate::db::article::set(conn, &article);
@@ -243,22 +245,39 @@ pub fn file_monitor_articles_change(
                 "📝 created / ✏️ modified called on {}",
                 event.path.display()
             );
-
-            // match parse_article(conn, &path, &input_path) {
-            //     Ok(article) => {
-            //         //println!("Parsed article: {:#?}", article);
-            //         let r: DbReply = crate::db::article::set(conn, &article);
-            //         write_article_to_disk(&mut conn, &article);
-
-            //     }
-            // }
+            match parse_article(conn, &event.path) {
+                Ok(article) => {
+                    println!("Parsed article: {:#?}", article);
+                    let reply = crate::db::article::set(conn, &article);
+                    match reply {
+                        Ok(db_reply) => {
+                            println!("Writing article to disk");
+                            match crate::db::cache::get_cache(conn, article.src_file_name) {
+                                Some(cache) => {
+                                    println!("cache");
+                                    cache
+                                }
+                                None => {
+                                    todo!() // FIXME
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            todo!()
+                        }
+                    };
+                }
+                Err(e) => {}
+            }
         }
         EventKind::Remove(_) => {
             println!("🗑️ removed called on {}", event.path.display());
             let res =
                 crate::db::article::del_by_src_file_name(conn, event.path.display().to_string());
             match res {
-                Ok(_) => {}
+                Ok(_) => {
+                    todo!()
+                }
                 Err(_) => {}
             };
         }
@@ -356,23 +375,20 @@ pub fn write_to_disk(content: &String, filename: &PathBuf) {
 fn parse_article(
     conn: &mut SqliteConnection,
     article_path: &PathBuf,
-    input_path: &PathBuf,
 ) -> Result<ArticleWithTags, Box<dyn Error>> {
-    let relative_article_path: PathBuf =
-        article_path.strip_prefix(input_path).unwrap().to_path_buf();
-    let relative_article_path_string = relative_article_path.display().to_string();
+    let article_path_string = article_path.display().to_string();
+    let cfg = config::Config::get();
+    let input_path: PathBuf = cfg.input.clone();
 
     println!(
         "Parsing article {} from disk",
-        relative_article_path.clone().display()
+        article_path.clone().display()
     );
-
-    //println!("xxx {}", relative_article_path_string.clone());
 
     let mut new_article: ArticleWithTags = ArticleWithTags {
         id: None,
-        src_file_name: relative_article_path_string.clone(),
-        dst_file_name: utils::create_dst_file_name(&relative_article_path),
+        src_file_name: article_path_string.clone(),
+        dst_file_name: utils::create_dst_file_name(&article_path),
         title: None,
         modification_date: None,
         summary: None,
@@ -385,7 +401,8 @@ fn parse_article(
         live_updates: Some(true),
     };
 
-    let article_mdwn_raw_string = std::fs::read_to_string(article_path).unwrap();
+    let file_path: PathBuf = input_path.join(article_path);
+    let article_mdwn_raw_string = std::fs::read_to_string(file_path).unwrap();
     match eval_plugins(&article_mdwn_raw_string, &mut new_article) {
         Ok(article_mdwn_refined_source) => {
             if new_article.special_page == Some(true) {
@@ -393,10 +410,10 @@ fn parse_article(
             }
             let hash: String = compute_hash(article_mdwn_refined_source.clone());
             // println!(
-            //     "relative_article_path_string.clone(): {}",
-            //     relative_article_path_string.clone()
+            //     "article_path_string.clone(): {}",
+            //     article_path_string.clone()
             // );
-            let renew_cache: bool = match get_cache(conn, relative_article_path_string.clone()) {
+            let renew_cache: bool = match get_cache(conn, article_path_string.clone()) {
                 Some(cache_entry) => {
                     //println!("Cache_entry.hash: {}, hash: {}", cache_entry.hash, hash);
                     if cache_entry.hash == hash {
@@ -411,12 +428,7 @@ fn parse_article(
                 //println!(" ... cache outdated, regenerating");
                 match pandoc_mdwn_2_html(article_mdwn_refined_source.clone()) {
                     Ok(html) => {
-                        match set_cache(
-                            conn,
-                            relative_article_path_string.clone(),
-                            html.clone(),
-                            hash,
-                        ) {
+                        match set_cache(conn, article_path_string.clone(), html.clone(), hash) {
                             Ok(_) => {}
                             Err(e) => {
                                 println!("Error udpating cache: {}", e);
@@ -426,7 +438,7 @@ fn parse_article(
                     Err(e) => {
                         println!(
                             "Error: No entry in cache for path: {}: {}",
-                            relative_article_path_string, e,
+                            article_path_string, e,
                         );
                         return Err(e);
                     }
@@ -443,7 +455,7 @@ fn parse_article(
         Err(e) => {
             println!(
                 "Error: Evaluating plugins on: {}: {}",
-                relative_article_path_string, e,
+                article_path_string, e,
             );
             Err(e)
         }
