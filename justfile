@@ -1,5 +1,5 @@
 build-pankat-wasm:
-  cd pankat-wasm && wasm-pack build --target web --release
+  cd pankat-wasm && wasm-pack build --target web --release --manifest-path ./Cargo.toml 
 
 copy-pankat-wasm:
   mkdir -p documents/assets/pankat-wasm && cp -R pankat-wasm/pkg/* documents/assets/pankat-wasm
@@ -18,3 +18,5 @@ test:
 
 fmt:
   cargo fmt
+
+  

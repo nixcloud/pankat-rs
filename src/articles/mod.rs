@@ -3,6 +3,7 @@ use crate::db::article::{
 };
 use crate::db::cache::{compute_hash, get_cache, set_cache};
 use crate::db::DbPool;
+use scopeguard::defer;
 
 use regex::Regex;
 use std::error::Error;
@@ -95,6 +96,60 @@ pub fn output_folder_check(output_folder: &PathBuf) -> Result<(), Box<dyn Error>
     }
 }
 
+pub fn file_monitor_articles_change(
+    conn: &mut SqliteConnection,
+    event: &crate::file_monitor::PankatFileMonitorEvent,
+) -> Result<String, String> {
+    println!("-----------> file_monitor_articles_change begin");
+    defer! {
+        println!("-----------> file_monitor_articles_change end");
+    }
+    //-> Result<(ArticleWithTags, String), Box<dyn Error>> {
+    use notify::EventKind;
+    match event.kind {
+        EventKind::Create(_) | EventKind::Modify(_) => {
+            println!(
+                "📝 created / ✏️ modified called on {}",
+                event.path.display()
+            );
+            match parse_article(conn, &event.path) {
+                Ok(article) => {
+                    //println!("Parsed article: {:#?}", article);
+                    let reply = crate::db::article::set(conn, &article);
+                    match reply {
+                        Ok(db_reply) => {
+                            //println!("Writing article to disk");
+                            match crate::db::cache::get_cache(conn, article.src_file_name.clone()) {
+                                Some(cache_entry) => {
+                                    let html: String = create_nav_content_template(
+                                        conn,
+                                        &db_reply.article,
+                                        cache_entry.html,
+                                    );
+                                    Ok(html)
+                                }
+                                None => Err("Error loading cache for Article".to_string()),
+                            }
+                        }
+                        Err(e) => Err("FIXME".to_string()),
+                    }
+                }
+                Err(e) => Err("FIXME".to_string()),
+            }
+        }
+        EventKind::Remove(_) => {
+            println!("🗑️ removed called on {}", event.path.display());
+            let res =
+                crate::db::article::del_by_src_file_name(conn, event.path.display().to_string());
+            match res {
+                Ok(_) => Err("FIXME".to_string()),
+                Err(_) => Err("FIXME".to_string()),
+            }
+        }
+        _ => Err("file_monitor_articles_change: Unknown event type".to_string()),
+    }
+}
+
 pub fn collect_garbage(conn: &mut SqliteConnection) {
     let cfg = config::Config::get();
     let input_path: PathBuf = cfg.input.clone();
@@ -161,7 +216,7 @@ pub fn collect_garbage(conn: &mut SqliteConnection) {
     };
 }
 
-pub fn scan_articles(pool: DbPool) {
+pub fn scan_articles(pool: &DbPool) {
     let cfg = config::Config::get();
     let input_path: PathBuf = cfg.input.clone();
 
@@ -209,6 +264,17 @@ pub fn scan_articles(pool: DbPool) {
 
     traverse_and_collect_articles(&mut conn, &input_path, &input_path);
 
+    let duration = start_time.elapsed();
+    println!("Time to scan input for articles: {:?}", duration);
+}
+
+pub fn build_articles(pool: &DbPool) {
+    let mut conn = pool
+        .get()
+        .expect("Failed to get a connection from the pool");
+
+    let start_time = std::time::Instant::now();
+
     match crate::db::article::get_visible_articles(&mut conn) {
         Ok(articles) => {
             let _ = crate::articles::timeline::update_timeline(&articles);
@@ -230,53 +296,7 @@ pub fn scan_articles(pool: DbPool) {
     update_most_recent_article(&mut conn);
 
     let duration = start_time.elapsed();
-    println!("Time taken to execute: {:?}", duration);
-}
-
-pub fn file_monitor_articles_change(
-    conn: &mut SqliteConnection,
-    event: &crate::file_monitor::PankatFileMonitorEvent,
-) -> Result<String, String> {
-    //-> Result<(ArticleWithTags, String), Box<dyn Error>> {
-    use notify::EventKind;
-    match event.kind {
-        EventKind::Create(_) | EventKind::Modify(_) => {
-            println!(
-                "📝 created / ✏️ modified called on {}",
-                event.path.display()
-            );
-            match parse_article(conn, &event.path) {
-                Ok(article) => {
-                    //println!("Parsed article: {:#?}", article);
-                    let reply = crate::db::article::set(conn, &article);
-                    match reply {
-                        Ok(_) => {
-                            //println!("Writing article to disk");
-                            match crate::db::cache::get_cache(conn, article.src_file_name) {
-                                Some(cache) => {
-                                    //println!("cache: {}", cache.html);
-                                    Ok(cache.html)
-                                }
-                                None => Err("Error loading cache for Article".to_string()),
-                            }
-                        }
-                        Err(e) => Err("FIXME".to_string()),
-                    }
-                }
-                Err(e) => Err("FIXME".to_string()),
-            }
-        }
-        EventKind::Remove(_) => {
-            println!("🗑️ removed called on {}", event.path.display());
-            let res =
-                crate::db::article::del_by_src_file_name(conn, event.path.display().to_string());
-            match res {
-                Ok(_) => Err("FIXME".to_string()),
-                Err(_) => Err("FIXME".to_string()),
-            }
-        }
-        _ => Err("file_monitor_articles_change: Unknown event type".to_string()),
-    }
+    println!("Time to build articles: {:?}", duration);
 }
 
 pub fn update_special_pages(conn: &mut SqliteConnection) {
@@ -297,7 +317,6 @@ pub fn update_special_pages(conn: &mut SqliteConnection) {
 }
 
 pub fn update_most_recent_article(conn: &mut SqliteConnection) {
-    println!("====== Updating 'more_recent_article' ======");
     match crate::db::article::get_most_recent_article(conn) {
         Ok(article_option) => match article_option {
             Some(article) => {
@@ -320,11 +339,13 @@ pub fn update_most_recent_article(conn: &mut SqliteConnection) {
     };
 }
 
-fn write_article_to_disk(conn: &mut SqliteConnection, article: &ArticleWithTags) {
-    let cfg = config::Config::get();
-    let output_path: PathBuf = cfg.output.clone();
-
+fn create_nav_content_template(
+    conn: &mut SqliteConnection,
+    article: &ArticleWithTags,
+    html: String,
+) -> String {
     let article_id = article.id.unwrap();
+
     let article_neighbours: ArticleNeighbours = match get_prev_and_next_article(conn, article_id) {
         Ok(neighbours) => neighbours,
         Err(_) => ArticleNeighbours::new(),
@@ -335,16 +356,23 @@ fn write_article_to_disk(conn: &mut SqliteConnection, article: &ArticleWithTags)
             Err(_) => ArticleNeighbours::new(),
         };
 
+    let content: String = create_html_from_content_template(
+        article.clone(),
+        html,
+        article_neighbours,
+        article_series_neighbours,
+    )
+    .unwrap();
+    content
+}
+
+fn write_article_to_disk(conn: &mut SqliteConnection, article: &ArticleWithTags) {
+    let cfg = config::Config::get();
+    let output_path: PathBuf = cfg.output.clone();
+
     match get_cache(conn, article.src_file_name.clone()) {
         Some(cache_entry) => {
-            let content: String = create_html_from_content_template(
-                article.clone(),
-                cache_entry.html,
-                article_neighbours,
-                article_series_neighbours,
-            )
-            .unwrap();
-
+            let content: String = create_nav_content_template(conn, article, cache_entry.html);
             let standalone_html: String =
                 create_html_from_standalone_template_by_article(article.clone(), content).unwrap();
 

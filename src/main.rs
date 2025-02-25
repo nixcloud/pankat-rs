@@ -110,12 +110,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("Static build only: {}", cfg.static_build_only);
     println!("-------------------------------------------------");
 
+    // Initialize SQLite database with Diesel
+    let pool = db::establish_connection_pool();
+
+    articles::scan_articles(&pool);
+    articles::build_articles(&pool);
+
+    if cfg.static_build_only {
+        println!("Static build only, exiting...");
+        return Ok(());
+    }
+
     // Setup broadcast channel for shutdown coordination
     let (shutdown_tx, _) = broadcast::channel::<()>(1);
     let shutdown_rx = shutdown_tx.subscribe();
 
-    // Initialize SQLite database with Diesel
-    let pool = db::establish_connection_pool();
+    // FIXME adapt this concept for with_state
+    // struct AppState {
+    //     pool: Pool<ConnectionManager<SqliteConnection>>,
+    // }
+    // https://docs.rs/axum/latest/axum/#sharing-state-with-handlers
 
     // Initialize file monitoring
     let monitor_handle =
@@ -137,13 +151,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .with_state(pool.clone());
 
     // Start server
-    let addr = SocketAddr::from(([0, 0, 0, 0], cfg.port));
-    println!("Server running on {}", addr);
+    let address_config = format!("[::]:{}", cfg.port);
+    let addr = address_config.parse::<std::net::SocketAddr>().unwrap();
 
     // Create a listener with retry logic
     let listener = match tokio::net::TcpListener::bind(addr).await {
         Ok(listener) => {
-            println!("Successfully bound to port {}", cfg.port);
+            println!("Listening on: {}", address_config);
             listener
         }
         Err(e) => {
@@ -161,13 +175,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
     };
 
-    articles::scan_articles(pool);
-
-    if cfg.static_build_only {
-        println!("Static build only, exiting...");
-        return Ok(());
-    }
-
     // Start server with graceful shutdown
     println!("Press Ctrl+C to stop the server...");
     tokio::select! {
@@ -178,11 +185,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 if let Err(send_err) = shutdown_tx.send(()) {
                     eprintln!("Error broadcasting shutdown signal: {}", send_err);
                 }
-                // Wait for monitor to cleanup
-                if let Err(e) = monitor_handle.await {
-                    eprintln!("Error during monitor shutdown: {}", e);
-                }
-                return Err(Box::<dyn std::error::Error + Send + Sync>::from(e));
             }
         }
         _ = signal::ctrl_c() => {

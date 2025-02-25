@@ -3,22 +3,27 @@ use crate::config;
 use crate::db::users::{create_user, get_user_by_username};
 use crate::error::AppError;
 use crate::registry::*;
+use axum::extract::ws::{Message, WebSocket};
 use axum::http::{header, StatusCode};
 use axum::response::Response;
 use axum::{
-    extract::{
-        ws::{WebSocket, WebSocketUpgrade},
-        State,
-    },
+    extract::{ws::WebSocketUpgrade, State},
     http::header::{HeaderMap, AUTHORIZATION},
     Json,
 };
 use bcrypt::{hash, verify, DEFAULT_COST};
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::SqliteConnection;
+use futures_util::{
+    sink::SinkExt,
+    stream::{SplitSink, SplitStream, StreamExt},
+};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::{sync::Arc, time::Duration};
 use tokio::fs;
+use tokio::spawn;
+use tokio::{sync::Mutex, time::interval};
 
 type DbPool = Pool<ConnectionManager<SqliteConnection>>;
 
@@ -93,7 +98,7 @@ pub async fn protected(headers: HeaderMap) -> Result<Json<&'static str>, AppErro
 }
 
 pub async fn serve_output(uri: axum::http::Uri) -> Result<Response, AppError> {
-    //println!("Received request for URI (serve_output): {}", uri);
+    println!("Received request for URI (serve_output): {}", uri);
     let cfg = config::Config::get();
     let mut path = PathBuf::from(cfg.output.clone());
 
@@ -138,7 +143,7 @@ pub async fn serve_output(uri: axum::http::Uri) -> Result<Response, AppError> {
 }
 
 pub async fn serve_input(uri: axum::http::Uri) -> Result<Response, AppError> {
-    //println!("Received request for URI (serve_input): {}", uri);
+    println!("Received request for URI (serve_input): {}", uri);
     let cfg = config::Config::get();
     let mut input = PathBuf::from(cfg.input.clone());
 
@@ -166,7 +171,7 @@ pub async fn serve_input(uri: axum::http::Uri) -> Result<Response, AppError> {
 }
 
 pub async fn serve_assets(uri: axum::http::Uri) -> Result<Response, AppError> {
-    //println!("Received request for URI (serve_assets): {}", uri);
+    println!("Received request for URI (serve_assets): {}", uri);
     let cfg = config::Config::get();
     let mut assets = PathBuf::from(cfg.assets.clone());
 
@@ -194,23 +199,47 @@ pub async fn serve_assets(uri: axum::http::Uri) -> Result<Response, AppError> {
 }
 
 pub async fn websocket_route(ws: WebSocketUpgrade) -> Response {
+    println!("Received request for new ws connection request");
+
     ws.on_upgrade(handle_socket)
 }
 
 async fn handle_socket(mut socket: WebSocket) {
     let news_receiver = PubSubRegistry::instance().register_receiver("news".to_string());
-    loop {
-        match news_receiver.recv() {
-            Ok(message) => {
-                if socket
-                    .send(axum::extract::ws::Message::Text(message.to_string()))
-                    .await
-                    .is_err()
-                {
-                    return;
-                }
-            }
-            Err(_) => return,
-        }
-    }
+    use tokio::sync::mpsc;
+    let (tx, mut rx) = mpsc::channel::<String>(10);
+    let p = "ping".to_string();
+    // loop {
+    //     tokio::select! {
+    //         msg = socket.recv() => {
+    //            match msg {
+    //                Some(Ok(msg)) => {
+    //                    match msg {
+    //                        Message::Text(p) => {
+    //                            println!("Received message: {:?}", p);
+    //                            socket.send(Message::Text("pong".to_string())).await.unwrap();
+    //                        },
+    //                        _ => {}
+    //                    }
+    //                    continue;
+    //                },
+    //                Some(Err(e)) => {
+    //                    println!("Error receiving message: {}", e);
+    //                    return;
+    //                }
+    //                None => {
+    //                    continue;
+    //                }
+    //            }
+    //         }
+    //         msg = rx.recv() => {
+    //             match msg {
+    //             Some(message) => {
+    //                 socket.send(Message::Text(message)).await.unwrap();
+    //             }
+    //             None => {},
+    //         }
+    //         }
+    //     }
+    // }
 }

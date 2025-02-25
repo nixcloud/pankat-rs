@@ -143,7 +143,6 @@ pub fn get_article_with_tags_by_src_file_name(
     }
 }
 
-// func (a *ArticlesDb) MostRecentArticle() (Article, error) {
 pub fn get_most_recent_article(
     conn: &mut SqliteConnection,
 ) -> Result<Option<ArticleWithTags>, diesel::result::Error> {
@@ -178,7 +177,6 @@ pub fn get_most_recent_article(
     }
 }
 
-// func (a *ArticlesDb) QueryAll() ([]Article, error) {
 pub fn get_all_articles(
     conn: &mut SqliteConnection,
 ) -> Result<Vec<ArticleWithTags>, diesel::result::Error> {
@@ -207,7 +205,6 @@ pub fn get_all_articles(
     }
 }
 
-//func (a *ArticlesDb) Articles() ([]Article, error) { -> all articles, except drafts / special pages
 pub fn get_visible_articles(
     conn: &mut SqliteConnection,
 ) -> Result<Vec<ArticleWithTags>, diesel::result::Error> {
@@ -247,7 +244,6 @@ pub fn get_visible_articles(
     }
 }
 
-// func (a *ArticlesDb) ArticlesBySeries(series string) ([]Article, error) {
 pub fn get_visible_articles_by_series(
     conn: &mut SqliteConnection,
     series: &str,
@@ -288,7 +284,6 @@ pub fn get_visible_articles_by_series(
     }
 }
 
-// func (a *ArticlesDb) ArticlesByTag(tagName string) ([]Article, error) {
 pub fn get_visible_articles_by_tag(
     conn: &mut SqliteConnection,
     tag: String,
@@ -325,7 +320,6 @@ pub fn get_visible_articles_by_tag(
     }
 }
 
-// func (a *ArticlesDb) Drafts() ([]Article, error) {
 pub fn get_drafts(
     conn: &mut SqliteConnection,
 ) -> Result<Vec<ArticleWithTags>, diesel::result::Error> {
@@ -355,7 +349,6 @@ pub fn get_drafts(
     }
 }
 
-// func (a *ArticlesDb) SpecialPages() ([]Article, error) {
 pub fn get_special_pages(
     conn: &mut SqliteConnection,
 ) -> Result<Vec<ArticleWithTags>, diesel::result::Error> {
@@ -415,10 +408,9 @@ fn tag_difference<'a>(
 pub struct DbReply {
     pub most_recent_article_change: Option<i32>,
     pub affected_articles: HashSet<i32>,
-    pub article_id: i32,
+    pub article: ArticleWithTags,
 }
 
-// func (a *ArticlesDb) Set(article *Article) (*Article, []string, error) {
 pub fn set(
     conn: &mut SqliteConnection,
     new_article_with_tags: &ArticleWithTags,
@@ -513,12 +505,17 @@ pub fn set(
 
             let (most_recent_article_change, affected_articles) =
                 affected_articles_before.diff(&affected_articles_after);
-            let db_reply = DbReply {
-                article_id: existing_article_id,
-                most_recent_article_change,
-                affected_articles,
-            };
-            Ok(db_reply)
+
+            let article = get_article_with_tags_by_id(conn, existing_article_id)?;
+
+            match article {
+                Some(article) => Ok(DbReply {
+                    article,
+                    most_recent_article_change,
+                    affected_articles,
+                }),
+                None => Err(diesel::result::Error::NotFound),
+            }
         } else {
             let most_recent_article = match get_most_recent_article(conn) {
                 Ok(article_option) => article_option,
@@ -574,11 +571,17 @@ pub fn set(
 
                     let (most_recent_article_change, affected_articles) =
                         affected_articles_before.diff(&affected_articles_after);
-                    Ok(DbReply {
-                        article_id,
-                        most_recent_article_change,
-                        affected_articles,
-                    })
+
+                    let article = get_article_with_tags_by_id(conn, article_id)?;
+
+                    match article {
+                        Some(article) => Ok(DbReply {
+                            article,
+                            most_recent_article_change,
+                            affected_articles,
+                        }),
+                        None => Err(diesel::result::Error::NotFound),
+                    }
                 }
                 Err(e) => {
                     println!("Error on creating article: {:?}", e);
@@ -595,7 +598,6 @@ pub struct DbReplyDelete {
     pub affected_articles: HashSet<i32>,
 }
 
-// func (a *ArticlesDb) Del(SrcFileName string) ([]string, error) {
 pub fn del_by_src_file_name(
     conn: &mut SqliteConnection,
     src_file_name: String,
@@ -673,7 +675,6 @@ pub fn del_by_id(
     }
 }
 
-// func (a *ArticlesDb) AllTagsInDB() ([]string, error) {
 pub fn get_all_tags(conn: &mut SqliteConnection) -> Result<Vec<String>, diesel::result::Error> {
     let res = tags_table.select(tags_objects::name).load(conn);
     match res {
@@ -682,7 +683,6 @@ pub fn get_all_tags(conn: &mut SqliteConnection) -> Result<Vec<String>, diesel::
     }
 }
 
-// func (a *ArticlesDb) AllSeriesInDB() ([]string, error) {
 pub fn get_all_series_from_visible_articles(
     conn: &mut SqliteConnection,
 ) -> Result<Vec<String>, diesel::result::Error> {
@@ -838,8 +838,6 @@ fn find_prev_and_next_articles(
     Ok(n)
 }
 
-// func (a *ArticlesDb) NextArticle(article Article) (*Article, error) {
-// func (a *ArticlesDb) PrevArticle(article Article) (*Article, error) {
 pub fn get_prev_and_next_article(
     conn: &mut SqliteConnection,
     id: i32,
@@ -869,8 +867,6 @@ pub fn get_prev_and_next_article(
     }
 }
 
-// func (a *ArticlesDb) NextArticleInSeries(article Article) (Article, error) {
-// func (a *ArticlesDb) PrevArticleInSeries(article Article) (Article, error) {
 pub fn get_prev_and_next_article_for_series(
     conn: &mut SqliteConnection,
     id: i32,
@@ -921,6 +917,3 @@ pub fn get_prev_and_next_article_for_series(
         }
     }
 }
-
-// func (a *ArticlesDb) GetRelatedArticles(article Article) map[string]bool {
-// func (a *ArticlesDb) QueryRawBySrcFileName(SrcFileName string) (*Article, error) {

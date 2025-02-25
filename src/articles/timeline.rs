@@ -123,7 +123,6 @@ fn tag_to_link_list(article: &ArticleWithTags) -> String {
 }
 
 pub fn update_timeline(articles: &Vec<ArticleWithTags>) -> Result<(), Box<dyn Error>> {
-    println!("====== Updating 'timeline' ======");
     let cfg = config::Config::get();
 
     let html: String = format!(

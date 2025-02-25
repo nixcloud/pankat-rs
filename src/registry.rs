@@ -32,6 +32,7 @@ pub struct PubSubRegistry {
 impl PubSubRegistry {
     /// Get the singleton instance of PubSubRegistry
     pub fn instance() -> &'static Self {
+        println!("Creating singleton instance of PubSubRegistry");
         static INSTANCE: OnceLock<PubSubRegistry> = OnceLock::new();
         INSTANCE.get_or_init(|| PubSubRegistry::new())
     }
@@ -45,6 +46,7 @@ impl PubSubRegistry {
 
     /// Register a client as a receiver for a specific channel
     pub fn register_receiver(&self, channel: String) -> Receiver<String> {
+        println!("Registering receiver for channel: {}", channel);
         let (tx, rx) = mpsc::channel();
         let mut channels = self.channels.lock().unwrap();
         channels
@@ -56,6 +58,7 @@ impl PubSubRegistry {
 
     /// Register a client as a sender for a specific channel
     pub fn register_sender(&self, channel: String) -> Sender<String> {
+        println!("Registering sender for channel: {}", channel);
         let registry = self.clone();
         let (tx, rx) = mpsc::channel();
 

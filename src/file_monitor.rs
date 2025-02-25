@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc, Mutex};
 use tokio::task::JoinHandle;
 pub type DbPool = r2d2::Pool<ConnectionManager<SqliteConnection>>;
-
+use scopeguard::defer;
 #[derive(Debug, Clone)]
 pub struct PankatFileMonitorEvent {
     pub kind: EventKind,
@@ -38,7 +38,7 @@ pub fn spawn_async_monitor(
     path: impl AsRef<Path>,
     mut shutdown_rx: broadcast::Receiver<()>,
 ) -> Result<JoinHandle<()>, Box<dyn std::error::Error + Send + Sync>> {
-    println!("Monitoring directory: {}", path.as_ref().display());
+    println!("Monitoring input directory: {}", path.as_ref().display());
 
     // Store the path for cleanup
     let watch_path = path.as_ref().to_owned();
@@ -144,12 +144,14 @@ fn debounce(pool: &DbPool, pankat_event: PankatFileMonitorEvent) {
         }
     }
 
-    let mut conn = pool
-        .get()
-        .expect("Failed to get a connection from the pool");
+    let pool = pool.clone();
 
     tokio::spawn(async move {
         loop {
+            println!("-----------> file_monitor_articles_change begin");
+            defer! {
+                println!("-----------> file_monitor_articles_change end");
+            }
             let next_event = {
                 let cache = EVENT_CACHE.lock().unwrap();
                 cache
@@ -168,6 +170,9 @@ fn debounce(pool: &DbPool, pankat_event: PankatFileMonitorEvent) {
                             cache.remove(&event);
                         }
                         println!("Processing cached event for: {}", event.path.display());
+                        let mut conn = pool
+                            .get()
+                            .expect("Failed to get a connection from the pool");
                         match crate::articles::file_monitor_articles_change(&mut conn, &event) {
                             Ok(html) => {
                                 //println!("sending the good news: {}", html);
@@ -185,5 +190,6 @@ fn debounce(pool: &DbPool, pankat_event: PankatFileMonitorEvent) {
                 None => break,
             }
         }
+        println!("end of loop: tokio::spawn(async move");
     });
 }

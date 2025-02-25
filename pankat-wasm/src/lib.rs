@@ -1,11 +1,6 @@
 use futures::StreamExt;
 use gloo_net::websocket::{futures::WebSocket, Message};
 use gloo_utils::window;
-use std::{cell::RefCell, rc::Rc};
-use wasm_bindgen::prelude::*;
-use wasm_bindgen_futures::spawn_local;
-use web_sys::Element;
-
 use sauron_core::{
     dom::{self, DomNode},
     prelude::Node,
@@ -13,6 +8,10 @@ use sauron_core::{
     vdom::diff,
 };
 use sauron_html_parser::{parse_html, raw_html};
+use std::{cell::RefCell, rc::Rc};
+use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::spawn_local;
+use web_sys::{Element, HtmlElement};
 
 #[derive(Clone)]
 struct DomUpdater {
@@ -98,6 +97,51 @@ impl DomUpdater {
     }
 }
 
+fn ws_close() {
+    let window = web_sys::window().expect("no global `window` exists");
+    let document = window.document().expect("should have a document on window");
+
+    if let Some(status_element) = document.get_element_by_id("websocketStatus") {
+        if let Some(status_element) = status_element.dyn_ref::<HtmlElement>() {
+            status_element
+                .class_list()
+                .add_1("glyphicon-remove")
+                .expect("Failed to add class");
+            status_element
+                .class_list()
+                .remove_1("glyphicon-ok")
+                .expect("Failed to remove class");
+        }
+    }
+}
+
+fn ws_open() {
+    let window = web_sys::window().expect("no global `window` exists");
+    let document = window.document().expect("should have a document on window");
+
+    if let Some(ws_element) = document.get_element_by_id("websocket") {
+        if let Some(ws_element) = ws_element.dyn_ref::<HtmlElement>() {
+            ws_element
+                .style()
+                .set_property("display", "block")
+                .expect("Failed to set display property");
+        }
+    }
+
+    if let Some(status_element) = document.get_element_by_id("websocketStatus") {
+        if let Some(status_element) = status_element.dyn_ref::<HtmlElement>() {
+            status_element
+                .class_list()
+                .remove_1("glyphicon-remove")
+                .expect("Failed to remove class");
+            status_element
+                .class_list()
+                .add_1("glyphicon-ok")
+                .expect("Failed to add class");
+        }
+    }
+}
+
 #[wasm_bindgen(start)]
 pub fn main_js() -> Result<(), JsValue> {
     console_log::init_with_level(log::Level::Info).expect("error initializing log");
@@ -105,14 +149,10 @@ pub fn main_js() -> Result<(), JsValue> {
 
     spawn_local({
         async move {
-            //log::info!("spawn_local");
-
             let id: String = "NavAndContent".to_string();
             let mut dom_updater: DomUpdater = DomUpdater::new(id.clone());
 
             loop {
-                log::info!("spawn_local");
-
                 let location = window().location();
                 let protocol = if location.protocol().unwrap() == "https:" {
                     "wss"
@@ -125,19 +165,42 @@ pub fn main_js() -> Result<(), JsValue> {
 
                 match WebSocket::open(&websocket_address) {
                     Ok(ws) => {
-                        let (_write, mut read) = ws.split();
+                        ws_open(); // Move ws_open here since we have established a WebSocket connection
+                        let (mut write, mut read) = ws.split();
+                        use futures::SinkExt;
+                        // spawn_local(async move {
+                        //     loop {
+                        //         gloo_timers::future::sleep(std::time::Duration::from_secs(1)).await;
+                        //         if write.send(Message::Text("ping".to_string())).await.is_err() {
+                        //             log::warn!("Failed to send ping");
+                        //             return;
+                        //         }
+                        //     }
+                        // });
 
-                        while let Some(Ok(msg)) = read.next().await {
-                            match msg {
-                                Message::Text(message) => {
-                                    log::info!("Received WS message");
-                                    dom_updater.update(format!(
-                                        r#"<div class="article">{}</div>"#,
-                                        message
-                                    ));
-                                }
-                                Message::Bytes(_) => {
-                                    log::warn!("Binary messages are not supported yet");
+                        while let Some(result) = read.next().await {
+                            match result {
+                                Ok(msg) => match msg {
+                                    Message::Text(message) => {
+                                        match message.as_str() {
+                                            "pong" => {
+                                                log::info!("WS: received a pong to our ping, connection is working!");
+                                            }
+                                            _ => {}
+                                        }
+                                        log::info!("Received WS message");
+                                        dom_updater.update(format!(
+                                            r#"<div class=\"article\">{}</div>"#,
+                                            message
+                                        ));
+                                    }
+                                    Message::Bytes(_) => {
+                                        log::warn!("Binary messages are not supported yet");
+                                    }
+                                },
+                                Err(e) => {
+                                    log::warn!("Err0r {e}");
+                                    return;
                                 }
                             }
                         }
@@ -147,13 +210,10 @@ pub fn main_js() -> Result<(), JsValue> {
                     }
                     Err(e) => {
                         log::error!("Failed to connect: {}", e);
-                        log::info!("Retrying connection in 1 second...");
                     }
                 }
-
-                // Wait 1 second before reconnecting
+                ws_close();
                 gloo_timers::future::sleep(std::time::Duration::from_secs(1)).await;
-                // log::info!("trying to reconnect to ws");
             }
         }
     });
