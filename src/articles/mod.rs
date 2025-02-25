@@ -150,19 +150,23 @@ pub fn file_monitor_articles_change(
     }
 }
 
-pub fn collect_garbage(conn: &mut SqliteConnection) {
+pub fn collect_garbage(pool: &DbPool) {
     let cfg = config::Config::get();
     let input_path: PathBuf = cfg.input.clone();
     let output_path: PathBuf = cfg.output.clone();
 
-    match crate::db::article::get_all_articles(conn) {
+    let mut conn = pool
+        .get()
+        .expect("Failed to get a connection from the pool");
+
+    match crate::db::article::get_all_articles(&mut conn) {
         Ok(articles) => {
             println!("====== Running GC on 'articles table' ======");
             for article in articles.clone() {
                 let path = input_path.join(article.src_file_name);
                 if !path.exists() {
                     println!("Removing garbage 'article table' entry: {:?}", path);
-                    let _ = crate::db::article::del_by_id(conn, article.id.unwrap());
+                    let _ = crate::db::article::del_by_id(&mut conn, article.id.unwrap());
                 }
             }
             println!("====== Running GC on 'output' directory ======");
@@ -201,14 +205,14 @@ pub fn collect_garbage(conn: &mut SqliteConnection) {
         Err(_) => {}
     };
 
-    match crate::db::cache::get_cache_src_file_names(conn) {
+    match crate::db::cache::get_cache_src_file_names(&mut conn) {
         Ok(entries) => {
             println!("====== Running GC on 'cache table' ======");
             for (id, path) in entries {
                 let path = input_path.join(path);
                 if !path.exists() {
                     println!("Removing garbage 'cache table' entry: {:?}", path);
-                    let _ = crate::db::cache::del_cache_by_id(conn, id.unwrap());
+                    let _ = crate::db::cache::del_cache_by_id(&mut conn, id.unwrap());
                 }
             }
         }
@@ -225,8 +229,6 @@ pub fn scan_articles(pool: &DbPool) {
         .expect("Failed to get a connection from the pool");
 
     let start_time = std::time::Instant::now();
-
-    collect_garbage(&mut conn);
 
     println!("====== Parsing input for mdwn documents ======");
 

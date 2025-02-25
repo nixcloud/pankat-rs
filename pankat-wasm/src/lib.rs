@@ -168,39 +168,38 @@ pub fn main_js() -> Result<(), JsValue> {
                         ws_open(); // Move ws_open here since we have established a WebSocket connection
                         let (mut write, mut read) = ws.split();
                         use futures::SinkExt;
-                        // spawn_local(async move {
-                        //     loop {
-                        //         gloo_timers::future::sleep(std::time::Duration::from_secs(1)).await;
-                        //         if write.send(Message::Text("ping".to_string())).await.is_err() {
-                        //             log::warn!("Failed to send ping");
-                        //             return;
-                        //         }
-                        //     }
-                        // });
+                        spawn_local(async move {
+                            loop {
+                                gloo_timers::future::sleep(std::time::Duration::from_secs(1)).await;
+                                if write.send(Message::Text("ping".to_string())).await.is_err() {
+                                    log::warn!("Failed to send ping");
+                                    return;
+                                }
+                            }
+                        });
 
                         while let Some(result) = read.next().await {
                             match result {
                                 Ok(msg) => match msg {
-                                    Message::Text(message) => {
-                                        match message.as_str() {
-                                            "pong" => {
-                                                log::info!("WS: received a pong to our ping, connection is working!");
-                                            }
-                                            _ => {}
+                                    Message::Text(message) => match message.as_str() {
+                                        "pong" => {
+                                            log::info!("WS: received a pong to our ping, connection is working!");
                                         }
-                                        log::info!("Received WS message");
-                                        dom_updater.update(format!(
-                                            r#"<div class=\"article\">{}</div>"#,
-                                            message
-                                        ));
-                                    }
+                                        _ => {
+                                            log::info!("Received WS message");
+                                            dom_updater.update(format!(
+                                                r#"<div class=\"article\">{}</div>"#,
+                                                message
+                                            ));
+                                        }
+                                    },
                                     Message::Bytes(_) => {
                                         log::warn!("Binary messages are not supported yet");
                                     }
                                 },
                                 Err(e) => {
                                     log::warn!("Err0r {e}");
-                                    return;
+                                    break;
                                 }
                             }
                         }

@@ -8,7 +8,6 @@ use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc, Mutex};
 use tokio::task::JoinHandle;
 pub type DbPool = r2d2::Pool<ConnectionManager<SqliteConnection>>;
-use scopeguard::defer;
 #[derive(Debug, Clone)]
 pub struct PankatFileMonitorEvent {
     pub kind: EventKind,
@@ -92,13 +91,6 @@ fn handle_event(pool: &DbPool, event: &Event) {
     let cfg = crate::config::Config::get();
     let input_path: PathBuf = cfg.input.clone();
 
-    let event_type = match event.kind {
-        EventKind::Create(_) => "📝 created",
-        EventKind::Modify(_) => "✏️ modified",
-        EventKind::Remove(_) => "🗑️ removed",
-        _ => return,
-    };
-
     for path in &event.paths {
         if let Some(extension) = path.extension() {
             if extension == "mdwn" {
@@ -107,6 +99,12 @@ fn handle_event(pool: &DbPool, event: &Event) {
                         .strip_prefix(input_path.clone())
                         .unwrap()
                         .to_path_buf();
+                    // let event_type = match event.kind {
+                    //     EventKind::Create(_) => "📝 created",
+                    //     EventKind::Modify(_) => "✏️ modified",
+                    //     EventKind::Remove(_) => "🗑️ removed",
+                    //     _ => return,
+                    // };
                     // println!(
                     //     "  📍 Path: {} was {}",
                     //     relative_article_path.display(),
@@ -148,10 +146,6 @@ fn debounce(pool: &DbPool, pankat_event: PankatFileMonitorEvent) {
 
     tokio::spawn(async move {
         loop {
-            println!("-----------> file_monitor_articles_change begin");
-            defer! {
-                println!("-----------> file_monitor_articles_change end");
-            }
             let next_event = {
                 let cache = EVENT_CACHE.lock().unwrap();
                 cache

@@ -14,16 +14,10 @@ use axum::{
 use bcrypt::{hash, verify, DEFAULT_COST};
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::SqliteConnection;
-use futures_util::{
-    sink::SinkExt,
-    stream::{SplitSink, SplitStream, StreamExt},
-};
+use futures_util::sink::SinkExt;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use std::{sync::Arc, time::Duration};
 use tokio::fs;
-use tokio::spawn;
-use tokio::{sync::Mutex, time::interval};
 
 type DbPool = Pool<ConnectionManager<SqliteConnection>>;
 
@@ -209,37 +203,40 @@ async fn handle_socket(mut socket: WebSocket) {
     use tokio::sync::mpsc;
     let (tx, mut rx) = mpsc::channel::<String>(10);
     let p = "ping".to_string();
-    // loop {
-    //     tokio::select! {
-    //         msg = socket.recv() => {
-    //            match msg {
-    //                Some(Ok(msg)) => {
-    //                    match msg {
-    //                        Message::Text(p) => {
-    //                            println!("Received message: {:?}", p);
-    //                            socket.send(Message::Text("pong".to_string())).await.unwrap();
-    //                        },
-    //                        _ => {}
-    //                    }
-    //                    continue;
-    //                },
-    //                Some(Err(e)) => {
-    //                    println!("Error receiving message: {}", e);
-    //                    return;
-    //                }
-    //                None => {
-    //                    continue;
-    //                }
-    //            }
-    //         }
-    //         msg = rx.recv() => {
-    //             match msg {
-    //             Some(message) => {
-    //                 socket.send(Message::Text(message)).await.unwrap();
-    //             }
-    //             None => {},
-    //         }
-    //         }
-    //     }
-    // }
+
+    loop {
+        tokio::select! {
+            msg = socket.recv() => {
+                if let Some(res) = msg {
+                    match res {
+                        Ok(Message::Text(p)) => {
+                            //println!("Received message: {:?}", p);
+                            socket.send(Message::Text("pong".to_string())).await.unwrap();
+                        },
+                        Ok(_) => continue,
+                        Err(_) => {
+                            println!("WS close");
+                            break;
+                        },
+                    }
+                } else {
+                    println!("WS close");
+                    break;
+                }
+            }
+            msg = rx.recv() => {
+                match msg {
+                Some(message) => {
+                    socket.send(Message::Text(message)).await.unwrap();
+                }
+                None => {
+                    println!("handle_socket rx channel close so we also close the WS");
+                    break;
+                },
+            }
+            }
+
+        }
+    }
+    println!("WS close, loop done");
 }

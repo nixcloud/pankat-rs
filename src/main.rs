@@ -15,7 +15,6 @@ use axum::{
 
 use clap::{Arg, ArgAction, Command};
 use diesel_migrations::{embed_migrations, EmbeddedMigrations};
-use std::net::SocketAddr;
 use tokio::signal;
 use tokio::sync::broadcast;
 use tower_http::cors::CorsLayer;
@@ -101,10 +100,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let cfg = config::Config::get();
 
     println!("-------------------------------------------------");
-    println!("Input Path: {:?}", cfg.input);
-    println!("Output Path: {:?}", cfg.output);
-    println!("Assets Path: {:?}", cfg.assets);
-    println!("Database Path: {:?}", cfg.database);
+    println!("Input Path: {}", cfg.input.display());
+    println!("Output Path: {}", cfg.output.display());
+    println!("Assets Path: {}", cfg.assets.display());
+    println!("Database Path: {}", cfg.database.display());
     println!("Port Number: {}", cfg.port);
     println!("Brand: {}", cfg.brand);
     println!("Static build only: {}", cfg.static_build_only);
@@ -113,6 +112,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Initialize SQLite database with Diesel
     let pool = db::establish_connection_pool();
 
+    articles::collect_garbage(&pool);
     articles::scan_articles(&pool);
     articles::build_articles(&pool);
 
@@ -123,7 +123,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     // Setup broadcast channel for shutdown coordination
     let (shutdown_tx, _) = broadcast::channel::<()>(1);
-    let shutdown_rx = shutdown_tx.subscribe();
 
     // FIXME adapt this concept for with_state
     // struct AppState {
@@ -133,7 +132,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     // Initialize file monitoring
     let monitor_handle =
-        file_monitor::spawn_async_monitor(pool.clone(), cfg.input.clone(), shutdown_rx)
+        file_monitor::spawn_async_monitor(pool.clone(), cfg.input.clone(), shutdown_tx.subscribe())
             .map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(e))?;
 
     // Create router
