@@ -1,5 +1,4 @@
 use futures::StreamExt;
-use gloo_net::websocket::{futures::WebSocket, Message};
 use gloo_utils::window;
 use sauron_core::{
     dom::{self, DomNode},
@@ -11,7 +10,8 @@ use sauron_html_parser::{parse_html, raw_html};
 use std::{cell::RefCell, rc::Rc};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
-use web_sys::{Element, HtmlElement};
+use web_sys::{Element, HtmlElement, WebSocket,MessageEvent, js_sys, ErrorEvent};
+use log::Level;
 
 #[derive(Clone)]
 struct DomUpdater {
@@ -144,89 +144,76 @@ fn ws_open() {
 
 #[wasm_bindgen(start)]
 pub fn main_js() -> Result<(), JsValue> {
-    console_log::init_with_level(log::Level::Info).expect("error initializing log");
+    console_log::init_with_level(Level::Debug).expect("error initializing logger");
     log::info!("Now executing WASM code from lib.rs in pankat_wasm");
 
+        let location = window().location();
+        let protocol = if location.protocol().unwrap() == "https:" {
+            "wss"
+        } else {
+            "ws"
+        };
+
+        let host = location.host().unwrap();
+        let websocket_address = format!("{protocol}://{host}/api/ws");
+
+    
+    
     spawn_local({
         async move {
-            let id: String = "NavAndContent".to_string();
-            let mut dom_updater: DomUpdater = DomUpdater::new(id.clone());
-
             loop {
-                let location = window().location();
-                let protocol = if location.protocol().unwrap() == "https:" {
-                    "wss"
-                } else {
-                    "ws"
-                };
-
-                let host = location.host().unwrap();
-                let websocket_address = format!("{protocol}://{host}/api/ws");
-
-                match WebSocket::open(&websocket_address) {
-                    Ok(ws) => {
-                        let (mut write, mut read) = ws.split();
-                        use futures::SinkExt;
-                        spawn_local(async move {
-                            loop {
-                                gloo_timers::future::sleep(std::time::Duration::from_secs(1)).await;
-                                use gloo_net::websocket::State;
-                                match ws.state() {
-                                    State::Open => {
-                                        ws_open();
-                                    }
-                                    State::Closing => {
-                                        ws_close();
-                                    }
-                                }
-                                match write.send(Message::Text("ping".to_string())).await {
-                                    Ok(_) => {
-                                        log::info!("Sent ping");
-                                        ws_open();
-                                    }
-                                    Err(e) => {
-                                        unreachable!();
-                                    }
-                                }
-                            }
-                        });
-                        while let Some(result) = read.next().await {
-                            match result {
-                                Ok(msg) => match msg {
-                                    Message::Text(message) => match message.as_str() {
-                                        "pong" => {
-                                            log::info!("WS: received a pong to our ping, connection is working!");
-                                        }
-                                        _ => {
-                                            log::info!("Received WS message");
-                                            dom_updater.update(format!(
-                                                r#"<div class=\"article\">{}</div>"#,
-                                                message
-                                            ));
-                                        }
-                                    },
-                                    Message::Bytes(_) => {
-                                        log::warn!("Binary messages are not supported yet");
-                                    }
-                                },
-                                Err(e) => {
-                                    log::warn!("Err0r {e}");
-                                    return;
-                                }
-                            }
-                        }
-                        log::info!(
-                            "WebSocket disconnected, attempting to reconnect in 1 second..."
-                        );
+                let id: String = "NavAndContent".to_string();
+                let mut dom_updater: DomUpdater = DomUpdater::new(id.clone());
+                let ws = WebSocket::new(&websocket_address).unwrap();
+                let cloned_ws = ws.clone();
+                let onmessage_callback = Closure::<dyn FnMut(_)>::new(move |e: MessageEvent| {
+                    
+                    if let Ok(txt) = e.data().dyn_into::<js_sys::JsString>() {
+                        let txt_string: String = String::from(txt);
+                        log::info!("message event, received Text: {}", txt_string);
+                        dom_updater.update(format!(
+                            r#"<div class=\"article\">{}</div>"#,
+                            txt_string
+                        ));
+                    } else {
+                        log::info!("message event, received Unknown: {:?}", e.data());
                     }
-                    Err(e) => {
-                        log::error!("Failed to connect: {}", e);
+                });
+                ws.set_onmessage(Some(onmessage_callback.as_ref().unchecked_ref()));
+                onmessage_callback.forget();
+
+                let onerror_callback = Closure::<dyn FnMut(_)>::new(move |e: ErrorEvent| {
+                    log::info!("error event: {:?}", e);
+                    return;
+                });
+                ws.set_onerror(Some(onerror_callback.as_ref().unchecked_ref()));
+                onerror_callback.forget();
+
+                let cloned_ws = ws.clone();
+                let onopen_callback = Closure::<dyn FnMut()>::new(move || {
+                    log::info!("socket opened");
+                    ws_open();
+                    match cloned_ws.send_with_str("ping") {
+                        Ok(_) => log::info!("message successfully sent"),
+                        Err(err) => log::info!("error sending message: {:?}", err),
                     }
-                }
+                });
+                ws.set_onopen(Some(onopen_callback.as_ref().unchecked_ref()));
+                onopen_callback.forget();
+
+                let onclose_callback = Closure::<dyn FnMut()>::new(move || {
+                    //log::info!("socket closed");
+                    ws_close();
+                });
+                let closed_ws = ws.clone();
+                closed_ws.set_onclose(Some(onclose_callback.as_ref().unchecked_ref()));
+                    
+
+                onclose_callback.forget();
+                
                 gloo_timers::future::sleep(std::time::Duration::from_secs(1)).await;
             }
         }
     });
-
     Ok(())
 }

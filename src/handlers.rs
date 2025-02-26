@@ -223,17 +223,17 @@ async fn handle_socket(mut socket: WebSocket) {
                     break;
                 }
             }
-            msg = rx.recv() => {
-                match msg {
-                Some(message) => {
-                    socket.send(Message::Text(message)).await.unwrap();
-                }
-                None => {
-                    println!("handle_socket rx channel close so we also close the WS");
-                    break;
-                },
-            }
-            }
+            // msg = rx.recv() => {
+            //     match msg {
+            //         Some(message) => {
+            //             socket.send(Message::Text(message)).await.unwrap();
+            //         }
+            //         None => {
+            //             println!("handle_socket rx channel close so we also close the WS");
+            //             break;
+            //         },
+            //     }
+            // }
 
         }
     }
