@@ -1,5 +1,6 @@
 use futures::StreamExt;
 use gloo_utils::window;
+use log::Level;
 use sauron_core::{
     dom::{self, DomNode},
     prelude::Node,
@@ -10,8 +11,7 @@ use sauron_html_parser::{parse_html, raw_html};
 use std::{cell::RefCell, rc::Rc};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
-use web_sys::{Element, HtmlElement, WebSocket,MessageEvent, js_sys, ErrorEvent};
-use log::Level;
+use web_sys::{js_sys, Element, ErrorEvent, HtmlElement, MessageEvent, WebSocket};
 
 #[derive(Clone)]
 struct DomUpdater {
@@ -147,18 +147,16 @@ pub fn main_js() -> Result<(), JsValue> {
     console_log::init_with_level(Level::Debug).expect("error initializing logger");
     log::info!("Now executing WASM code from lib.rs in pankat_wasm");
 
-        let location = window().location();
-        let protocol = if location.protocol().unwrap() == "https:" {
-            "wss"
-        } else {
-            "ws"
-        };
+    let location = window().location();
+    let protocol = if location.protocol().unwrap() == "https:" {
+        "wss"
+    } else {
+        "ws"
+    };
 
-        let host = location.host().unwrap();
-        let websocket_address = format!("{protocol}://{host}/api/ws");
+    let host = location.host().unwrap();
+    let websocket_address = format!("{protocol}://{host}/api/ws");
 
-    
-    
     spawn_local({
         async move {
             loop {
@@ -166,15 +164,14 @@ pub fn main_js() -> Result<(), JsValue> {
                 let mut dom_updater: DomUpdater = DomUpdater::new(id.clone());
                 let ws = WebSocket::new(&websocket_address).unwrap();
                 let cloned_ws = ws.clone();
+                let (tx, mut rx) = futures::channel::mpsc::unbounded();
+
                 let onmessage_callback = Closure::<dyn FnMut(_)>::new(move |e: MessageEvent| {
-                    
                     if let Ok(txt) = e.data().dyn_into::<js_sys::JsString>() {
                         let txt_string: String = String::from(txt);
                         log::info!("message event, received Text: {}", txt_string);
-                        dom_updater.update(format!(
-                            r#"<div class=\"article\">{}</div>"#,
-                            txt_string
-                        ));
+                        dom_updater
+                            .update(format!(r#"<div class=\"article\">{}</div>"#, txt_string));
                     } else {
                         log::info!("message event, received Unknown: {:?}", e.data());
                     }
@@ -202,15 +199,17 @@ pub fn main_js() -> Result<(), JsValue> {
                 onopen_callback.forget();
 
                 let onclose_callback = Closure::<dyn FnMut()>::new(move || {
-                    //log::info!("socket closed");
+                    log::info!("socket closed");
                     ws_close();
+                    let _ = tx.unbounded_send(());
                 });
                 let closed_ws = ws.clone();
                 closed_ws.set_onclose(Some(onclose_callback.as_ref().unchecked_ref()));
-                    
-
                 onclose_callback.forget();
-                
+
+                // Wait until the websocket is closed
+                rx.next().await;
+
                 gloo_timers::future::sleep(std::time::Duration::from_secs(1)).await;
             }
         }
