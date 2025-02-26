@@ -170,14 +170,22 @@ pub fn main_js() -> Result<(), JsValue> {
                         spawn_local(async move {
                             loop {
                                 gloo_timers::future::sleep(std::time::Duration::from_secs(1)).await;
+                                use gloo_net::websocket::State;
+                                match ws.state() {
+                                    State::Open => {
+                                        ws_open();
+                                    }
+                                    State::Closing => {
+                                        ws_close();
+                                    }
+                                }
                                 match write.send(Message::Text("ping".to_string())).await {
                                     Ok(_) => {
                                         log::info!("Sent ping");
                                         ws_open();
                                     }
                                     Err(e) => {
-                                        log::warn!("Failed to send ping");
-                                        return;
+                                        unreachable!();
                                     }
                                 }
                             }
