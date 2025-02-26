@@ -131,10 +131,16 @@ pub fn file_monitor_articles_change(
                                 None => Err("Error loading cache for Article".to_string()),
                             }
                         }
-                        Err(e) => Err("FIXME".to_string()),
+                        Err(e) => {
+                            println!("Error: {:?}", e);
+                            Err(format!("Error: {:?}", e))
+                        }
                     }
                 }
-                Err(e) => Err("FIXME".to_string()),
+                Err(e) => {
+                    println!("Error: {:?}", e);
+                    Err(format!("Error: {:?}", e))
+                }
             }
         }
         EventKind::Remove(_) => {

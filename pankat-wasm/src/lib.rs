@@ -165,19 +165,23 @@ pub fn main_js() -> Result<(), JsValue> {
 
                 match WebSocket::open(&websocket_address) {
                     Ok(ws) => {
-                        ws_open(); // Move ws_open here since we have established a WebSocket connection
                         let (mut write, mut read) = ws.split();
                         use futures::SinkExt;
                         spawn_local(async move {
                             loop {
                                 gloo_timers::future::sleep(std::time::Duration::from_secs(1)).await;
-                                if write.send(Message::Text("ping".to_string())).await.is_err() {
-                                    log::warn!("Failed to send ping");
-                                    return;
+                                match write.send(Message::Text("ping".to_string())).await {
+                                    Ok(_) => {
+                                        log::info!("Sent ping");
+                                        ws_open();
+                                    }
+                                    Err(e) => {
+                                        log::warn!("Failed to send ping");
+                                        return;
+                                    }
                                 }
                             }
                         });
-
                         while let Some(result) = read.next().await {
                             match result {
                                 Ok(msg) => match msg {
@@ -199,7 +203,7 @@ pub fn main_js() -> Result<(), JsValue> {
                                 },
                                 Err(e) => {
                                     log::warn!("Err0r {e}");
-                                    break;
+                                    return;
                                 }
                             }
                         }
@@ -211,7 +215,6 @@ pub fn main_js() -> Result<(), JsValue> {
                         log::error!("Failed to connect: {}", e);
                     }
                 }
-                ws_close();
                 gloo_timers::future::sleep(std::time::Duration::from_secs(1)).await;
             }
         }

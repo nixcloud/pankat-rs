@@ -17,6 +17,7 @@ use crate::db::initialize_schema;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 
+#[allow(dead_code)]
 pub fn establish_connection_and_initialize_schema() -> SqliteConnection {
     let mut conn = SqliteConnection::establish(":memory:")
         .expect("Failed to create SQLite in-memory database");

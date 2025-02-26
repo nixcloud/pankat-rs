@@ -2,7 +2,7 @@ use crate::auth::{create_token, validate_token, UserLevel};
 use crate::config;
 use crate::db::users::{create_user, get_user_by_username};
 use crate::error::AppError;
-use crate::registry::*;
+// use crate::registry::*;
 use axum::extract::ws::{Message, WebSocket};
 use axum::http::{header, StatusCode};
 use axum::response::Response;
@@ -14,7 +14,6 @@ use axum::{
 use bcrypt::{hash, verify, DEFAULT_COST};
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::SqliteConnection;
-use futures_util::sink::SinkExt;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tokio::fs;
@@ -199,17 +198,17 @@ pub async fn websocket_route(ws: WebSocketUpgrade) -> Response {
 }
 
 async fn handle_socket(mut socket: WebSocket) {
-    let news_receiver = PubSubRegistry::instance().register_receiver("news".to_string());
     use tokio::sync::mpsc;
-    let (tx, mut rx) = mpsc::channel::<String>(10);
-    let p = "ping".to_string();
+    //let news_receiver = PubSubRegistry::instance().register_receiver("news".to_string());
+    let (_, mut rx) = mpsc::channel::<String>(10);
 
     loop {
         tokio::select! {
             msg = socket.recv() => {
                 if let Some(res) = msg {
+                    let _p = "ping".to_string();
                     match res {
-                        Ok(Message::Text(p)) => {
+                        Ok(Message::Text(_p)) => {
                             //println!("Received message: {:?}", p);
                             socket.send(Message::Text("pong".to_string())).await.unwrap();
                         },

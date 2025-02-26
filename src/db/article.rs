@@ -121,6 +121,7 @@ pub fn get_article_with_tags_by_id(
     }
 }
 
+#[allow(dead_code)]
 pub fn get_article_with_tags_by_src_file_name(
     conn: &mut SqliteConnection,
     src_file_name: String,
@@ -244,6 +245,7 @@ pub fn get_visible_articles(
     }
 }
 
+#[allow(dead_code)]
 pub fn get_visible_articles_by_series(
     conn: &mut SqliteConnection,
     series: &str,
@@ -284,6 +286,7 @@ pub fn get_visible_articles_by_series(
     }
 }
 
+#[allow(dead_code)]
 pub fn get_visible_articles_by_tag(
     conn: &mut SqliteConnection,
     tag: String,
@@ -320,6 +323,7 @@ pub fn get_visible_articles_by_tag(
     }
 }
 
+#[allow(dead_code)]
 pub fn get_drafts(
     conn: &mut SqliteConnection,
 ) -> Result<Vec<ArticleWithTags>, diesel::result::Error> {
@@ -349,6 +353,7 @@ pub fn get_drafts(
     }
 }
 
+#[allow(dead_code)]
 pub fn get_special_pages(
     conn: &mut SqliteConnection,
 ) -> Result<Vec<ArticleWithTags>, diesel::result::Error> {
@@ -675,6 +680,7 @@ pub fn del_by_id(
     }
 }
 
+#[allow(dead_code)]
 pub fn get_all_tags(conn: &mut SqliteConnection) -> Result<Vec<String>, diesel::result::Error> {
     let res = tags_table.select(tags_objects::name).load(conn);
     match res {
@@ -683,6 +689,7 @@ pub fn get_all_tags(conn: &mut SqliteConnection) -> Result<Vec<String>, diesel::
     }
 }
 
+#[allow(dead_code)]
 pub fn get_all_series_from_visible_articles(
     conn: &mut SqliteConnection,
 ) -> Result<Vec<String>, diesel::result::Error> {

@@ -170,10 +170,15 @@ fn debounce(pool: &DbPool, pankat_event: PankatFileMonitorEvent) {
                         match crate::articles::file_monitor_articles_change(&mut conn, &event) {
                             Ok(html) => {
                                 //println!("sending the good news: {}", html);
-                                news_sender.send(html);
+                                match news_sender.send(html) {
+                                    Ok(_) => {}
+                                    Err(e) => {
+                                        print!("Error sending news: {:?}", e);
+                                    }
+                                }
                             }
                             Err(e) => {
-                                todo!()
+                                print!("file_monitor_articles_change Error: {:?}", e);
                             }
                         }
                     } else {

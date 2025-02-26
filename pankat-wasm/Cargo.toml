@@ -12,7 +12,7 @@ log = "0.4.25"
 futures = "*"
 wasm-bindgen-futures = "0.4.50"
 console_log = "1.0.0"
-gloo-net = { version = "0.6.0", default-features = false, features = ["websocket"] }
+gloo-net = { version = "0.5.0", default-features = false, features = ["websocket"] }
 gloo-utils = { version = "0.2.0", default-features = false }
 gloo-timers = { version = "0.3.0", features = ["futures"] }
 anyhow = "1.0.95"
