@@ -169,6 +169,9 @@ pub fn main_js() -> Result<(), JsValue> {
                 let onmessage_callback = Closure::<dyn FnMut(_)>::new(move |e: MessageEvent| {
                     if let Ok(txt) = e.data().dyn_into::<js_sys::JsString>() {
                         let txt_string: String = String::from(txt);
+                        if txt_string == "pong" {
+                            
+                        }
                         log::info!("message event, received Text: {}", txt_string);
                         dom_updater
                             .update(format!(r#"<div class=\"article\">{}</div>"#, txt_string));

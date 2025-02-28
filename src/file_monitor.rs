@@ -60,7 +60,7 @@ pub fn spawn_async_monitor(
 
     // Spawn monitoring task
     let handle = tokio::spawn(async move {
-        println!("File monitor started...");
+        println!("File monitor started on path: {}", watch_path.display());
 
         tokio::select! {
             _ = async {
@@ -128,7 +128,10 @@ fn debounce(pool: &DbPool, pankat_event: PankatFileMonitorEvent) {
     use std::sync::Mutex;
     use std::time::Instant;
     use tokio::time::{sleep, Duration};
-    let news_sender = PubSubRegistry::instance().register_sender("news".to_string());
+    let (sender, _) = PubSubRegistry::instance()
+        .get_sender_receiver_by_name("news".to_string())
+        .unwrap();
+
     lazy_static::lazy_static! {
         static ref EVENT_CACHE: Mutex<HashMap<PankatFileMonitorEvent, Instant>> = Mutex::new(HashMap::new());
     }
@@ -170,7 +173,7 @@ fn debounce(pool: &DbPool, pankat_event: PankatFileMonitorEvent) {
                         match crate::articles::file_monitor_articles_change(&mut conn, &event) {
                             Ok(html) => {
                                 //println!("sending the good news: {}", html);
-                                match news_sender.send(html) {
+                                match sender.broadcast(html).await {
                                     Ok(_) => {}
                                     Err(e) => {
                                         print!("Error sending news: {:?}", e);
@@ -189,6 +192,6 @@ fn debounce(pool: &DbPool, pankat_event: PankatFileMonitorEvent) {
                 None => break,
             }
         }
-        println!("end of loop: tokio::spawn(async move");
+        //println!("end of loop: tokio::spawn(async move");
     });
 }

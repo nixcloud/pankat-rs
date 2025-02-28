@@ -36,6 +36,7 @@ scopeguard = "1.2.0"
 tokio-stream = "0.1.17"
 futures-util = "0.3.31"
 colored = "3.0.0"
+async-broadcast = "0.7.2"
 
 [build-dependencies]
 diesel_cli = { version = "2.1.0", default-features = false, features = ["sqlite"] }

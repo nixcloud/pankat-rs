@@ -1,83 +1,47 @@
-use std::collections::{HashMap, HashSet};
-use std::hash::{Hash, Hasher};
-use std::sync::mpsc::{self, Receiver, Sender};
+use async_broadcast::{broadcast, Receiver, Sender};
+//use futures_lite::{future::block_on, stream::StreamExt};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
-
-// Custom wrapper to make Sender hashable
-#[derive(Clone)]
-struct HashableSender<T>(Sender<T>);
-
-impl<T> Hash for HashableSender<T> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        let addr = &self.0 as *const _ as usize;
-        addr.hash(state);
-    }
-}
-
-impl<T> PartialEq for HashableSender<T> {
-    fn eq(&self, other: &Self) -> bool {
-        let addr1 = &self.0 as *const _ as usize;
-        let addr2 = &other.0 as *const _ as usize;
-        addr1 == addr2
-    }
-}
-
-impl<T> Eq for HashableSender<T> {}
 
 #[derive(Clone)]
 pub struct PubSubRegistry {
-    channels: Arc<Mutex<HashMap<String, HashSet<HashableSender<String>>>>>,
+    channels: Arc<Mutex<HashMap<String, (Sender<String>, Receiver<String>)>>>,
 }
 
 impl PubSubRegistry {
-    /// Get the singleton instance of PubSubRegistry
+    /// Get the singleton instance of `PubSubRegistry`
     pub fn instance() -> &'static Self {
-        //println!("Creating singleton instance of PubSubRegistry");
+        println!("Creating new instance of PubSubRegistry");
         static INSTANCE: OnceLock<PubSubRegistry> = OnceLock::new();
-        INSTANCE.get_or_init(|| PubSubRegistry::new())
+        INSTANCE.get_or_init(PubSubRegistry::new)
     }
 
-    /// Create a new PubSubRegistry (private)
     fn new() -> Self {
         Self {
             channels: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
-    /// Register a client as a receiver for a specific channel
-    pub fn register_receiver(&self, channel: String) -> Receiver<String> {
-        //println!("Registering receiver for channel: {}", channel);
-        let (tx, rx) = mpsc::channel();
-        let mut channels = self.channels.lock().unwrap();
-        channels
-            .entry(channel)
-            .or_default()
-            .insert(HashableSender(tx));
-        rx
-    }
+    pub fn get_sender_receiver_by_name(
+        &self,
+        name: String,
+    ) -> Result<(Sender<String>, Receiver<String>), String> {
+        println!("get_sender_receiver_by_name channel: {}", name);
 
-    /// Register a client as a sender for a specific channel
-    pub fn register_sender(&self, channel: String) -> Sender<String> {
-        //println!("Registering sender for channel: {}", channel);
-        let registry = self.clone();
-        let (tx, rx) = mpsc::channel();
+        let mut channels = self.channels.lock().map_err(|_| "Mutex lock poisoned")?;
+        match channels.get(&name) {
+            Some((s, r)) => Ok((s.clone(), r.clone())),
+            None => {
+                println!("create channel1: {}", name);
 
-        // Spawn a thread to listen for messages and broadcast them
-        std::thread::spawn(move || {
-            while let Ok(message) = rx.recv() {
-                registry.broadcast(&channel, message);
+                let (s, r) = broadcast::<String>(5);
+                println!("create channel2: {}", name);
+
+                channels.insert(name.to_string(), (s.clone(), r.clone()));
+                println!("create channel3: {}", name);
+
+                Ok((s, r))
             }
-        });
-
-        tx
-    }
-
-    /// Broadcast a message to all receivers of the channel
-    fn broadcast(&self, channel: &str, message: String) {
-        let mut channels = self.channels.lock().unwrap();
-        if let Some(receivers) = channels.get_mut(channel) {
-            // Remove disconnected receivers and send to connected ones
-            receivers.retain(|receiver| receiver.0.send(message.clone()).is_ok());
         }
     }
 }

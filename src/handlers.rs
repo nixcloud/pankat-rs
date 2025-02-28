@@ -2,7 +2,7 @@ use crate::auth::{create_token, validate_token, UserLevel};
 use crate::config;
 use crate::db::users::{create_user, get_user_by_username};
 use crate::error::AppError;
-// use crate::registry::*;
+use crate::registry::*;
 use axum::extract::ws::{Message, WebSocket};
 use axum::http::{header, StatusCode};
 use axum::response::Response;
@@ -198,9 +198,9 @@ pub async fn websocket_route(ws: WebSocketUpgrade) -> Response {
 }
 
 async fn handle_socket(mut socket: WebSocket) {
-    use tokio::sync::mpsc;
-    //let news_receiver = PubSubRegistry::instance().register_receiver("news".to_string());
-    let (_, mut rx) = mpsc::channel::<String>(10);
+    let (_, mut receiver) = PubSubRegistry::instance()
+        .get_sender_receiver_by_name("news".to_string())
+        .unwrap();
 
     loop {
         tokio::select! {
@@ -209,7 +209,7 @@ async fn handle_socket(mut socket: WebSocket) {
                     let _p = "ping".to_string();
                     match res {
                         Ok(Message::Text(_p)) => {
-                            //println!("Received message: {:?}", p);
+                            println!("Received message: {:?}", _p);
                             socket.send(Message::Text("pong".to_string())).await.unwrap();
                         },
                         Ok(_) => continue,
@@ -223,17 +223,17 @@ async fn handle_socket(mut socket: WebSocket) {
                     break;
                 }
             }
-            // msg = rx.recv() => {
-            //     match msg {
-            //         Some(message) => {
-            //             socket.send(Message::Text(message)).await.unwrap();
-            //         }
-            //         None => {
-            //             println!("handle_socket rx channel close so we also close the WS");
-            //             break;
-            //         },
-            //     }
-            // }
+            msg = receiver.recv() => {
+                match msg {
+                    Ok(message) => {
+                        socket.send(Message::Text(message)).await.unwrap();
+                    }
+                    Err(e) => {
+                        println!("Error receiving data from article update: {:?}", e);
+                        //break;
+                    },
+                }
+            }
 
         }
     }
