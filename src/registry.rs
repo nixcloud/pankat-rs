@@ -32,14 +32,8 @@ impl PubSubRegistry {
         match channels.get(&name) {
             Some((s, r)) => Ok((s.clone(), r.clone())),
             None => {
-                println!("create channel1: {}", name);
-
                 let (s, r) = broadcast::<String>(5);
-                println!("create channel2: {}", name);
-
                 channels.insert(name.to_string(), (s.clone(), r.clone()));
-                println!("create channel3: {}", name);
-
                 Ok((s, r))
             }
         }

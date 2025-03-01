@@ -9,6 +9,7 @@ use sauron_core::{
 };
 use sauron_html_parser::{parse_html, raw_html};
 use std::{cell::RefCell, rc::Rc};
+use tokio::sync::{broadcast, mpsc, Mutex};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::{js_sys, Element, ErrorEvent, HtmlElement, MessageEvent, WebSocket};
@@ -46,7 +47,6 @@ impl DomUpdater {
     }
     fn update(&mut self, next_html: String) {
         let new_node: Node<()> = parse_html::<()>(next_html.as_str()).unwrap().unwrap();
-
         let old_vdom = self.current_vdom.clone();
 
         //log::debug!("-------------------------------------------------");
@@ -169,12 +169,18 @@ pub fn main_js() -> Result<(), JsValue> {
                 let onmessage_callback = Closure::<dyn FnMut(_)>::new(move |e: MessageEvent| {
                     if let Ok(txt) = e.data().dyn_into::<js_sys::JsString>() {
                         let txt_string: String = String::from(txt);
-                        if txt_string == "pong" {
-                            
-                        }
                         log::info!("message event, received Text: {}", txt_string);
-                        dom_updater
-                            .update(format!(r#"<div class=\"article\">{}</div>"#, txt_string));
+
+                        if txt_string == "ping" {
+                            match cloned_ws.send_with_str("pong") {
+                                Ok(_) => log::info!("message successfully sent"),
+                                Err(err) => log::info!("error sending message: {:?}", err),
+                            }
+                            return;
+                        } else {
+                            dom_updater
+                                .update(format!(r#"<div class=\"article\">{}</div>"#, txt_string));
+                        }
                     } else {
                         log::info!("message event, received Unknown: {:?}", e.data());
                     }
@@ -193,10 +199,6 @@ pub fn main_js() -> Result<(), JsValue> {
                 let onopen_callback = Closure::<dyn FnMut()>::new(move || {
                     log::info!("socket opened");
                     ws_open();
-                    match cloned_ws.send_with_str("ping") {
-                        Ok(_) => log::info!("message successfully sent"),
-                        Err(err) => log::info!("error sending message: {:?}", err),
-                    }
                 });
                 ws.set_onopen(Some(onopen_callback.as_ref().unchecked_ref()));
                 onopen_callback.forget();
@@ -212,7 +214,6 @@ pub fn main_js() -> Result<(), JsValue> {
 
                 // Wait until the websocket is closed
                 rx.next().await;
-
                 gloo_timers::future::sleep(std::time::Duration::from_secs(1)).await;
             }
         }

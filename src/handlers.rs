@@ -197,21 +197,29 @@ pub async fn websocket_route(ws: WebSocketUpgrade) -> Response {
     ws.on_upgrade(handle_socket)
 }
 
+use tokio::time;
+use tokio::time::Duration;
+
 async fn handle_socket(mut socket: WebSocket) {
     let (_, mut receiver) = PubSubRegistry::instance()
         .get_sender_receiver_by_name("news".to_string())
         .unwrap();
 
+    let mut interval = time::interval(Duration::from_millis(5000));
     loop {
         tokio::select! {
+            _ = interval.tick() => {
+                match socket.send(Message::Text("ping".to_string())).await {
+                    Ok(_) => (),
+                    Err(e) => {
+                        println!("Error sending message: {:?}", e);
+                        break;
+                    }
+                }
+            }
             msg = socket.recv() => {
                 if let Some(res) = msg {
-                    let _p = "ping".to_string();
                     match res {
-                        Ok(Message::Text(_p)) => {
-                            println!("Received message: {:?}", _p);
-                            socket.send(Message::Text("pong".to_string())).await.unwrap();
-                        },
                         Ok(_) => continue,
                         Err(_) => {
                             println!("WS close");
