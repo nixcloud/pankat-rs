@@ -14,32 +14,11 @@ pub fn create_html_from_standalone_template_by_article(
     html: String,
 ) -> Result<String, Box<dyn Error>> {
     let cfg = config::Config::get();
-    let mut input_path: PathBuf = cfg.input.clone();
-    if !input_path.as_os_str().is_empty() && !input_path.to_string_lossy().ends_with(MAIN_SEPARATOR)
-    {
-        input_path.push(""); // Ensures trailing separator
-    }
-    let article_source_code_fs: PathBuf = input_path.join(article.src_file_name.clone());
-    let relative_path = match article_source_code_fs.strip_prefix(&input_path) {
-        Ok(res) => res,
-        Err(e) => {
-            println!("Error: Article source file path is not within input path");
-            println!("   input_path: {}", input_path.display());
-            println!(
-                "   article.src_file_name: {}",
-                article.src_file_name.clone()
-            );
-            return Err(Box::new(e));
-        }
-    };
 
     let data: serde_json::Value = json!({
         "SiteBrandTitle": cfg.brand,
         "Title": article.title,
         "NavAndContent": html,
-        "ArticleSrcURL": relative_path,
-        "ArticleSrcFileName": article.src_file_name,
-        "ArticleDstFileName": article.dst_file_name,
         "LiveUpdates": article.live_updates,
         "SpecialPage": article.special_page,
         "Anchorjs": article.anchorjs,
@@ -76,6 +55,24 @@ pub fn create_html_from_content_template(
 ) -> Result<String, Box<dyn Error>> {
     let cfg = config::Config::get();
 
+    let mut input_path: PathBuf = cfg.input.clone();
+    if !input_path.as_os_str().is_empty() && !input_path.to_string_lossy().ends_with(MAIN_SEPARATOR)
+    {
+        input_path.push(""); // Ensures trailing separator
+    }
+    let article_source_code_fs: PathBuf = input_path.join(article.src_file_name.clone());
+    let relative_path = match article_source_code_fs.strip_prefix(&input_path) {
+        Ok(res) => res,
+        Err(e) => {
+            println!("Error: Article source file path is not within input path");
+            println!("   input_path: {}", input_path.display());
+            println!(
+                "   article.src_file_name: {}",
+                article.src_file_name.clone()
+            );
+            return Err(Box::new(e));
+        }
+    };
     // println!("article: {:#?}", article);
 
     // println!(
@@ -138,6 +135,9 @@ pub fn create_html_from_content_template(
         "DateAndTime": date_and_time,
         "Tags": tags,
         "ArticleContent": html,
+        "ArticleSrcURL": relative_path,
+        "ArticleSrcFileName": article.src_file_name,
+        "ArticleDstFileName": article.dst_file_name,
     });
 
     let result = handlebars.render("content_template", &data)?;

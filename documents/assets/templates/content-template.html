@@ -7,4 +7,9 @@
     {{{DateAndTime}}}
     {{{Tags}}}
     {{{ArticleContent}}}
-  </div>  
+  </div>
+  {{#if ArticleSrcURL}}
+  <div id="ArticleSourceCode">
+  <a href="{{ArticleSrcURL}}" title="{{ArticleSrcURL}}">article source</a>
+  </div>
+  {{/if}}
