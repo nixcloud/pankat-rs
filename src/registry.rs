@@ -11,7 +11,7 @@ pub struct PubSubRegistry {
 impl PubSubRegistry {
     /// Get the singleton instance of `PubSubRegistry`
     pub fn instance() -> &'static Self {
-        println!("Creating new instance of PubSubRegistry");
+        //println!("Creating new instance of PubSubRegistry");
         static INSTANCE: OnceLock<PubSubRegistry> = OnceLock::new();
         INSTANCE.get_or_init(PubSubRegistry::new)
     }
@@ -26,7 +26,7 @@ impl PubSubRegistry {
         &self,
         name: String,
     ) -> Result<(Sender<String>, Receiver<String>), String> {
-        println!("get_sender_receiver_by_name channel: {}", name);
+        //println!("get_sender_receiver_by_name channel: {}", name);
 
         let mut channels = self.channels.lock().map_err(|_| "Mutex lock poisoned")?;
         match channels.get(&name) {

@@ -30,7 +30,7 @@ pre {
     padding: 10px;
 }
 
-.container {
+#container {
     background-color: white;
     box-shadow: 1px 10px 15px 1px rgba(85,85,85,0.45);
     border-radius: 6px;
@@ -41,7 +41,7 @@ pre {
     position: relative;
 }
 
-#headerContainer {
+#articleNav {
     position: relative;
     display: flex;
 }
@@ -128,8 +128,7 @@ img {
     margin-bottom: 0px;
 }
 
-
-#seriesContainer {
+#seriesNav {
     position: relative;
     background-color: #03a6ca36;
     color: #25404E;

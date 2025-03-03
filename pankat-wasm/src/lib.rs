@@ -27,22 +27,35 @@ impl DomUpdater {
         let window = web_sys::window().expect("no global `window` exists");
         let document = window.document().expect("should have a document on window");
 
-        let div: web_sys::Element = document
+        let div_mount: web_sys::Element = document
             .get_element_by_id(id.as_str())
             .expect("Element with specified id not found");
+        let web_sys_node_mount: web_sys::Node = web_sys::Node::from(div_mount);
+        let div_domnode_mount: DomNode = DomNode::from(web_sys_node_mount);
 
-        let web_sys_node: web_sys::Node = web_sys::Node::from(div);
-        let div_node = DomNode::from(web_sys_node);
+        let div = document
+            .get_element_by_id("NavAndContent")
+            .ok_or("Could not find element with id 'NavAndContent'")
+            .unwrap();
+        let html_element: HtmlElement = div.dyn_into::<HtmlElement>().unwrap();
+        let content = html_element.inner_html();
+        //log::info!("content: {}", content);
 
-        let current_vdom: Node<()> = parse_html::<()>("").unwrap().unwrap();
-        let ev_callback = |_| {};
-        let root: DomNode = dom::create_dom_node(&current_vdom, ev_callback);
+        let current_vdom: Node<()> = parse_html::<()>(&content).unwrap().unwrap();
+
+        let div_root: web_sys::Element = document
+            .get_element_by_id("NavAndContent")
+            .expect("Element with specified id not found");
+        let web_sys_node_root: web_sys::Node = web_sys::Node::from(div_root);
+        let div_domnode_root: DomNode = DomNode::from(web_sys_node_root);
 
         DomUpdater {
             id,
             current_vdom,
-            root_node: Rc::new(RefCell::new(Some(root))),
-            mount_node: Rc::new(RefCell::new(Some(div_node))),
+            /// root_node: the first element of the app view, where the patch is generated is relative to
+            root_node: Rc::new(RefCell::new(Some(div_domnode_root))),
+            /// mount_node: the actual DOM element where the APP is mounted to.
+            mount_node: Rc::new(RefCell::new(Some(div_domnode_mount))),
         }
     }
     fn update(&mut self, next_html: String) {
@@ -156,12 +169,12 @@ pub fn main_js() -> Result<(), JsValue> {
 
     let host = location.host().unwrap();
     let websocket_address = format!("{protocol}://{host}/api/ws");
-
+    let id: String = "container".to_string();
+    let mut dom_updater: DomUpdater = DomUpdater::new(id.clone());
     spawn_local({
         async move {
             loop {
-                let id: String = "NavAndContent".to_string();
-                let mut dom_updater: DomUpdater = DomUpdater::new(id.clone());
+                let mut dom_updater = dom_updater.clone();
                 let ws = WebSocket::new(&websocket_address).unwrap();
                 let cloned_ws = ws.clone();
                 let (tx, mut rx) = futures::channel::mpsc::unbounded();
@@ -169,7 +182,7 @@ pub fn main_js() -> Result<(), JsValue> {
                 let onmessage_callback = Closure::<dyn FnMut(_)>::new(move |e: MessageEvent| {
                     if let Ok(txt) = e.data().dyn_into::<js_sys::JsString>() {
                         let txt_string: String = String::from(txt);
-                        log::info!("message event, received Text: {}", txt_string);
+                        //log::info!("message event, received Text: {}", txt_string);
 
                         if txt_string == "ping" {
                             match cloned_ws.send_with_str("pong") {
@@ -179,7 +192,7 @@ pub fn main_js() -> Result<(), JsValue> {
                             return;
                         } else {
                             dom_updater
-                                .update(format!(r#"<div class=\"article\">{}</div>"#, txt_string));
+                                .update(format!(r#"<div id="NavAndContent">{}</div>"#, txt_string));
                         }
                     } else {
                         log::info!("message event, received Unknown: {:?}", e.data());
