@@ -14,99 +14,26 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::{js_sys, Element, ErrorEvent, HtmlElement, MessageEvent, WebSocket};
 
+#[wasm_bindgen]
+extern "C" {
+    fn myExportedFunction(message: &str);
+}
+
 #[derive(Clone)]
 struct DomUpdater {
     id: String,
-    current_vdom: Node<()>,
-    root_node: Rc<RefCell<Option<DomNode>>>,
-    mount_node: Rc<RefCell<Option<DomNode>>>,
 }
 
 impl DomUpdater {
     fn new(id: String) -> Self {
-        let window = web_sys::window().expect("no global `window` exists");
-        let document = window.document().expect("should have a document on window");
-
-        let div_mount: web_sys::Element = document
-            .get_element_by_id(id.as_str())
-            .expect("Element with specified id not found");
-        let web_sys_node_mount: web_sys::Node = web_sys::Node::from(div_mount);
-        let div_domnode_mount: DomNode = DomNode::from(web_sys_node_mount);
-
-        let div = document
-            .get_element_by_id("NavAndContent")
-            .ok_or("Could not find element with id 'NavAndContent'")
-            .unwrap();
-        let html_element: HtmlElement = div.dyn_into::<HtmlElement>().unwrap();
-        let content = html_element.inner_html();
-        //log::info!("content: {}", content);
-
-        let current_vdom: Node<()> = parse_html::<()>(&content).unwrap().unwrap();
-
-        let div_root: web_sys::Element = document
-            .get_element_by_id("NavAndContent")
-            .expect("Element with specified id not found");
-        let web_sys_node_root: web_sys::Node = web_sys::Node::from(div_root);
-        let div_domnode_root: DomNode = DomNode::from(web_sys_node_root);
-
-        DomUpdater {
-            id,
-            current_vdom,
-            /// root_node: the first element of the app view, where the patch is generated is relative to
-            root_node: Rc::new(RefCell::new(Some(div_domnode_root))),
-            /// mount_node: the actual DOM element where the APP is mounted to.
-            mount_node: Rc::new(RefCell::new(Some(div_domnode_mount))),
-        }
+        DomUpdater { id }
     }
+
     fn update(&mut self, next_html: String) {
-        let new_node: Node<()> = parse_html::<()>(next_html.as_str()).unwrap().unwrap();
-        let old_vdom = self.current_vdom.clone();
-
-        //log::debug!("-------------------------------------------------");
-        //log::debug!("old_node: {}", old_vdom.render_to_string());
-        //log::debug!("inner_html: {}", self.inner_html());
-        // fn same(a: String, b: String) -> String {
-        //     if a == b {
-        //         "same".to_string()
-        //     } else {
-        //         "different".to_string()
-        //     }
-        // }
-        // log::debug!(
-        //     "   => {}",
-        //     same(old_vdom.render_to_string(), self.inner_html())
-        // );
-        //log::debug!("new_node: {}", new_node.render_to_string());
-        // log::debug!("new_node: {:#?}", new_node);
-
-        let vdom_patches = vdom::diff(&old_vdom, &new_node).unwrap();
-
-        //log::debug!("Created {} VDOM patch(es)", vdom_patches.len());
-        //log::debug!("Created {:#?}", vdom_patches);
-        let dom_patches = dom::convert_patches(
-            self.root_node.borrow().as_ref().unwrap(),
-            &vdom_patches,
-            |_| {},
-        )
-        .unwrap();
-        //log::debug!("Converted {} DOM patch(es)", dom_patches.len());
-        //log::debug!("Converted {:#?}", dom_patches);
-        //log::debug!("-------------------------------------------------");
-        dom::apply_dom_patches(
-            Rc::clone(&self.root_node),
-            Rc::clone(&self.mount_node),
-            dom_patches,
-        )
-        .unwrap();
-        self.current_vdom = new_node.clone();
-
-        //assert_eq!(next_html, self.inner_html());
-    }
-    fn inner_html(&self) -> String {
         let window = web_sys::window().expect("no global `window` exists");
         let document = window.document().expect("should have a document on window");
         let target: Element = document.get_element_by_id(self.id.as_str()).unwrap();
-        target.inner_html()
+        myExportedFunction(&next_html);
     }
 }
 
@@ -169,14 +96,14 @@ pub fn main_js() -> Result<(), JsValue> {
 
     let host = location.host().unwrap();
     let websocket_address = format!("{protocol}://{host}/api/ws");
-    let id: String = "container".to_string();
-    let mut dom_updater: DomUpdater = DomUpdater::new(id.clone());
+    let id: String = "NavAndContent".to_string();
+    let dom_updater: DomUpdater = DomUpdater::new(id.clone()); // Removed mut
     spawn_local({
         async move {
             loop {
                 let mut dom_updater = dom_updater.clone();
                 let ws = WebSocket::new(&websocket_address).unwrap();
-                let cloned_ws = ws.clone();
+                let cloned_ws = ws.clone(); // Fixed unused variable warning
                 let (tx, mut rx) = futures::channel::mpsc::unbounded();
 
                 let onmessage_callback = Closure::<dyn FnMut(_)>::new(move |e: MessageEvent| {
