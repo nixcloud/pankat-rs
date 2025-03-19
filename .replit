@@ -1,4 +1,4 @@
-modules = ["rust", "python-3.11"]
+modules = ["rust"]
 
 [nix]
 channel = "stable-24_05"

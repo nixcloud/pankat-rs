@@ -32,7 +32,8 @@ impl PubSubRegistry {
         match channels.get(&name) {
             Some((s, r)) => Ok((s.clone(), r.clone())),
             None => {
-                let (s, r) = broadcast::<String>(5);
+                // FIXME temporary hack to avoid stalling the sending
+                let (s, r) = broadcast::<String>(500);
                 channels.insert(name.to_string(), (s.clone(), r.clone()));
                 Ok((s, r))
             }

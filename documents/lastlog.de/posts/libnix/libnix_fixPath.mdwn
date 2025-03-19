@@ -2,12 +2,13 @@
 [[!tag nix nixos libnix fixPath]]
 [[!series libnix]]
 
+
 [[!summary fixPath on Windows 10 as an alternative to rpath for avoiding DLL hell]]
 
 [[!img media/nlnet-logo.gif class="noFancy" style="float: right;"]]
 [[!img posts/libnix/Nix_snowflake_windows.svg class="noFancy" style="float: right;" width="200px"]]
 
-# motivation12
+# motivation update12
 
 **fixPath**, a tool created for **making nix store concepts possible on Windows 10**, see series [libnix](https://lastlog.de/blog/timeline.html?filter=series::libnix)
 

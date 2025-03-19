@@ -102,7 +102,7 @@ pub fn file_monitor_articles_change(
 ) -> Result<String, String> {
     println!("-----------> file_monitor_articles_change begin");
     defer! {
-        println!("-----------> file_monitor_articles_change end");
+        println!("-----------< file_monitor_articles_change end");
     }
     //-> Result<(ArticleWithTags, String), Box<dyn Error>> {
     use notify::EventKind;
@@ -132,8 +132,9 @@ pub fn file_monitor_articles_change(
                             }
                         }
                         Err(e) => {
-                            println!("Error: {:?}", e);
-                            Err(format!("Error: {:?}", e))
+                            let error_message = format!("Error: {:?}", e);
+                            println!("{}", error_message);
+                            Err(error_message)
                         }
                     }
                 }

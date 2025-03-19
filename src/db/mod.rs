@@ -26,13 +26,13 @@ pub fn establish_connection_pool() -> DbPool {
     }
 
     let manager = ConnectionManager::<SqliteConnection>::new(database_url);
-    let db_pool = r2d2::Pool::builder()
+    let pool = r2d2::Pool::builder()
         .max_size(1)
         .build(manager)
         .expect("Failed to create pool");
-    initialize_schema(&mut db_pool.get().unwrap());
+    initialize_schema(&mut pool.get().unwrap());
 
-    db_pool
+    pool
 }
 
 pub fn initialize_schema(connection: &mut SqliteConnection) {

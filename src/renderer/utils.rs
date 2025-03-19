@@ -7,5 +7,3 @@ pub fn date_and_time(modification_date: &Option<chrono::NaiveDateTime>) -> Strin
         None => String::new(),
     }
 }
-
-

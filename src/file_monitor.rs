@@ -146,7 +146,12 @@ fn debounce(pool: &DbPool, pankat_event: PankatFileMonitorEvent) {
     }
 
     let pool = pool.clone();
-
+    println!(
+        "Free connections: {}. Connections in use: {}.",
+        pool.state().idle_connections,
+        pool.state().connections - pool.state().idle_connections
+    );
+    let lock = Arc::new(tokio::sync::Mutex::new(()));
     tokio::spawn(async move {
         loop {
             let next_event = {
@@ -166,12 +171,18 @@ fn debounce(pool: &DbPool, pankat_event: PankatFileMonitorEvent) {
                             let mut cache = EVENT_CACHE.lock().unwrap();
                             cache.remove(&event);
                         }
+                        let _guard = lock.lock().await;
+
                         println!("Processing cached event for: {}", event.path.display());
-                        let mut conn = pool
-                            .get()
-                            .expect("Failed to get a connection from the pool");
-                        match crate::articles::file_monitor_articles_change(&mut conn, &event) {
+
+                        let v = crate::articles::file_monitor_articles_change(
+                            &mut pool.get().unwrap(),
+                            &event,
+                        );
+
+                        match v {
                             Ok(html) => {
+                                println!("sending the good news");
                                 //println!("sending the good news: {}", html);
                                 match sender.broadcast(html).await {
                                     Ok(_) => {}

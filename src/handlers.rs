@@ -234,6 +234,7 @@ async fn handle_socket(mut socket: WebSocket) {
             msg = receiver.recv() => {
                 match msg {
                     Ok(message) => {
+                        println!("sending data to client");
                         socket.send(Message::Text(message)).await.unwrap();
                     }
                     Err(e) => {
