@@ -115,22 +115,23 @@ fn handle_event(pool: &DbPool, event: &Event) {
                         kind: event.kind,
                         path: relative_article_path.to_path_buf(),
                     };
-                    debounce(pool, pankat_event);
+                    debounce(
+                        pool,
+                        pankat_event,
+                        relative_article_path.display().to_string(),
+                    );
                 }
             }
         }
     }
 }
 
-fn debounce(pool: &DbPool, pankat_event: PankatFileMonitorEvent) {
+fn debounce(pool: &DbPool, pankat_event: PankatFileMonitorEvent, a: String) {
     // Debounce logic
     use std::collections::HashMap;
     use std::sync::Mutex;
     use std::time::Instant;
     use tokio::time::{sleep, Duration};
-    let (sender, _) = PubSubRegistry::instance()
-        .get_sender_receiver_by_name("news".to_string())
-        .unwrap();
 
     lazy_static::lazy_static! {
         static ref EVENT_CACHE: Mutex<HashMap<PankatFileMonitorEvent, Instant>> = Mutex::new(HashMap::new());
@@ -146,13 +147,16 @@ fn debounce(pool: &DbPool, pankat_event: PankatFileMonitorEvent) {
     }
 
     let pool = pool.clone();
-    println!(
-        "Free connections: {}. Connections in use: {}.",
-        pool.state().idle_connections,
-        pool.state().connections - pool.state().idle_connections
-    );
+    // println!(
+    //     "Free connections: {}. Connections in use: {}.",
+    //     pool.state().idle_connections,
+    //     pool.state().connections - pool.state().idle_connections
+    // );
     let lock = Arc::new(tokio::sync::Mutex::new(()));
     tokio::spawn(async move {
+        let (sender, _) = PubSubRegistry::instance()
+            .get_sender_receiver_by_name(a)
+            .await;
         loop {
             let next_event = {
                 let cache = EVENT_CACHE.lock().unwrap();
@@ -182,12 +186,12 @@ fn debounce(pool: &DbPool, pankat_event: PankatFileMonitorEvent) {
 
                         match v {
                             Ok(html) => {
-                                println!("sending the good news");
+                                // println!("sending the good news");
                                 //println!("sending the good news: {}", html);
-                                match sender.broadcast(html).await {
+                                match sender.send(html) {
                                     Ok(_) => {}
-                                    Err(e) => {
-                                        print!("Error sending news: {:?}", e);
+                                    Err(_) => {
+                                        print!("Error sending news via websocket");
                                     }
                                 }
                             }

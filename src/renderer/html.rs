@@ -24,6 +24,8 @@ pub fn create_html_from_standalone_template_by_article(
         "Anchorjs": article.anchorjs,
         "Tocify": article.tocify,
         "Timeline": false,
+        "ArticleSrcFileName": article.src_file_name,
+        "ArticleDstFileName": article.dst_file_name,
     });
 
     create_html_from_standalone_template(data)
@@ -136,8 +138,6 @@ pub fn create_html_from_content_template(
         "Tags": tags,
         "ArticleContent": html,
         "ArticleSrcURL": relative_path,
-        "ArticleSrcFileName": article.src_file_name,
-        "ArticleDstFileName": article.dst_file_name,
     });
 
     let result = handlebars.render("content_template", &data)?;

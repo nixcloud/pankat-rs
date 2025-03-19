@@ -1,42 +1,35 @@
-use async_broadcast::{broadcast, Receiver, Sender};
-//use futures_lite::{future::block_on, stream::StreamExt};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, OnceLock};
+use tokio::sync::{broadcast, Mutex};
 
-#[derive(Clone)]
+#[derive(Debug)]
 pub struct PubSubRegistry {
-    channels: Arc<Mutex<HashMap<String, (Sender<String>, Receiver<String>)>>>,
+    channels: Arc<Mutex<HashMap<String, broadcast::Sender<String>>>>,
 }
 
 impl PubSubRegistry {
     /// Get the singleton instance of `PubSubRegistry`
-    pub fn instance() -> &'static Self {
-        //println!("Creating new instance of PubSubRegistry");
-        static INSTANCE: OnceLock<PubSubRegistry> = OnceLock::new();
-        INSTANCE.get_or_init(PubSubRegistry::new)
+    pub fn instance() -> &'static Arc<Self> {
+        static INSTANCE: OnceLock<Arc<PubSubRegistry>> = OnceLock::new();
+        INSTANCE.get_or_init(|| PubSubRegistry::new())
     }
 
-    fn new() -> Self {
-        Self {
+    fn new() -> Arc<Self> {
+        Arc::new(Self {
             channels: Arc::new(Mutex::new(HashMap::new())),
-        }
+        })
     }
 
-    pub fn get_sender_receiver_by_name(
+    pub async fn get_sender_receiver_by_name(
         &self,
         name: String,
-    ) -> Result<(Sender<String>, Receiver<String>), String> {
-        //println!("get_sender_receiver_by_name channel: {}", name);
-
-        let mut channels = self.channels.lock().map_err(|_| "Mutex lock poisoned")?;
-        match channels.get(&name) {
-            Some((s, r)) => Ok((s.clone(), r.clone())),
-            None => {
-                // FIXME temporary hack to avoid stalling the sending
-                let (s, r) = broadcast::<String>(500);
-                channels.insert(name.to_string(), (s.clone(), r.clone()));
-                Ok((s, r))
-            }
-        }
+    ) -> (broadcast::Sender<String>, broadcast::Receiver<String>) {
+        let mut channels = self.channels.lock().await;
+        let sender = channels
+            .entry(name)
+            .or_insert_with(|| broadcast::channel(500).0)
+            .clone();
+        let receiver = sender.subscribe();
+        (sender, receiver)
     }
 }

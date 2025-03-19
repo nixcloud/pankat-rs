@@ -197,24 +197,48 @@ pub async fn websocket_route(ws: WebSocketUpgrade) -> Response {
     ws.on_upgrade(handle_socket)
 }
 
+use serde_json::Value;
 use tokio::time;
 use tokio::time::Duration;
 
 async fn handle_socket(mut socket: WebSocket) {
+    // Step 1: Wait for the initial message to determine the subscription
+    let register_name = if let Some(Ok(Message::Text(text))) = socket.recv().await {
+        match serde_json::from_str::<Value>(&text) {
+            Ok(json) => json
+                .get("register")
+                .and_then(|v| v.as_str())
+                .map(String::from),
+            Err(_) => None,
+        }
+    } else {
+        None
+    };
+
+    let register_name = match register_name {
+        Some(name) => name,
+        None => {
+            println!("Invalid or missing register name, closing connection.");
+            return;
+        }
+    };
+
+    println!("Registering for: {}", register_name);
+
+    // Step 2: Get the sender-receiver based on the register name
     let (_, mut receiver) = PubSubRegistry::instance()
-        .get_sender_receiver_by_name("news".to_string())
-        .unwrap();
+        .get_sender_receiver_by_name(register_name)
+        .await;
 
     let mut interval = time::interval(Duration::from_millis(5000));
+
+    // Step 3: Enter the loop after proper initialization
     loop {
         tokio::select! {
             _ = interval.tick() => {
-                match socket.send(Message::Text("ping".to_string())).await {
-                    Ok(_) => (),
-                    Err(e) => {
-                        println!("Error sending message: {:?}", e);
-                        break;
-                    }
+                if let Err(e) = socket.send(Message::Text("ping".to_string())).await {
+                    println!("Error sending message: {:?}", e);
+                    break;
                 }
             }
             msg = socket.recv() => {
@@ -234,16 +258,15 @@ async fn handle_socket(mut socket: WebSocket) {
             msg = receiver.recv() => {
                 match msg {
                     Ok(message) => {
-                        println!("sending data to client");
-                        socket.send(Message::Text(message)).await.unwrap();
+                        if let Err(e) = socket.send(Message::Text(message)).await {
+                            println!("Error sending data: {:?}", e);
+                        }
                     }
                     Err(e) => {
                         println!("Error receiving data from article update: {:?}", e);
-                        //break;
                     },
                 }
             }
-
         }
     }
     println!("WS close, loop done");

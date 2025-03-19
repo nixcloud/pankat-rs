@@ -97,13 +97,24 @@ pub fn main_js() -> Result<(), JsValue> {
     let host = location.host().unwrap();
     let websocket_address = format!("{protocol}://{host}/api/ws");
     let id: String = "NavAndContent".to_string();
-    let dom_updater: DomUpdater = DomUpdater::new(id.clone()); // Removed mut
+    let dom_updater: DomUpdater = DomUpdater::new(id.clone());
+    let document = window()
+        .document()
+        .expect("should have a document on window");
+    let data_article_src_filename = document
+        .head()
+        .and_then(|head| head.get_attribute("data-article-src-filename"))
+        .ok_or_else(|| {
+            log::error!("data-article-src-filename attribute not found");
+            JsValue::from("Attribute not set")
+        })?;
+
     spawn_local({
         async move {
             loop {
                 let mut dom_updater = dom_updater.clone();
                 let ws = WebSocket::new(&websocket_address).unwrap();
-                let cloned_ws = ws.clone(); // Fixed unused variable warning
+                let cloned_ws = ws.clone();
                 let (tx, mut rx) = futures::channel::mpsc::unbounded();
 
                 let onmessage_callback = Closure::<dyn FnMut(_)>::new(move |e: MessageEvent| {
@@ -118,8 +129,10 @@ pub fn main_js() -> Result<(), JsValue> {
                             }
                             return;
                         } else {
-                            dom_updater
-                                .update(format!(r#"<div id="NavAndContent">{}</div>"#, txt_string));
+                            dom_updater.update(format!(
+                                r#"<div id=\"NavAndContent\">{}</div>"#,
+                                txt_string
+                            ));
                         }
                     } else {
                         log::info!("message event, received Unknown: {:?}", e.data());
@@ -136,8 +149,16 @@ pub fn main_js() -> Result<(), JsValue> {
                 onerror_callback.forget();
 
                 let cloned_ws = ws.clone();
+                let data_article_src_filename = data_article_src_filename.clone();
+
                 let onopen_callback = Closure::<dyn FnMut()>::new(move || {
                     log::info!("socket opened");
+                    cloned_ws
+                        .send_with_str(&format!(
+                            r#"{{ "register": "{}" }}"#,
+                            data_article_src_filename
+                        ))
+                        .expect("Failed to send JSON");
                     ws_open();
                 });
                 ws.set_onopen(Some(onopen_callback.as_ref().unchecked_ref()));
