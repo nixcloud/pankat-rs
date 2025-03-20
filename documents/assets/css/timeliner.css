@@ -12,7 +12,6 @@
 .timeline-container {
   border-left: 2px solid #ccc;
   width: 97%;
-  float: left;
   margin-left: 20px;
 }
 .timeline-toggle {
@@ -29,7 +28,6 @@
 .timeline-wrapper {
   width: inherit;
   clear: left;
-  float: left;
   margin: 0 0 12px;
 }
 .timeline-wrapper h2 {
@@ -53,7 +51,6 @@
 .timeline-series {
   width: inherit;
   clear: left;
-  float: left;
   margin: 0 12px 0 0;
   padding: 4px 4px 4px 0;
   position: relative;
@@ -87,7 +84,6 @@
 .timeline-series dd h3 {
 /*   color: #FFF; */
   clear: both;
-  float: left;
   font-size: 1.5em;
   margin: 0;
   white-space: nowrap;
@@ -106,7 +102,6 @@
 
 .timeline-event-content h4 {
   clear: left;
-  float: left;
   font-size: 1.4em;
   font-weight: 400;
   margin: 10px 0 0;
@@ -115,7 +110,6 @@
 .timeline-event-content blockquote {
   border-left: 2px solid #ccc;
   clear: left;
-  float: left;
   font-size: 1.8em;
   margin-left: 0;
   padding: 0 30px;
