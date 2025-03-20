@@ -414,6 +414,8 @@ pub struct DbReply {
     pub most_recent_article_change: Option<i32>,
     pub affected_articles: HashSet<i32>,
     pub article: ArticleWithTags,
+    // FIXME maybe it should also contain the old article
+    // pub old_article: Option<ArticleWithTags>,
 }
 
 pub fn set(

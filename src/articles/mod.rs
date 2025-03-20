@@ -104,7 +104,6 @@ pub fn file_monitor_articles_change(
     defer! {
         println!("-----------< file_monitor_articles_change end");
     }
-    //-> Result<(ArticleWithTags, String), Box<dyn Error>> {
     use notify::EventKind;
     match event.kind {
         EventKind::Create(_) | EventKind::Modify(_) => {
@@ -118,7 +117,13 @@ pub fn file_monitor_articles_change(
                     let reply = crate::db::article::set(conn, &article);
                     match reply {
                         Ok(db_reply) => {
-                            //println!("Writing article to disk");
+                            write_article_to_disk(conn, &db_reply.article);
+                            if db_reply.most_recent_article_change.is_some() {
+                                update_most_recent_article(conn);
+                            }
+                            // FIXME: timeline? change on: nav, summary, date, title, tags, series
+                            //let _ = crate::articles::timeline::update_timeline(&articles);
+
                             match crate::db::cache::get_cache(conn, article.src_file_name.clone()) {
                                 Some(cache_entry) => {
                                     let html: String = create_nav_content_template(
@@ -149,7 +154,8 @@ pub fn file_monitor_articles_change(
             let res =
                 crate::db::article::del_by_src_file_name(conn, event.path.display().to_string());
             match res {
-                Ok(_) => Err("FIXME".to_string()),
+                // FIXME implement this
+                Ok(_) => Err("FIXME: implement this".to_string()),
                 Err(_) => Err("FIXME".to_string()),
             }
         }

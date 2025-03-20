@@ -116,7 +116,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("Port Number: {}", cfg.port);
     println!("Brand: {}", cfg.brand);
     println!("Static build only: {}", cfg.static_build_only);
-    println!("Flat output filename structure: {}", cfg.flat);
+    println!("Flat filename structure: {}", cfg.flat);
     println!("-------------------------------------------------");
 
     // Initialize SQLite database with Diesel
