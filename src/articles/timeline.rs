@@ -238,9 +238,9 @@ fn generate_article_references_by_year(articles: &Vec<ArticleWithTags>) -> Strin
     let template = r#"
         <div class="posting_div posting_{{article_id}}">
           <div class="timeline-event-content postingsEntry">
-            <div>
+            <div class="title_date_summary">
               <div class="timeline-title">{{article_title}}</div>
-              <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+              <div class="floo">
                 <div class="timeline-title-timestamp">{{article_date}}</div>
                 <a href="{{dst_file_name}}" style="flex: 1;">open complete article</a>
               </div>
