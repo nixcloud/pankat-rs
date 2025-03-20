@@ -3,10 +3,10 @@
 [[!series floo]]
 [[!summary libnix motivation, the future of cross platform nix]]
 
-[[!img media/nlnet-logo.gif class="noFancy" style="float: right"]]
-[[!img posts/libnix/Nix_snowflake_windows.svg class="noFancy" style="float: right" width="200px"]]
+[[!img /media/nlnet-logo.gif class="noFancy" style="float: right"]]
+[[!img /posts/libnix/Nix_snowflake_windows.svg class="noFancy" style="float: right" width="200px"]]
 
-# motivation12345678
+# motivation
 
 this [libnix](https://nlnet.nl/project/libnix/) nlnet application i've made is meant to contribute to the nix ecosystem by **making nix a
 generic cross platform backend for language specific package managers**.
@@ -33,7 +33,7 @@ in parts:
 
 it is worth to have a look at the [global market share held by operating systems for desktop PCs, from january 2013 to february 2024](https://www.statista.com/statistics/218089/global-market-share-of-windows-7/):
 
-[[!img posts/libnix/desktop-market-share.jpg class="noFancy" width="700px"]]
+[[!img /posts/libnix/desktop-market-share.jpg class="noFancy" width="700px"]]
 
 taking macOS + Linux together, nix could be used on ~20% of the desktops.
 

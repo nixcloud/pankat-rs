@@ -15,6 +15,7 @@ mod tests {
             23,
             "".to_string(),
             false,
+            false,
         );
         config::Config::initialize(config).expect("Failed to initialize config");
 

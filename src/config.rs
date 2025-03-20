@@ -10,6 +10,7 @@ pub struct Config {
     pub port: u16,
     pub brand: String,
     pub static_build_only: bool,
+    pub flat: bool,
 }
 
 impl Config {
@@ -21,6 +22,7 @@ impl Config {
         port: u16,
         brand: String,
         static_build_only: bool,
+        flat: bool,
     ) -> Self {
         Config {
             input,
@@ -30,6 +32,7 @@ impl Config {
             port,
             brand,
             static_build_only,
+            flat,
         }
     }
 

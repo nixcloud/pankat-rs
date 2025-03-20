@@ -242,7 +242,7 @@ fn generate_article_references_by_year(articles: &Vec<ArticleWithTags>) -> Strin
               <div class="timeline-title">{{article_title}}</div>
               <div class="floo">
                 <div class="timeline-title-timestamp">{{article_date}}</div>
-                <a href="{{dst_file_name}}" style="flex: 1;">open complete article</a>
+                <a href="/{{dst_file_name}}" style="flex: 1;">open complete article</a>
               </div>
               <div class="summary">{{{summary}}}</div>
             </div>

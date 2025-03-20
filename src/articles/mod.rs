@@ -179,7 +179,7 @@ pub fn collect_garbage(pool: &DbPool) {
             println!("====== Running GC on 'output' directory ======");
             match output_folder_check(&output_path) {
                 Ok(_) => {
-                    let lookup_artibles_set: std::collections::HashSet<String> = articles
+                    let lookup_articles_set: std::collections::HashSet<String> = articles
                         .iter()
                         .map(|article| article.dst_file_name.clone())
                         .collect();
@@ -194,7 +194,12 @@ pub fn collect_garbage(pool: &DbPool) {
                         if relative_entry_string == PANKAT_FILE {
                             continue;
                         }
-                        if !lookup_artibles_set.contains(relative_entry_string.as_str()) {
+                        if entry.file_type().unwrap().is_dir() {
+                            println!("WARNING: ignoring path, needs to be implemented!");
+                            // FIXME 'HACK'
+                            continue;
+                        }
+                        if !lookup_articles_set.contains(relative_entry_string.as_str()) {
                             println!("Removing garbage 'output' entry: {:?}", relative_entry);
                             std::fs::remove_file(entry.path()).unwrap();
                         }
@@ -398,15 +403,20 @@ fn write_article_to_disk(conn: &mut SqliteConnection, article: &ArticleWithTags)
     }
 }
 
-pub fn write_to_disk(content: &String, filename: &PathBuf) {
-    std::fs::write(filename, content.as_str()).expect("Unable to write HTML file");
+pub fn write_to_disk(content: &String, filepath: &PathBuf) {
+    if let Some(parent) = filepath.parent() {
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            eprintln!("Failed to create directory {:?}: {}", parent, e);
+        }
+    }
+    std::fs::write(filepath, content.as_str()).expect("Unable to write HTML file");
 }
 
 fn parse_article(
     conn: &mut SqliteConnection,
     article_path: &PathBuf,
 ) -> Result<ArticleWithTags, Box<dyn Error>> {
-    let article_path_string = article_path.display().to_string();
+    let src_file_name_string = article_path.display().to_string();
     let cfg = config::Config::get();
     let input_path: PathBuf = cfg.input.clone();
 
@@ -417,8 +427,8 @@ fn parse_article(
 
     let mut new_article: ArticleWithTags = ArticleWithTags {
         id: None,
-        src_file_name: article_path_string.clone(),
-        dst_file_name: utils::create_dst_file_name(&article_path),
+        src_file_name: src_file_name_string.clone(),
+        dst_file_name: utils::create_dst_file_name(&article_path, cfg.flat),
         title: None,
         modification_date: None,
         summary: None,
@@ -440,10 +450,10 @@ fn parse_article(
             }
             let hash: String = compute_hash(article_mdwn_refined_source.clone());
             // println!(
-            //     "article_path_string.clone(): {}",
-            //     article_path_string.clone()
+            //     "src_file_name_string.clone(): {}",
+            //     src_file_name_string.clone()
             // );
-            let renew_cache: bool = match get_cache(conn, article_path_string.clone()) {
+            let renew_cache: bool = match get_cache(conn, src_file_name_string.clone()) {
                 Some(cache_entry) => {
                     //println!("Cache_entry.hash: {}, hash: {}", cache_entry.hash, hash);
                     if cache_entry.hash == hash {
@@ -458,7 +468,7 @@ fn parse_article(
                 //println!(" ... cache outdated, regenerating");
                 match pandoc_mdwn_2_html(article_mdwn_refined_source.clone()) {
                     Ok(html) => {
-                        match set_cache(conn, article_path_string.clone(), html.clone(), hash) {
+                        match set_cache(conn, src_file_name_string.clone(), html.clone(), hash) {
                             Ok(_) => {}
                             Err(e) => {
                                 println!("Error udpating cache: {}", e);
@@ -468,7 +478,7 @@ fn parse_article(
                     Err(e) => {
                         println!(
                             "Error: No entry in cache for path: {}: {}",
-                            article_path_string, e,
+                            src_file_name_string, e,
                         );
                         return Err(e);
                     }
@@ -485,7 +495,7 @@ fn parse_article(
         Err(e) => {
             println!(
                 "Error: Evaluating plugins on: {}: {}",
-                article_path_string, e,
+                src_file_name_string, e,
             );
             Err(e)
         }

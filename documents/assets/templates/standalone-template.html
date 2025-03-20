@@ -10,17 +10,17 @@
 
 <title>{{Title}}</title>
 
-<script src="assets/js/jquery.min.js"></script>
+<script src="/assets/js/jquery.min.js"></script>
 {{#if Tocify}}
-<script src="assets/js/jquery-ui-1.9.1.custom.min.js"></script>
-<script src="assets/js/jquery.tocify.min.js"></script>
+<script src="/assets/js/jquery-ui-1.9.1.custom.min.js"></script>
+<script src="/assets/js/jquery.tocify.min.js"></script>
 
-<link type="text/css" rel="stylesheet" href="assets/css/jquery.tocify.css" />
+<link type="text/css" rel="stylesheet" href="/assets/css/jquery.tocify.css" />
 {{/if}}
 
 {{#if LiveUpdates}}
 
-<script src="assets/js/diffDOM.js"></script>
+<script src="/assets/js/diffDOM.js"></script>
 
 
 <script type="module">
@@ -34,24 +34,24 @@
 </script>
 {{/if}}
 
-<link type="text/css" rel="stylesheet" href="assets/css/bootstrap.min.css" />
-<script src="assets/js/bootstrap.min.js"></script>
+<link type="text/css" rel="stylesheet" href="/assets/css/bootstrap.min.css" />
+<script src="/assets/js/bootstrap.min.js"></script>
 {{#if Anchorjs}}
-<script src="assets/js/anchor.min.js"></script>
+<script src="/assets/js/anchor.min.js"></script>
 {{/if}}
 <link rel="icon" href="media/favicon.ico" type="image/x-icon" />
 
 {{#if Timeline}}
 <!-- timeline related css begin -->
-<link rel="stylesheet" href="assets/css/colorbox.css" type="text/css" media="screen">
-<link rel="stylesheet" href="assets/css/timeliner.css" type="text/css" media="screen">
+<link rel="stylesheet" href="/assets/css/colorbox.css" type="text/css" media="screen">
+<link rel="stylesheet" href="/assets/css/timeliner.css" type="text/css" media="screen">
 <!-- timeline related css end -->
 {{/if}}
 <!--[if lt IE 9]>
   <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
 <![endif]-->
-<link rel="stylesheet" href="assets/css/pandoc-kate.css" type="text/css" />
-<link rel="stylesheet" href="assets/css/style.css" type="text/css" />
+<link rel="stylesheet" href="/assets/css/pandoc-kate.css" type="text/css" />
+<link rel="stylesheet" href="/assets/css/style.css" type="text/css" />
 
 </head>
 <body>
@@ -69,14 +69,14 @@
         <span class="icon-bar"></span>
         <span class="icon-bar"></span>
       </button>
-      <a class="navbar-brand" href="index.html">{{SiteBrandTitle}}</a>
+      <a class="navbar-brand" href="/index.html">{{SiteBrandTitle}}</a>
     </div>
 
     <!-- Collect the nav links, forms, and other content for toggling -->
     <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
       <ul class="nav navbar-nav">
-        <li><a href="timeline.html"><span class="glyphicon glyphicon-list" aria-hidden="true"></span> timeline</a></li>
-        <li><a href="about.html"><span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span> about</a></li>
+        <li><a href="/timeline.html"><span class="glyphicon glyphicon-list" aria-hidden="true"></span> timeline</a></li>
+        <li><a href="/about.html"><span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span> about</a></li>
         <li><a href="/draft" id="draft" style="display: none"><span class="glyphicon glyphicon-folder-open" aria-hidden="true"></span> draft</a></li>
         <li><a href="/draft?article=posts/roadmap.mdwn" id="roadmap" style="display: none"><span class="glyphicon glyphicon glyphicon-road" aria-hidden="true"></span> roadmap</a></li>
 
@@ -127,9 +127,9 @@ window.onload = function(e){
 {{/if}}
 {{#if Timeline}}
 <!-- timeline related js begin -->
-<script type="text/javascript" src="assets/js/colorbox.min.js"></script>
-<script type="text/javascript" src="assets/js/timeliner.js"></script>
-<script src="assets/js/pankat-timeline.js"></script>
+<script type="text/javascript" src="/assets/js/colorbox.min.js"></script>
+<script type="text/javascript" src="/assets/js/timeliner.js"></script>
+<script src="/assets/js/pankat-timeline.js"></script>
 <script>
   $(document).ready(function() {
     // Colorbox Modal

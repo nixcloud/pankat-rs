@@ -78,6 +78,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .action(ArgAction::SetTrue)
         )
         .arg(
+            Arg::new("flat")
+                .short('f')
+                .long("flat")
+                .help("Flatten the output directory like (foo/bar.mdwn -> bar.html)")
+                .required(false)
+                .action(ArgAction::SetTrue)
+        )
+        .arg(
             Arg::new("port")
                 .short('p')
                 .long("port")
@@ -95,6 +103,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         matches.get_one::<String>("port").unwrap().parse().unwrap(),
         matches.get_one::<String>("brand").unwrap().parse().unwrap(),
         matches.get_flag("static"),
+        matches.get_flag("flat"),
     );
     config::Config::initialize(config).expect("Failed to initialize config");
     let cfg = config::Config::get();
@@ -107,6 +116,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("Port Number: {}", cfg.port);
     println!("Brand: {}", cfg.brand);
     println!("Static build only: {}", cfg.static_build_only);
+    println!("Flat output filename structure: {}", cfg.flat);
     println!("-------------------------------------------------");
 
     // Initialize SQLite database with Diesel

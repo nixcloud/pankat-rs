@@ -46,7 +46,6 @@ pub fn del_cache_by_id(conn: &mut SqliteConnection, id: i32) -> Result<(), diese
     }
 }
 
-// FIXME rewrite to Result
 pub fn get_cache(conn: &mut SqliteConnection, src_file_name: String) -> Option<Cache> {
     let v: QueryResult<Option<Cache>> = cache_objects::cache
         .filter(cache_objects::src_file_name.eq(src_file_name.clone()))
