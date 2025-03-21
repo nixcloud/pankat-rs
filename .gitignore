@@ -9,3 +9,5 @@ documents/output
 documents/pankat.sqlite
 documents/assets/pankat-wasm/
 documents/lastlog.de/*
+.direnv
+.envrc.local
