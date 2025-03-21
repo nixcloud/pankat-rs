@@ -23,4 +23,4 @@ mode = "parallel"
 author = "agent"
 
 [run]
-args = ["just", "run"]
+args = ["just", "run-backend-only"]

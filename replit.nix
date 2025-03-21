@@ -1,6 +1,5 @@
 {pkgs}: {
   deps = [
-    pkgs.gdb
     pkgs.htop
     pkgs.diesel-cli-ext
     pkgs.zlib
@@ -15,7 +14,6 @@
     pkgs.lcms2
     pkgs.freetype
     pkgs.vim
-    pkgs.trunk
     pkgs.wasm-pack
     pkgs.just
     pkgs.pandoc

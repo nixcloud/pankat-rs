@@ -7,6 +7,7 @@ mod file_monitor;
 mod handlers;
 mod registry;
 mod renderer;
+use crate::renderer::pandoc::check_pandoc;
 
 use axum::{
     routing::{get, post},
@@ -118,6 +119,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("Static build only: {}", cfg.static_build_only);
     println!("Flat filename structure: {}", cfg.flat);
     println!("-------------------------------------------------");
+
+    check_pandoc()?;
 
     // Initialize SQLite database with Diesel
     let pool = db::establish_connection_pool();
