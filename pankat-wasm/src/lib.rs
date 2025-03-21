@@ -1,15 +1,7 @@
 use futures::StreamExt;
 use gloo_utils::window;
 use log::Level;
-use sauron_core::{
-    dom::{self, DomNode},
-    prelude::Node,
-    vdom,
-    vdom::diff,
-};
-use sauron_html_parser::{parse_html, raw_html};
-use std::{cell::RefCell, rc::Rc};
-use tokio::sync::{broadcast, mpsc, Mutex};
+use serde_json::Value;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use web_sys::{js_sys, Element, ErrorEvent, HtmlElement, MessageEvent, WebSocket};
@@ -119,20 +111,48 @@ pub fn main_js() -> Result<(), JsValue> {
 
                 let onmessage_callback = Closure::<dyn FnMut(_)>::new(move |e: MessageEvent| {
                     if let Ok(txt) = e.data().dyn_into::<js_sys::JsString>() {
-                        let txt_string: String = String::from(txt);
+                        let txt_string = String::from(txt);
                         //log::info!("message event, received Text: {}", txt_string);
 
-                        if txt_string == "ping" {
-                            match cloned_ws.send_with_str("pong") {
-                                Ok(_) => log::info!("message successfully sent"),
-                                Err(err) => log::info!("error sending message: {:?}", err),
+                        let parsed: Value =
+                            serde_json::from_str(txt_string.as_str()).expect("Invalid JSON");
+
+                        if let Some((key, value)) =
+                            parsed.as_object().and_then(|obj| obj.iter().next())
+                        {
+                            match key.as_str() {
+                                "ping" => {
+                                    match cloned_ws.send_with_str(r#"{"pong" : ""}"#) {
+                                        Ok(_) => log::info!("message successfully sent"),
+                                        Err(err) => log::info!("error sending message: {:?}", err),
+                                    }
+                                    return;
+                                }
+                                "redirect" => {
+                                    // FIXME is executed but the url is
+                                    //     /draft?documents/output/libnix.html
+                                    // and this is not working
+                                    if let Some(value_str) = value.as_str() {
+                                        let window = web_sys::window().unwrap();
+                                        window
+                                            .location()
+                                            .set_href(value_str)
+                                            .expect("Failed to redirect");
+                                    }
+                                    log::info!("redirect")
+                                }
+                                "update" => {
+                                    if let Some(value_str) = value.as_str() {
+                                        dom_updater.update(format!(
+                                            r#"<div id="NavAndContent">{}</div>"#,
+                                            value_str
+                                        ));
+                                    }
+                                }
+                                _ => println!("unknown key"),
                             }
-                            return;
                         } else {
-                            dom_updater.update(format!(
-                                r#"<div id=\"NavAndContent\">{}</div>"#,
-                                txt_string
-                            ));
+                            println!("Invalid JSON format");
                         }
                     } else {
                         log::info!("message event, received Unknown: {:?}", e.data());

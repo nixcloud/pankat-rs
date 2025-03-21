@@ -3,9 +3,11 @@ use crate::db::article::{
 };
 use crate::db::cache::{compute_hash, get_cache, set_cache};
 use crate::db::DbPool;
+use notify::EventKind;
 use scopeguard::defer;
 
 use regex::Regex;
+use serde_json::json;
 use std::error::Error;
 use std::path::PathBuf;
 
@@ -96,6 +98,7 @@ pub fn output_folder_check(output_folder: &PathBuf) -> Result<(), Box<dyn Error>
     }
 }
 
+/// returns a command: json string which is sent to via WS to the client or an error
 pub fn file_monitor_articles_change(
     conn: &mut SqliteConnection,
     event: &crate::file_monitor::PankatFileMonitorEvent,
@@ -104,7 +107,7 @@ pub fn file_monitor_articles_change(
     defer! {
         println!("-----------< file_monitor_articles_change end");
     }
-    use notify::EventKind;
+
     match event.kind {
         EventKind::Create(_) | EventKind::Modify(_) => {
             println!(
@@ -124,6 +127,23 @@ pub fn file_monitor_articles_change(
                             // FIXME: timeline? change on: nav, summary, date, title, tags, series
                             //let _ = crate::articles::timeline::update_timeline(&articles);
 
+                            if Some(true) == db_reply.article.draft {
+                                let cfg = config::Config::get();
+                                let output_path: PathBuf = cfg.output.clone();
+                                let mut output_filename = output_path.clone();
+                                output_filename.push(article.dst_file_name.clone());
+                                match std::fs::remove_file(output_filename.clone()) {
+                                    Ok(_) => {
+                                        let target: String =
+                                            format!("/draft?{}", output_filename.display());
+                                        return Ok(json!({ "redirect": target, }).to_string());
+                                    }
+                                    Err(e) => {
+                                        println!("Error removing file: {}", e);
+                                    }
+                                }
+                            };
+
                             match crate::db::cache::get_cache(conn, article.src_file_name.clone()) {
                                 Some(cache_entry) => {
                                     let html: String = create_nav_content_template(
@@ -131,7 +151,7 @@ pub fn file_monitor_articles_change(
                                         &db_reply.article,
                                         cache_entry.html,
                                     );
-                                    Ok(html)
+                                    Ok(json!({ "update": html, }).to_string())
                                 }
                                 None => Err("Error loading cache for Article".to_string()),
                             }

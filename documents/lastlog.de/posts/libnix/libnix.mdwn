@@ -1,12 +1,13 @@
 [[!meta date="2024-04-12 20:53"]]
 [[!tag nix nixos libnix]]
 [[!series floo]]
+
 [[!summary libnix motivation, the future of cross platform nix]]
 
 [[!img /media/nlnet-logo.gif class="noFancy" style="float: right"]]
 [[!img /posts/libnix/Nix_snowflake_windows.svg class="noFancy" style="float: right" width="200px"]]
 
-# motivation123
+# motivation
 
 this [libnix](https://nlnet.nl/project/libnix/) nlnet application i've made is meant to contribute to the nix ecosystem by **making nix a
 generic cross platform backend for language specific package managers**.

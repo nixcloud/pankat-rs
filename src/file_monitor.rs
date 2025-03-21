@@ -178,25 +178,22 @@ fn debounce(pool: &DbPool, pankat_event: PankatFileMonitorEvent, a: String) {
                         let _guard = lock.lock().await;
 
                         println!("Processing cached event for: {}", event.path.display());
-
-                        let v = crate::articles::file_monitor_articles_change(
+                        match crate::articles::file_monitor_articles_change(
                             &mut pool.get().unwrap(),
                             &event,
-                        );
-
-                        match v {
-                            Ok(html) => {
+                        ) {
+                            Ok(data) => {
                                 // println!("sending the good news");
-                                //println!("sending the good news: {}", html);
-                                match sender.send(html) {
+                                //println!("sending the good news: {}", data);
+                                match sender.send(data) {
                                     Ok(_) => {}
                                     Err(_) => {
-                                        print!("Error sending news via websocket");
+                                        println!("Error sending command via websocket");
                                     }
                                 }
                             }
                             Err(e) => {
-                                print!("file_monitor_articles_change Error: {:?}", e);
+                                println!("file_monitor_articles_change Error: {:?}", e);
                             }
                         }
                     } else {

@@ -236,7 +236,7 @@ async fn handle_socket(mut socket: WebSocket) {
     loop {
         tokio::select! {
             _ = interval.tick() => {
-                if let Err(e) = socket.send(Message::Text("ping".to_string())).await {
+                if let Err(e) = socket.send(Message::Text(r#"{"ping" : ""}"#.to_string())).await {
                     println!("Error sending message: {:?}", e);
                     break;
                 }

@@ -16,18 +16,9 @@ gloo-net = { version = "0.5.0", default-features = false, features = ["websocket
 gloo-utils = { version = "0.2.0", default-features = false }
 gloo-timers = { version = "0.3.0", features = ["futures"] }
 anyhow = "1.0.95"
-sauron-core = { version = "0.61.9", features = ["with-dom"] }
-sauron-html-parser = "*"
 lazy_static = "1.5.0"
 tokio = { version = "1.43.0", features = ["macros", "sync", "time", "tokio-macros"] }
+serde_json = "1.0.140"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
-
-[patch.crates-io.sauron-core]
-git = "https://github.com/qknight/sauron.git"
-branch = "diff_result_extension"
-
-[patch.crates-io.sauron-html-parser]
-git = "https://github.com/qknight/sauron.git"
-branch = "diff_result_extension"
