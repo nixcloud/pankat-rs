@@ -8,7 +8,7 @@ use web_sys::{js_sys, Element, ErrorEvent, HtmlElement, MessageEvent, WebSocket}
 
 #[wasm_bindgen]
 extern "C" {
-    fn myExportedFunction(message: &str);
+    fn update_html_using_diffDOM(message: &str);
 }
 
 #[derive(Clone)]
@@ -25,7 +25,7 @@ impl DomUpdater {
         let window = web_sys::window().expect("no global `window` exists");
         let document = window.document().expect("should have a document on window");
         let target: Element = document.get_element_by_id(self.id.as_str()).unwrap();
-        myExportedFunction(&next_html);
+        update_html_using_diffDOM(&next_html);
     }
 }
 
