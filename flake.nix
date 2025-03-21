@@ -15,7 +15,7 @@
           pkgs = import nixpkgs {
             inherit system overlays;
           };
-          rust = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+          rust = pkgs.rust-bin.fromRustupToolchainFile ./pankat-wasm/rust-toolchain.toml;
           platform_packages =
             if pkgs.stdenv.isLinux then
               with pkgs; [ ]
@@ -37,6 +37,12 @@
 
           devShells.default = mkShell {
             buildInputs = [
+              cargo
+              sqlite
+              cargo-binutils
+              lld
+              pandoc
+              pkg-config
               nushell
               just
               rust
