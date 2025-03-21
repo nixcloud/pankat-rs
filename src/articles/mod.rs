@@ -3,6 +3,7 @@ use crate::db::article::{
 };
 use crate::db::cache::{compute_hash, get_cache, set_cache};
 use crate::db::DbPool;
+use colored::Colorize;
 use notify::EventKind;
 use scopeguard::defer;
 
@@ -221,8 +222,8 @@ pub fn collect_garbage(pool: &DbPool) {
                             continue;
                         }
                         if entry.file_type().unwrap().is_dir() {
-                            println!("WARNING: ignoring path, needs to be implemented!");
-                            // FIXME 'HACK'
+                            let w = "WARNING: ignoring path, needs to be implemented!".red();
+                            println!("{w}");
                             continue;
                         }
                         if !lookup_articles_set.contains(relative_entry_string.as_str()) {

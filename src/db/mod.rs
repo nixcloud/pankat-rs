@@ -1,4 +1,5 @@
 use crate::config;
+use colored::Colorize;
 use diesel::prelude::*;
 use std::path::Path;
 use std::path::PathBuf;
@@ -19,7 +20,8 @@ pub fn establish_connection_pool() -> DbPool {
 
     let database_url: &str = database_path.as_path().to_str().unwrap();
 
-    println!("Connecting to {}", database_url);
+    let c = format!("Connecting to {}", database_url);
+    println!("{}", c.yellow());
     if !Path::new(database_url).exists() {
         println!("Creating SQLite database file...");
         std::fs::File::create(database_url).expect("Failed to create SQLite database file");
@@ -36,7 +38,7 @@ pub fn establish_connection_pool() -> DbPool {
 }
 
 pub fn initialize_schema(connection: &mut SqliteConnection) {
-    println!("Initializing schema...");
+    println!("Checking & doing schema updates...");
     use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
     const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 

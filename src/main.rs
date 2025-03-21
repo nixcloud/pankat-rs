@@ -15,6 +15,7 @@ use axum::{
 };
 
 use clap::{Arg, ArgAction, Command};
+use colored::Colorize;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations};
 use tokio::signal;
 use tokio::sync::broadcast;
@@ -169,7 +170,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Create a listener with retry logic
     let listener = match tokio::net::TcpListener::bind(addr).await {
         Ok(listener) => {
-            println!("Listening on: {}", address_config);
+            let l = format!("Listening on: {}", address_config);
+            println!("{}", l.green());
             listener
         }
         Err(e) => {
@@ -188,7 +190,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     };
 
     // Start server with graceful shutdown
-    println!("Press Ctrl+C to stop the server...");
+    let s = "Press Ctrl+C to stop the server...".yellow();
+    println!("{s}");
     tokio::select! {
         result = axum::serve(listener, app) => {
             if let Err(e) = result {
