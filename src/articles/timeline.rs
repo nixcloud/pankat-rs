@@ -123,6 +123,7 @@ fn tag_to_link_list(article: &ArticleWithTags) -> String {
 }
 
 pub fn update_timeline(articles: &Vec<ArticleWithTags>) -> Result<(), Box<dyn Error>> {
+    println!("update_timeline");
     let cfg = config::Config::get();
 
     let html: String = format!(
@@ -183,7 +184,7 @@ fn create_timeline_container(articles: &Vec<ArticleWithTags>) -> String {
         years_map
             .entry(year)
             .or_insert_with(Vec::new)
-            .push(article.clone());
+            .insert(0, article.clone());
     }
 
     let mut keys: Vec<_> = years_map.keys().cloned().collect();
@@ -242,11 +243,11 @@ fn generate_article_references_by_year(articles: &Vec<ArticleWithTags>) -> Strin
               <div class="timeline-title">{{article_title}}</div>
               <div class="floo">
                 <div class="timeline-title-timestamp">{{article_date}}</div>
+                <p class="tag">{{{tagToLinkList}}}{{{seriesToLinkList}}}</p>
                 <a href="/{{dst_file_name}}" style="flex: 1;">open complete article</a>
               </div>
               <div class="summary">{{{summary}}}</div>
             </div>
-            <p class="tag">{{{tagToLinkList}}}{{{seriesToLinkList}}}</p>
           </div>
         </div>
         "#;
