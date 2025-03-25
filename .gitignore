@@ -7,7 +7,7 @@ documents/blog.lastlog.de
 documents/lastlog.de
 documents/output
 documents/pankat.sqlite
-documents/assets/pankat-wasm/
+documents/wasm/
 documents/lastlog.de/*
 .direnv
 .envrc.local
