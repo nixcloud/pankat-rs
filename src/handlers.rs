@@ -15,8 +15,11 @@ use bcrypt::{hash, verify, DEFAULT_COST};
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::SqliteConnection;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::path::PathBuf;
 use tokio::fs;
+use tokio::time;
+use tokio::time::Duration;
 
 type DbPool = Pool<ConnectionManager<SqliteConnection>>;
 
@@ -163,21 +166,38 @@ pub async fn serve_input(uri: axum::http::Uri) -> Result<Response, AppError> {
     }
 }
 
-pub async fn serve_assets(uri: axum::http::Uri) -> Result<Response, AppError> {
-    println!("Received request for URI (serve_assets): {}", uri);
-    let cfg = config::Config::get();
-    let mut assets = PathBuf::from(cfg.assets.clone());
-
+pub async fn serve_internals(uri: axum::http::Uri) -> Result<Response, AppError> {
+    println!("Received request for URI (serve_internals): {}", uri);
+    let mut path_to_serve = PathBuf::new();
     let uri_path = PathBuf::from(uri.path());
-    let path_str = uri_path
-        .strip_prefix("/assets/")
-        .map_err(|_| AppError::InternalError)?;
+    let cfg = config::Config::get();
 
-    assets.push(&path_str);
+    if let Some(first_path) = uri.path().split('/').nth(1) {
+        //println!("First path segment: {}", first_path);
+        match first_path {
+            "assets" => {
+                path_to_serve = PathBuf::from(cfg.assets.clone());
+                let path_str = uri_path
+                    .strip_prefix("/assets/")
+                    .map_err(|_| AppError::InternalError)?;
+                path_to_serve.push(&path_str);
+            }
+            "wasm" => {
+                path_to_serve = PathBuf::from(cfg.wasm.clone());
+                let path_str = uri_path
+                    .strip_prefix("/wasm/")
+                    .map_err(|_| AppError::InternalError)?;
+                path_to_serve.push(&path_str);
+            }
+            _ => {}
+        }
+    } else {
+        return Err(AppError::InternalError);
+    }
 
-    match fs::read(&assets).await {
+    match fs::read(&path_to_serve).await {
         Ok(contents) => {
-            let mime_type = mime_guess::from_path(&assets).first_or_text_plain();
+            let mime_type = mime_guess::from_path(&path_to_serve).first_or_text_plain();
 
             let response = Response::builder()
                 .status(StatusCode::OK)
@@ -193,13 +213,8 @@ pub async fn serve_assets(uri: axum::http::Uri) -> Result<Response, AppError> {
 
 pub async fn websocket_route(ws: WebSocketUpgrade) -> Response {
     println!("Received request for new ws connection request");
-
     ws.on_upgrade(handle_socket)
 }
-
-use serde_json::Value;
-use tokio::time;
-use tokio::time::Duration;
 
 async fn handle_socket(mut socket: WebSocket) {
     // Step 1: Wait for the initial message to determine the subscription
@@ -246,12 +261,12 @@ async fn handle_socket(mut socket: WebSocket) {
                     match res {
                         Ok(_) => continue,
                         Err(_) => {
-                            println!("WS close");
+                            //println!("WS close");
                             break;
                         },
                     }
                 } else {
-                    println!("WS close");
+                    //println!("WS close");
                     break;
                 }
             }
@@ -269,5 +284,5 @@ async fn handle_socket(mut socket: WebSocket) {
             }
         }
     }
-    println!("WS close, loop done");
+    //println!("WS close, loop done");
 }

@@ -6,6 +6,7 @@ pub struct Config {
     pub input: PathBuf,
     pub output: PathBuf,
     pub assets: PathBuf,
+    pub wasm: PathBuf,
     pub database: PathBuf,
     pub port: u16,
     pub brand: String,
@@ -18,6 +19,7 @@ impl Config {
         input: PathBuf,
         output: PathBuf,
         assets: PathBuf,
+        wasm: PathBuf,
         database: PathBuf,
         port: u16,
         brand: String,
@@ -28,6 +30,7 @@ impl Config {
             input,
             output,
             assets,
+            wasm,
             database,
             port,
             brand,
@@ -46,6 +49,7 @@ impl Config {
             ensure_paths_exist(&config.input).unwrap();
             ensure_paths_exist(&config.output).unwrap();
             ensure_paths_exist(&config.assets).unwrap();
+            ensure_paths_exist(&config.wasm).unwrap();
             ensure_paths_exist(&config.database).unwrap();
         }
 

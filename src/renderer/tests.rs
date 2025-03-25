@@ -11,6 +11,7 @@ mod tests {
             PathBuf::from("documents/blog.lastlog.de"),
             PathBuf::from("documents/output"),
             PathBuf::from("documents/assets"),
+            PathBuf::from("documents/wasm"),
             PathBuf::from("documents"),
             23,
             "".to_string(),

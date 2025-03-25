@@ -44,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .long("output")
                 .value_name("PATH")
                 .help("Absolute path, where pankat 'maintains' the generated html files by adding/deleting/updating them")
-                .required(true)
+                .default_value("documents/output")
         )
         .arg(
             Arg::new("assets")
@@ -52,7 +52,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .long("assets")
                 .value_name("PATH")
                 .help("An absolute assets path, where js/wasm/css/templates/lua/... files are stored")
-                .required(true)
+                .default_value("documents/assets")
+        )
+        .arg(
+            Arg::new("wasm")
+                .short('w')
+                .long("wasm")
+                .help("The bundled pankat-wasm executable built from rust")
+                .value_name("PATH")
+                .default_value("documents/wasm")
         )
         .arg(
             Arg::new("database")
@@ -60,7 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .long("database")
                 .value_name("PATH")
                 .help("An absolute path where 'only' the database is stored (don't put this into output!)")
-                .required(true)
+                .default_value("documents")
         )
         .arg(
             Arg::new("brand")
@@ -101,6 +109,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         std::path::Path::new(matches.get_one::<String>("input").unwrap()).into(),
         std::path::Path::new(matches.get_one::<String>("output").unwrap()).into(),
         std::path::Path::new(matches.get_one::<String>("assets").unwrap()).into(),
+        std::path::Path::new(matches.get_one::<String>("wasm").unwrap()).into(),
         std::path::Path::new(matches.get_one::<String>("database").unwrap()).into(),
         matches.get_one::<String>("port").unwrap().parse().unwrap(),
         matches.get_one::<String>("brand").unwrap().parse().unwrap(),
@@ -114,6 +123,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("Input Path: {}", cfg.input.display());
     println!("Output Path: {}", cfg.output.display());
     println!("Assets Path: {}", cfg.assets.display());
+    println!("WASM Path: {}", cfg.wasm.display());
     println!("Database Path: {}", cfg.database.display());
     println!("Port Number: {}", cfg.port);
     println!("Brand: {}", cfg.brand);
@@ -153,7 +163,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let app = Router::new()
         .route("/posts/*path", get(handlers::serve_input))
         .route("/media/*path", get(handlers::serve_input))
-        .route("/assets/*path", get(handlers::serve_assets))
+        .route("/assets/*path", get(handlers::serve_internals))
+        .route("/wasm/*path", get(handlers::serve_internals))
         .route("/api/auth/register", post(handlers::register))
         .route("/api/auth/login", post(handlers::login))
         .route("/api/protected", get(handlers::protected))
