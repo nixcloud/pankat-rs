@@ -48,6 +48,7 @@
               rust
               binaryen                 # required to minify WASM files with wasm-opt
               wasm-pack
+              cargo-zigbuild
               #cmake
               #clang
               #trunk                    # required to bundle the frontend

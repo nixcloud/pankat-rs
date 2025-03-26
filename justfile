@@ -7,6 +7,9 @@ copy-pankat-wasm:
 build-backend:
   cargo build
 
+build-backend-release:
+  cargo zigbuild --release
+
 run-backend-only: build-backend copy-pankat-wasm
   cargo run -- --input documents/blog.lastlog.de --flat
 
