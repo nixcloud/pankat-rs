@@ -43,30 +43,31 @@ impl Config {
         SINGLETON.get().expect("Config not initialized")
     }
 
-    pub fn initialize(config: Config) -> Result<(), &'static str> {
-        #[cfg(not(debug_assertions))] // This attribute ensures the code runs only in release builds
+    pub fn initialize(config: Config) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        #[cfg(all(not(test)))]
         {
-            ensure_paths_exist(&config.input).unwrap();
-            ensure_paths_exist(&config.output).unwrap();
-            ensure_paths_exist(&config.assets).unwrap();
-            ensure_paths_exist(&config.wasm).unwrap();
-            ensure_paths_exist(&config.database).unwrap();
+            ensure_paths_exist(&config.input)?;
+            ensure_paths_exist(&config.output)?;
+            ensure_paths_exist(&config.assets)?;
+            ensure_paths_exist(&config.wasm)?;
+            ensure_paths_exist(&config.database)?;
         }
 
-        SINGLETON
+        let _ = SINGLETON
             .set(Arc::new(config))
-            .map_err(|_| "Config can only be initialized once")
+            .map_err(|_| "Config can only be initialized once");
+        Ok(())
     }
 }
 
 static SINGLETON: OnceLock<Arc<Config>> = OnceLock::new();
 
-#[cfg(not(debug_assertions))]
+#[cfg(all(not(test)))]
 fn ensure_paths_exist(path: &PathBuf) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if !path.exists() {
         return Err(Box::<dyn std::error::Error + Send + Sync>::from(format!(
-            "Path does not exist: {:?}",
-            path
+            "Path does not exist: '{}'. Create it manually!",
+            path.display()
         )));
     }
     Ok(())
