@@ -11,10 +11,10 @@ build-backend-release:
   cargo zigbuild --release
 
 run-backend-only: build-backend copy-pankat-wasm
-  cargo run -- --input documents/blog.lastlog.de --flat
+  cargo run
 
 run: build-pankat-wasm copy-pankat-wasm build-backend
-  cargo run -- --input documents/blog.lastlog.de --flat
+  cargo run
 
 test:
   cargo test

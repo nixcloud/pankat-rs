@@ -7,16 +7,16 @@ mod file_monitor;
 mod handlers;
 mod registry;
 mod renderer;
+use crate::config::*;
 use crate::renderer::pandoc::check_pandoc;
-
 use axum::{
     routing::{get, post},
     Router,
 };
-
 use clap::{Arg, ArgAction, Command};
 use colored::Colorize;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations};
+use std::collections::HashMap;
 use tokio::signal;
 use tokio::sync::broadcast;
 use tower_http::cors::CorsLayer;
@@ -36,7 +36,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .long("input")
                 .value_name("PATH")
                 .help("Absolute path where the media/*.jpg and posts/*.md files of your blog are located")
-                .required(true)
         )
         .arg(
             Arg::new("output")
@@ -105,17 +104,115 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         )
         .get_matches();
 
-    let config = config::Config::new(
-        std::path::Path::new(matches.get_one::<String>("input").unwrap()).into(),
-        std::path::Path::new(matches.get_one::<String>("output").unwrap()).into(),
-        std::path::Path::new(matches.get_one::<String>("assets").unwrap()).into(),
-        std::path::Path::new(matches.get_one::<String>("wasm").unwrap()).into(),
-        std::path::Path::new(matches.get_one::<String>("database").unwrap()).into(),
-        matches.get_one::<String>("port").unwrap().parse().unwrap(),
-        matches.get_one::<String>("brand").unwrap().parse().unwrap(),
-        matches.get_flag("static"),
-        matches.get_flag("flat"),
+    let mut config_values: HashMap<String, ConfigValue> = HashMap::new();
+
+    config_values.insert(
+        "input".to_string(),
+        ConfigValue {
+            value: ConfigValueType::Path(
+                matches
+                    .get_one::<String>("input")
+                    .map(|v| std::path::Path::new(v).into()),
+            ),
+            is_default: Some(clap::parser::ValueSource::DefaultValue)
+                == matches.value_source("input"),
+        },
     );
+
+    config_values.insert(
+        "output".to_string(),
+        ConfigValue {
+            value: ConfigValueType::Path(
+                matches
+                    .get_one::<String>("output")
+                    .map(|v| std::path::Path::new(v).into()),
+            ),
+            is_default: Some(clap::parser::ValueSource::DefaultValue)
+                == matches.value_source("output"),
+        },
+    );
+
+    config_values.insert(
+        "assets".to_string(),
+        ConfigValue {
+            value: ConfigValueType::Path(
+                matches
+                    .get_one::<String>("assets")
+                    .map(|v| std::path::Path::new(v).into()),
+            ),
+            is_default: Some(clap::parser::ValueSource::DefaultValue)
+                == matches.value_source("assets"),
+        },
+    );
+
+    config_values.insert(
+        "wasm".to_string(),
+        ConfigValue {
+            value: ConfigValueType::Path(
+                matches
+                    .get_one::<String>("wasm")
+                    .map(|v| std::path::Path::new(v).into()),
+            ),
+            is_default: Some(clap::parser::ValueSource::DefaultValue)
+                == matches.value_source("wasm"),
+        },
+    );
+
+    config_values.insert(
+        "database".to_string(),
+        ConfigValue {
+            value: ConfigValueType::Path(
+                matches
+                    .get_one::<String>("database")
+                    .map(|v| std::path::Path::new(v).into()),
+            ),
+            is_default: Some(clap::parser::ValueSource::DefaultValue)
+                == matches.value_source("database"),
+        },
+    );
+
+    config_values.insert(
+        "brand".to_string(),
+        ConfigValue {
+            value: ConfigValueType::String(matches.get_one::<String>("brand").map(|v| v.into())),
+            is_default: Some(clap::parser::ValueSource::DefaultValue)
+                == matches.value_source("brand"),
+        },
+    );
+
+    config_values.insert(
+        "port".to_string(),
+        ConfigValue {
+            value: ConfigValueType::Number(
+                matches
+                    .get_one::<String>("port")
+                    .map(|port| port.parse::<u16>().unwrap()),
+            ),
+            is_default: Some(clap::parser::ValueSource::DefaultValue)
+                == matches.value_source("port"),
+        },
+    );
+
+    config_values.insert(
+        "static".to_string(),
+        ConfigValue {
+            value: ConfigValueType::Bool(matches.get_one::<bool>("static").copied()),
+            is_default: Some(clap::parser::ValueSource::DefaultValue)
+                == matches.value_source("static"),
+        },
+    );
+
+    config_values.insert(
+        "flat".to_string(),
+        ConfigValue {
+            value: ConfigValueType::Bool(matches.get_one::<bool>("flat").copied()),
+            is_default: Some(clap::parser::ValueSource::DefaultValue)
+                == matches.value_source("flat"),
+        },
+    );
+
+    let config = config::Config::new(config_values);
+
     config::Config::initialize(config).expect("Failed to initialize config");
     let cfg = config::Config::get();
 

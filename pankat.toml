@@ -1,0 +1,9 @@
+input = "documents/blog.lastlog.de"
+output = "documents/output"
+assets = "documents/assets"
+wasm = "documents/wasm"
+database = "documents"
+brand = "lastlog.de/blog"
+port = 5000
+static_build_only = false
+flat = false
