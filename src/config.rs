@@ -35,6 +35,8 @@ pub struct CliConfig {
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub brand: Option<String>,
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub jwt_token: Option<String>,
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub port: Option<u16>,
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub static_build_only: Option<bool>,
@@ -50,6 +52,7 @@ pub struct Config {
     pub wasm: PathBuf,
     pub database: PathBuf,
     pub brand: String,
+    pub jwt_token: String,
     pub port: u16,
     pub static_build_only: bool,
     pub flat: bool,
@@ -106,6 +109,14 @@ fn create_config(
             _ => None,
         }),
         brand: config_values.get("brand").and_then(|cv| match &cv.value {
+            ConfigValueType::String(p) => match creation_mode {
+                OnlyDefaultValues::OnlyDefaultValues if cv.is_default => p.clone(),
+                OnlyDefaultValues::OnlySetValues if !cv.is_default => p.clone(),
+                _ => None,
+            },
+            _ => None,
+        }),
+        jwt_token: config_values.get("jwt_token").and_then(|cv| match &cv.value {
             ConfigValueType::String(p) => match creation_mode {
                 OnlyDefaultValues::OnlyDefaultValues if cv.is_default => p.clone(),
                 OnlyDefaultValues::OnlySetValues if !cv.is_default => p.clone(),

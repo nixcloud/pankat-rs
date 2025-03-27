@@ -1,3 +1,4 @@
+use crate::config;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, TokenData, Validation};
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -18,13 +19,6 @@ pub struct Claims {
     pub exp: u64,
 }
 
-#[cfg(debug_assertions)]
-const JWT_SECRET: &[u8] = b"your-secret-key"; // In production, this should be an environment variable
-
-#[cfg(not(debug_assertions))]
-compile_error!(
-    "JWT_SECRET should not be hardcoded in release builds. Use an environment variable instead."
-);
 /// Create a new JWT token for a user
 ///
 /// # Arguments
@@ -37,6 +31,8 @@ pub fn create_token(
     user_id: String,
     level: UserLevel,
 ) -> Result<String, jsonwebtoken::errors::Error> {
+    let cfg = config::Config::get();
+
     let expiration = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
@@ -52,7 +48,7 @@ pub fn create_token(
     encode(
         &Header::default(),
         &claims,
-        &EncodingKey::from_secret(JWT_SECRET),
+        &EncodingKey::from_secret(cfg.jwt_token.as_bytes()),
     )
 }
 
@@ -64,9 +60,11 @@ pub fn create_token(
 /// # Returns
 /// * `Result<TokenData<Claims>, jsonwebtoken::errors::Error>` - The decoded claims if valid
 pub fn validate_token(token: &str) -> Result<TokenData<Claims>, jsonwebtoken::errors::Error> {
+    let cfg = config::Config::get();
+
     decode::<Claims>(
         token,
-        &DecodingKey::from_secret(JWT_SECRET),
+        &DecodingKey::from_secret(cfg.jwt_token.as_bytes()),
         &Validation::default(),
     )
 }

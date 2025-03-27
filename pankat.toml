@@ -20,5 +20,8 @@ static_build_only = false
 # the port for the pankat webserver, point your browser to localhost:5000
 port = 5000
 
+# instead of passing the token from here, use PANKAT_JWT_TOKEN environment variable
+jwt_token = "not set"
+
 # documents/mydir/myarticle.mdwn -> documents/output/myarticle.html with flat being true
 flat = true

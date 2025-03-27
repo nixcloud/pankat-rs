@@ -79,6 +79,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .default_value("lastlog.de/blog")
         )
         .arg(
+            Arg::new("jwt_token")
+                .short('j')
+                .long("jwt_token")
+                .value_name("STRING")
+                .help("A JWT-Token used for client authentication/authentification")
+                .required(false)
+        )
+        .arg(
             Arg::new("static")
                 .short('s')
                 .long("static")
@@ -181,6 +189,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     );
 
     config_values.insert(
+        "jwt_token".to_string(),
+        ConfigValue {
+            value: ConfigValueType::String(
+                matches.get_one::<String>("jwt_token").map(|v| v.into()),
+            ),
+            is_default: Some(clap::parser::ValueSource::DefaultValue)
+                == matches.value_source("jwt_token"),
+        },
+    );
+
+    config_values.insert(
         "port".to_string(),
         ConfigValue {
             value: ConfigValueType::Number(
@@ -224,7 +243,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("Database Path: {}", cfg.database.display());
     println!("Port Number: {}", cfg.port);
     println!("Brand: {}", cfg.brand);
-    println!("Static build only: {}", cfg.static_build_only);
+    println!(
+        "JWT-token: {}{}",
+        &cfg.jwt_token.chars().take(2).collect::<String>(),
+        "*".repeat(cfg.jwt_token.len() - 2)
+    );
     println!("Flat filename structure: {}", cfg.flat);
     println!("-------------------------------------------------");
 
