@@ -55,223 +55,103 @@ pub struct Config {
     pub flat: bool,
 }
 
-enum config_creation_mode {
-    only_default_values,
-    only_set_values,
+enum OnlyDefaultValues {
+    OnlyDefaultValues,
+    OnlySetValues,
 }
 
 fn create_config(
     config_values: &HashMap<String, ConfigValue>,
-    creation_mode: config_creation_mode,
+    creation_mode: OnlyDefaultValues,
 ) -> CliConfig {
     CliConfig {
-        input: match config_values.get("input") {
-            Some(cv) => match &cv.value {
-                ConfigValueType::Path(p) => match creation_mode {
-                    config_creation_mode::only_default_values => {
-                        if cv.is_default {
-                            p.clone()
-                        } else {
-                            None
-                        }
-                    }
-                    config_creation_mode::only_set_values => {
-                        if cv.is_default {
-                            None
-                        } else {
-                            p.clone()
-                        }
-                    }
-                },
+        input: config_values.get("input").and_then(|cv| match &cv.value {
+            ConfigValueType::Path(p) => match creation_mode {
+                OnlyDefaultValues::OnlyDefaultValues if cv.is_default => p.clone(),
+                OnlyDefaultValues::OnlySetValues if !cv.is_default => p.clone(),
                 _ => None,
             },
-            None => None,
-        },
-        output: match config_values.get("output") {
-            Some(cv) => match &cv.value {
-                ConfigValueType::Path(p) => match creation_mode {
-                    config_creation_mode::only_default_values => {
-                        if cv.is_default {
-                            p.clone()
-                        } else {
-                            None
-                        }
-                    }
-                    config_creation_mode::only_set_values => {
-                        if cv.is_default {
-                            None
-                        } else {
-                            p.clone()
-                        }
-                    }
-                },
+            _ => None,
+        }),
+        output: config_values.get("output").and_then(|cv| match &cv.value {
+            ConfigValueType::Path(p) => match creation_mode {
+                OnlyDefaultValues::OnlyDefaultValues if cv.is_default => p.clone(),
+                OnlyDefaultValues::OnlySetValues if !cv.is_default => p.clone(),
                 _ => None,
             },
-            None => None,
-        },
-        assets: match config_values.get("assets") {
-            Some(cv) => match &cv.value {
-                ConfigValueType::Path(p) => match creation_mode {
-                    config_creation_mode::only_default_values => {
-                        if cv.is_default {
-                            p.clone()
-                        } else {
-                            None
-                        }
-                    }
-                    config_creation_mode::only_set_values => {
-                        if cv.is_default {
-                            None
-                        } else {
-                            p.clone()
-                        }
-                    }
-                },
+            _ => None,
+        }),
+        assets: config_values.get("assets").and_then(|cv| match &cv.value {
+            ConfigValueType::Path(p) => match creation_mode {
+                OnlyDefaultValues::OnlyDefaultValues if cv.is_default => p.clone(),
+                OnlyDefaultValues::OnlySetValues if !cv.is_default => p.clone(),
                 _ => None,
             },
-            None => None,
-        },
-        wasm: match config_values.get("wasm") {
-            Some(cv) => match &cv.value {
-                ConfigValueType::Path(p) => match creation_mode {
-                    config_creation_mode::only_default_values => {
-                        if cv.is_default {
-                            p.clone()
-                        } else {
-                            None
-                        }
-                    }
-                    config_creation_mode::only_set_values => {
-                        if cv.is_default {
-                            None
-                        } else {
-                            p.clone()
-                        }
-                    }
-                },
+            _ => None,
+        }),
+        wasm: config_values.get("wasm").and_then(|cv| match &cv.value {
+            ConfigValueType::Path(p) => match creation_mode {
+                OnlyDefaultValues::OnlyDefaultValues if cv.is_default => p.clone(),
+                OnlyDefaultValues::OnlySetValues if !cv.is_default => p.clone(),
                 _ => None,
             },
-            None => None,
-        },
-        database: match config_values.get("database") {
-            Some(cv) => match &cv.value {
-                ConfigValueType::Path(p) => match creation_mode {
-                    config_creation_mode::only_default_values => {
-                        if cv.is_default {
-                            p.clone()
-                        } else {
-                            None
-                        }
-                    }
-                    config_creation_mode::only_set_values => {
-                        if cv.is_default {
-                            None
-                        } else {
-                            p.clone()
-                        }
-                    }
-                },
+            _ => None,
+        }),
+        database: config_values.get("database").and_then(|cv| match &cv.value {
+            ConfigValueType::Path(p) => match creation_mode {
+                OnlyDefaultValues::OnlyDefaultValues if cv.is_default => p.clone(),
+                OnlyDefaultValues::OnlySetValues if !cv.is_default => p.clone(),
                 _ => None,
             },
-            None => None,
-        },
-        brand: match config_values.get("brand") {
-            Some(cv) => match &cv.value {
-                ConfigValueType::String(p) => match creation_mode {
-                    config_creation_mode::only_default_values => {
-                        if cv.is_default {
-                            p.clone()
-                        } else {
-                            None
-                        }
-                    }
-                    config_creation_mode::only_set_values => {
-                        if cv.is_default {
-                            None
-                        } else {
-                            p.clone()
-                        }
-                    }
-                },
+            _ => None,
+        }),
+        brand: config_values.get("brand").and_then(|cv| match &cv.value {
+            ConfigValueType::String(p) => match creation_mode {
+                OnlyDefaultValues::OnlyDefaultValues if cv.is_default => p.clone(),
+                OnlyDefaultValues::OnlySetValues if !cv.is_default => p.clone(),
                 _ => None,
             },
-            None => None,
-        },
-        port: match config_values.get("port") {
-            Some(cv) => match &cv.value {
-                ConfigValueType::Number(p) => match creation_mode {
-                    config_creation_mode::only_default_values => {
-                        if cv.is_default {
-                            p.clone()
-                        } else {
-                            None
-                        }
-                    }
-                    config_creation_mode::only_set_values => {
-                        if cv.is_default {
-                            None
-                        } else {
-                            p.clone()
-                        }
-                    }
-                },
+            _ => None,
+        }),
+        port: config_values.get("port").and_then(|cv| match &cv.value {
+            ConfigValueType::Number(p) => match creation_mode {
+                OnlyDefaultValues::OnlyDefaultValues if cv.is_default => p.clone(),
+                OnlyDefaultValues::OnlySetValues if !cv.is_default => p.clone(),
                 _ => None,
             },
-            None => None,
-        },
-        static_build_only: match config_values.get("static_build_only") {
-            Some(cv) => match &cv.value {
-                ConfigValueType::Bool(p) => match creation_mode {
-                    config_creation_mode::only_default_values => {
-                        if cv.is_default {
-                            p.clone()
-                        } else {
-                            None
-                        }
-                    }
-                    config_creation_mode::only_set_values => {
-                        if cv.is_default {
-                            None
-                        } else {
-                            p.clone()
-                        }
-                    }
-                },
-                _ => None,
-            },
-            None => None,
-        },
-        flat: match config_values.get("flat") {
-            Some(cv) => match &cv.value {
-                ConfigValueType::Bool(p) => match creation_mode {
-                    config_creation_mode::only_default_values => {
-                        if cv.is_default {
-                            p.clone()
-                        } else {
-                            None
-                        }
-                    }
-                    config_creation_mode::only_set_values => {
-                        if cv.is_default {
-                            None
-                        } else {
-                            p.clone()
-                        }
-                    }
-                },
-                _ => None,
-            },
-            None => None,
-        },
+            _ => None,
+        }),
+        static_build_only: config_values.get("static_build_only").and_then(|cv| {
+            if let ConfigValueType::Bool(p) = &cv.value {
+                match creation_mode {
+                    OnlyDefaultValues::OnlyDefaultValues if cv.is_default => p.clone(),
+                    OnlyDefaultValues::OnlySetValues if !cv.is_default => p.clone(),
+                    _ => None,
+                }
+            } else {
+                None
+            }
+        }),
+        flat: config_values.get("flat").and_then(|cv| {
+            if let ConfigValueType::Bool(p) = &cv.value {
+                match creation_mode {
+                    OnlyDefaultValues::OnlyDefaultValues if cv.is_default => p.clone(),
+                    OnlyDefaultValues::OnlySetValues if !cv.is_default => p.clone(),
+                    _ => None,
+                }
+            } else {
+                None
+            }
+        }),
     }
 }
 
 impl Config {
     pub fn new(config_values: HashMap<String, ConfigValue>) -> Self {
         let cli_only_default_values_config =
-            create_config(&config_values, config_creation_mode::only_default_values);
+            create_config(&config_values, OnlyDefaultValues::OnlyDefaultValues);
         let cli_only_set_values_config =
-            create_config(&config_values, config_creation_mode::only_set_values);
+            create_config(&config_values, OnlyDefaultValues::OnlySetValues);
 
         let figment_config: Config = Figment::new()
             .merge(Serialized::defaults(cli_only_default_values_config))

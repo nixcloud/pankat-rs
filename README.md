@@ -21,3 +21,13 @@ This command executes the WASM build, copies artefacts and starts the webserver.
 # extend schema
 
     diesel print-schema > src/db/schema.rs
+
+# configuration file
+
+see the comments in the pankat.toml file
+
+# environment variables
+
+## PANKAT_JWT_SECRET
+
+used for client authentication later for editing of articles.

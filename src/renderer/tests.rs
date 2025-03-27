@@ -6,7 +6,6 @@ mod tests {
     use crate::Config;
     use crate::ConfigValue;
     use std::collections::HashMap;
-    use std::path::PathBuf;
 
     fn create_hacky_config() -> Config {
         let mut config_values: HashMap<String, ConfigValue> = HashMap::new();

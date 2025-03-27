@@ -1,9 +1,24 @@
+# the blogs name
+brand = "lastlog.de/blog"
+
+# input and output directory (both served by the webserver)
 input = "documents/blog.lastlog.de"
 output = "documents/output"
+
+# assets are js/css/... files and they can be added to the input directory or used from pankat
 assets = "documents/assets"
+
+# pankat specific wasm runtime for interactive changes in the webpage
 wasm = "documents/wasm"
+
+# folder where the pankat.sqlite database is located
 database = "documents"
-brand = "lastlog.de/blog"
-port = 5000
+
+# weather to build only the documents or update them in real time using websocket connection
 static_build_only = false
-flat = false
+
+# the port for the pankat webserver, point your browser to localhost:5000
+port = 5000
+
+# documents/mydir/myarticle.mdwn -> documents/output/myarticle.html with flat being true
+flat = true
