@@ -21,7 +21,6 @@ pub fn create_html_from_standalone_template_by_article(
         "NavAndContent": html,
         "LiveUpdates": article.live_updates,
         "SpecialPage": article.special_page,
-        "Anchorjs": article.anchorjs,
         "Tocify": article.tocify,
         "Timeline": false,
         "ArticleSrcFileName": article.src_file_name,

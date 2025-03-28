@@ -493,7 +493,10 @@ fn parse_article(
             };
             if renew_cache {
                 //println!(" ... cache outdated, regenerating");
-                match pandoc_mdwn_2_html(article_mdwn_refined_source.clone()) {
+                match pandoc_mdwn_2_html(
+                    article_mdwn_refined_source.clone(),
+                    new_article.anchorjs.unwrap_or(false),
+                ) {
                     Ok(html) => {
                         match set_cache(conn, src_file_name_string.clone(), html.clone(), hash) {
                             Ok(_) => {}

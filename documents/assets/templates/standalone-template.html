@@ -63,9 +63,6 @@
       href="/assets/css/bootstrap.min.css"
     />
     <script src="/assets/js/bootstrap.min.js"></script>
-    {{#if Anchorjs}}
-    <script src="/assets/js/anchor.min.js"></script>
-    {{/if}}
     <link rel="icon" href="/media/favicon.ico" type="image/x-icon" />
 
     {{#if Timeline}}
@@ -203,17 +200,7 @@
       });
     </script>
 
-    {{#if Anchorjs}}
-    <script>
-      window.onload = function (e) {
-        anchors.add("h1");
-        anchors.add("h2");
-        anchors.add("h3");
-        anchors.add("h4");
-        anchors.add("h5");
-      };
-    </script>
-    {{/if}} {{#if Timeline}}
+    {{#if Timeline}}
     <!-- timeline related js begin -->
     <script type="text/javascript" src="/assets/js/colorbox.min.js"></script>
     <script type="text/javascript" src="/assets/js/timeliner.js"></script>

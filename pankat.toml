@@ -2,7 +2,7 @@
 brand = "lastlog.de/blog"
 
 # input and output directory (both served by the webserver)
-input = "documents/blog.lastlog.de"
+input = "documents/lastlog.de"
 output = "documents/output"
 
 # assets are js/css/... files and they can be added to the input directory or used from pankat
