@@ -23,5 +23,8 @@ port = 5000
 # instead of passing the token from here, use PANKAT_JWT_TOKEN environment variable
 jwt_token = "not set"
 
+# admin user password
+admin_password = "not set"
+
 # documents/mydir/myarticle.mdwn -> documents/output/myarticle.html with flat being true
 flat = true

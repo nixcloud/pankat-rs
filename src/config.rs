@@ -37,6 +37,8 @@ pub struct CliConfig {
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub jwt_token: Option<String>,
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub admin_password: Option<String>,
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub port: Option<u16>,
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub static_build_only: Option<bool>,
@@ -53,6 +55,7 @@ pub struct Config {
     pub database: PathBuf,
     pub brand: String,
     pub jwt_token: String,
+    pub admin_password: String,
     pub port: u16,
     pub static_build_only: bool,
     pub flat: bool,
@@ -100,14 +103,16 @@ fn create_config(
             },
             _ => None,
         }),
-        database: config_values.get("database").and_then(|cv| match &cv.value {
-            ConfigValueType::Path(p) => match creation_mode {
-                OnlyDefaultValues::OnlyDefaultValues if cv.is_default => p.clone(),
-                OnlyDefaultValues::OnlySetValues if !cv.is_default => p.clone(),
+        database: config_values
+            .get("database")
+            .and_then(|cv| match &cv.value {
+                ConfigValueType::Path(p) => match creation_mode {
+                    OnlyDefaultValues::OnlyDefaultValues if cv.is_default => p.clone(),
+                    OnlyDefaultValues::OnlySetValues if !cv.is_default => p.clone(),
+                    _ => None,
+                },
                 _ => None,
-            },
-            _ => None,
-        }),
+            }),
         brand: config_values.get("brand").and_then(|cv| match &cv.value {
             ConfigValueType::String(p) => match creation_mode {
                 OnlyDefaultValues::OnlyDefaultValues if cv.is_default => p.clone(),
@@ -116,14 +121,26 @@ fn create_config(
             },
             _ => None,
         }),
-        jwt_token: config_values.get("jwt_token").and_then(|cv| match &cv.value {
-            ConfigValueType::String(p) => match creation_mode {
-                OnlyDefaultValues::OnlyDefaultValues if cv.is_default => p.clone(),
-                OnlyDefaultValues::OnlySetValues if !cv.is_default => p.clone(),
+        jwt_token: config_values
+            .get("jwt_token")
+            .and_then(|cv| match &cv.value {
+                ConfigValueType::String(p) => match creation_mode {
+                    OnlyDefaultValues::OnlyDefaultValues if cv.is_default => p.clone(),
+                    OnlyDefaultValues::OnlySetValues if !cv.is_default => p.clone(),
+                    _ => None,
+                },
                 _ => None,
-            },
-            _ => None,
-        }),
+            }),
+        admin_password: config_values
+            .get("admin_password")
+            .and_then(|cv| match &cv.value {
+                ConfigValueType::String(p) => match creation_mode {
+                    OnlyDefaultValues::OnlyDefaultValues if cv.is_default => p.clone(),
+                    OnlyDefaultValues::OnlySetValues if !cv.is_default => p.clone(),
+                    _ => None,
+                },
+                _ => None,
+            }),
         port: config_values.get("port").and_then(|cv| match &cv.value {
             ConfigValueType::Number(p) => match creation_mode {
                 OnlyDefaultValues::OnlyDefaultValues if cv.is_default => p.clone(),
@@ -164,14 +181,19 @@ impl Config {
         let cli_only_set_values_config =
             create_config(&config_values, OnlyDefaultValues::OnlySetValues);
 
-        let figment_config: Config = Figment::new()
+        let figment_config = Figment::new()
             .merge(Serialized::defaults(cli_only_default_values_config))
             .merge(Toml::file("pankat.toml"))
             .merge(Env::prefixed("PANKAT_"))
             .merge(Serialized::defaults(cli_only_set_values_config))
-            .extract()
-            .unwrap();
-        figment_config
+            .extract();
+        match figment_config {
+            Ok(config) => config,
+            Err(e) => {
+                println!("Error merging config file with cmd (clap) and env (figment). Maybe one of the required fields was not set: {e}");
+                std::process::abort();
+            }
+        }
     }
 
     pub fn get() -> &'static Arc<Config> {
