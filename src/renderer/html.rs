@@ -123,7 +123,7 @@ pub fn create_html_from_content_template(
     .to_string();
 
     let tags: String = format!(
-        r#"<div class="tag">{}</div>"#,
+        r#"<div class="tags">{}</div>"#,
         tag_links_to_timeline(article.tags)
     )
     .to_string();

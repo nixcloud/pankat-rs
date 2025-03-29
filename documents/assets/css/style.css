@@ -120,11 +120,11 @@ img {
     color: grey;
 }
 
-#tags {
+.tags {
     display: inline-block;
 }
 
-#tags p {
+.tags p {
     margin-bottom: 0px;
 }
 
@@ -202,7 +202,7 @@ header.seriesHeader {
     border-top-width: 0px;
     border-bottom-width: 0px;
     margin-left: 0px;
-    margin-right: 0px;
+    margin-right: 1px;
     border-color: rgba(0, 128, 0, 0);
 }
 
