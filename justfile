@@ -7,8 +7,8 @@ copy-pankat-wasm:
 build-backend:
   cargo build
 
-build-backend-release:
-  cargo zigbuild --release
+zig:
+  cargo zigbuild --release --target x86_64-unknown-linux-musl
 
 run-backend-only: build-backend copy-pankat-wasm
   cargo run
