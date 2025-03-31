@@ -30,22 +30,22 @@
         rec {
           devShells.default = mkShell {
             buildInputs = [
-              cargo
-              sqlite
-              cargo-binutils
-              lld
-              pandoc
-              pkg-config
-              nushell
-              just
               rust
-              binaryen                 # required to minify WASM files with wasm-opt
-              wasm-pack
-              cargo-zigbuild
+              cargo
+              cargo-binutils
+              just
+              sqlite
+              pandoc
+              
               cmake
               clang
-              #nodejs                   # required to install tailwind plugins
-		zig
+              lld
+              pkg-config
+              binaryen  # required to minify WASM files with wasm-opt
+              wasm-pack
+
+              #zig
+              #cargo-zigbuild
             ];
           };
         }

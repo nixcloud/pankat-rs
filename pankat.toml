@@ -2,7 +2,10 @@
 brand = "lastlog.de/blog"
 
 # input and output directory (both served by the webserver)
-input = "documents/blog.lastlog.de"
+input = "documents/example.de"
+
+# running pankat will write documents to this location
+# these documents can be re-generated easily
 output = "documents/output"
 
 # assets are js/css/... files and they can be added to the input directory or used from pankat
@@ -14,7 +17,8 @@ wasm = "documents/wasm"
 # folder where the pankat.sqlite database is located
 database = "documents"
 
-# a subdirectory like "/blog", "" or "/foo/bar" to host the blog at lastlog.de/blog
+# a subdirectory like "/blog", "" or "/foo/bar" 
+# lastlog.de/blog uses "/blog"
 subdir = "/blog"
 
 # weather to build only the documents or update them in real time using websocket connection
