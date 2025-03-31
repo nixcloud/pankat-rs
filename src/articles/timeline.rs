@@ -153,6 +153,7 @@ pub fn update_timeline(articles: &Vec<ArticleWithTags>) -> Result<(), Box<dyn Er
         "Anchorjs": false,
         "Tocify": false,
         "Timeline": true,
+        "Subdir": cfg.subdir,
     });
 
     match crate::renderer::html::create_html_from_standalone_template(data) {
@@ -236,6 +237,8 @@ fn generate_year(year: usize, articles: &Vec<ArticleWithTags>) -> String {
 }
 
 fn generate_article_references_by_year(articles: &Vec<ArticleWithTags>) -> String {
+    let cfg = config::Config::get();
+
     let template = r#"
         <div class="posting_div posting_{{article_id}}">
           <div class="timeline-event-content postingsEntry">
@@ -244,7 +247,7 @@ fn generate_article_references_by_year(articles: &Vec<ArticleWithTags>) -> Strin
               <div class="floo">
                 <div class="timeline-title-timestamp">{{article_date}}</div>
                 <p class="tag">{{{tagToLinkList}}}{{{seriesToLinkList}}}</p>
-                <a href="/{{dst_file_name}}" style="flex: 1;">open complete article</a>
+                <a href="{{{Subdir}}}/{{dst_file_name}}" style="flex: 1;">open complete article</a>
               </div>
               <div class="summary">{{{summary}}}</div>
             </div>
@@ -263,6 +266,7 @@ fn generate_article_references_by_year(articles: &Vec<ArticleWithTags>) -> Strin
             "dst_file_name": article.dst_file_name,
             "tagToLinkList": tag_to_link_list(article),
             "seriesToLinkList": series_to_link_list(article.series.clone()),
+            "Subdir": cfg.subdir,
         });
 
         let template: String = mustache::compile_str(template)

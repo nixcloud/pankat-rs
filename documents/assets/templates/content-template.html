@@ -1,15 +1,12 @@
-{{#unless SpecialPage}}
-  {{{ArticlesNAV}}}
-  {{{SeriesNAV}}}
-{{/unless}}
-  <div class="article">
-    <h1 id="SiteTitle">{{Title}}</h1>
-    {{{DateAndTime}}}
-    {{{Tags}}}
-    {{{ArticleContent}}}
-  </div>
-  {{#if ArticleSrcURL}}
-  <div id="ArticleSourceCode">
-  <a href="/{{ArticleSrcURL}}" title="{{ArticleSrcURL}}">article source</a>
-  </div>
-  {{/if}}
+{{#unless SpecialPage}} {{{ArticlesNAV}}} {{{SeriesNAV}}} {{/unless}}
+<div class="article">
+  <h1 id="SiteTitle">{{Title}}</h1>
+  {{{DateAndTime}}} {{{Tags}}} {{{ArticleContent}}}
+</div>
+{{#if ArticleSrcURL}}
+<div id="ArticleSourceCode">
+  <a href="{{{Subdir}}}/{{ArticleSrcURL}}" title="{{ArticleSrcURL}}"
+    >article source</a
+  >
+</div>
+{{/if}}

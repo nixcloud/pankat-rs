@@ -74,8 +74,8 @@ fn ws_open() {
     }
 }
 
-#[wasm_bindgen(start)]
-pub fn main_js() -> Result<(), JsValue> {
+#[wasm_bindgen]
+pub fn main_js(subdir: String) -> Result<(), JsValue> {
     console_log::init_with_level(Level::Debug).expect("error initializing logger");
     log::info!("Now executing WASM code from lib.rs in pankat_wasm");
 
@@ -87,7 +87,7 @@ pub fn main_js() -> Result<(), JsValue> {
     };
 
     let host = location.host().unwrap();
-    let websocket_address = format!("{protocol}://{host}/api/ws");
+    let websocket_address = format!("{protocol}://{host}{subdir}/api/ws");
     let id: String = "NavAndContent".to_string();
     let dom_updater: DomUpdater = DomUpdater::new(id.clone());
     let document = window()

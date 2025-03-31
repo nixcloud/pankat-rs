@@ -79,6 +79,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .default_value("lastlog.de/blog")
         )
         .arg(
+            Arg::new("subdir")
+                .short('u')
+                .long("subdir")
+                .help("A subdirectory the blog is in, can be /blog or even empty")
+                .required(false)
+                .default_value("/blog")
+        )
+        .arg(
             Arg::new("jwt_token")
                 .long("jwt_token")
                 .value_name("STRING")
@@ -186,6 +194,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     );
 
     config_values.insert(
+        "subdir".to_string(),
+        ConfigValue {
+            value: ConfigValueType::Path(matches.get_one::<String>("subdir").map(|v| {
+                // println!("{v}");
+                // println!("{:?}", std::path::Path::new(v));
+                std::path::Path::new(v).into()
+            })),
+            is_default: Some(clap::parser::ValueSource::DefaultValue)
+                == matches.value_source("subdir"),
+        },
+    );
+
+    config_values.insert(
         "brand".to_string(),
         ConfigValue {
             value: ConfigValueType::String(matches.get_one::<String>("brand").map(|v| v.into())),
@@ -260,8 +281,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("Assets Path: {}", cfg.assets.display());
     println!("WASM Path: {}", cfg.wasm.display());
     println!("Database Path: {}", cfg.database.display());
-    println!("Port Number: {}", cfg.port);
+    println!("Subdir: {}", cfg.subdir.display());
     println!("Brand: {}", cfg.brand);
+    println!("Port Number: {}", cfg.port);
     println!(
         "JWT-token: {}{}",
         &cfg.jwt_token.chars().take(2).collect::<String>(),
@@ -299,20 +321,26 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         file_monitor::spawn_async_monitor(pool.clone(), cfg.input.clone(), shutdown_tx.subscribe())
             .map_err(|e| Box::<dyn std::error::Error + Send + Sync>::from(e))?;
 
+    let binding = cfg.subdir.clone().display().to_string();
+    let subdir = binding.as_str();
+
     // Create router
-    let app = Router::new()
-        .route("/posts/*path", get(handlers::serve_input))
-        .route("/media/*path", get(handlers::serve_input))
-        .route("/assets/*path", get(handlers::serve_internals))
-        .route("/wasm/*path", get(handlers::serve_internals))
-        .route("/api/auth/register", post(handlers::register))
-        .route("/api/auth/login", post(handlers::login))
-        .route("/api/protected", get(handlers::protected))
-        .route("/api/ws", get(handlers::websocket_route))
-        .route("/", get(handlers::serve_output))
-        .route("/*path", get(handlers::serve_output))
-        .layer(CorsLayer::permissive())
-        .with_state(pool.clone());
+    let app = Router::new().nest(
+        subdir,
+        Router::new()
+            .route("/posts/*path", get(handlers::serve_input))
+            .route("/media/*path", get(handlers::serve_input))
+            .route("/assets/*path", get(handlers::serve_internals))
+            .route("/wasm/*path", get(handlers::serve_internals))
+            .route("/api/auth/register", post(handlers::register))
+            .route("/api/auth/login", post(handlers::login))
+            .route("/api/protected", get(handlers::protected))
+            .route("/api/ws", get(handlers::websocket_route))
+            .route("/", get(handlers::serve_output))
+            .route("/*path", get(handlers::serve_output))
+            .layer(CorsLayer::permissive())
+            .with_state(pool.clone()),
+    );
 
     // Start server
     let address_config = format!("[::]:{}", cfg.port);

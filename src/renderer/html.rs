@@ -17,6 +17,7 @@ pub fn create_html_from_standalone_template_by_article(
 
     let data: serde_json::Value = json!({
         "SiteBrandTitle": cfg.brand,
+        "Subdir": cfg.subdir,
         "Title": article.title,
         "NavAndContent": html,
         "LiveUpdates": article.live_updates,
@@ -137,6 +138,7 @@ pub fn create_html_from_content_template(
         "Tags": tags,
         "ArticleContent": html,
         "ArticleSrcURL": relative_path,
+        "Subdir": cfg.subdir,
     });
 
     let result = handlebars.render("content_template", &data)?;
@@ -161,6 +163,7 @@ pub fn create_html_from_navigation_articles_template(
     let data = json!({
         "article_previous_link": article_previous_link,
         "article_next_link": article_next_link,
+        "Subdir": cfg.subdir,
     });
 
     let result = handlebars.render("navigation_articles_template", &data)?;
@@ -188,6 +191,7 @@ pub fn create_html_from_navigation_series_template(
         "series": series,
         "series_previous_link": series_previous_link,
         "series_next_link": series_next_link,
+        "Subdir": cfg.subdir,
     });
 
     let result = handlebars.render("navigation_series_template", &data)?;
