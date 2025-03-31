@@ -3,7 +3,7 @@
 # what
 **pankat** is a **static blog generator** inspired by [joey hess's ikiwiki](https://ikiwiki.info/users/joey/).
 
-![A screenshot featuring pankat](./.screenshots/pankat.jpeg)
+![A screenshot featuring pankat](./.screenshots/pankat.jpg)
 
 notable features:
 
