@@ -25,9 +25,11 @@
               ]
             else
               throw "unsupported platform";
+          pankat = pkgs.callPackage ./pankat.nix {};
         in
         with pkgs;
         rec {
+          packages.default = pankat;
           devShells.default = mkShell {
             buildInputs = [
               rust
@@ -41,6 +43,8 @@
               clang
               lld
               pkg-config
+              openssl
+
               binaryen  # required to minify WASM files with wasm-opt
               wasm-pack
 
