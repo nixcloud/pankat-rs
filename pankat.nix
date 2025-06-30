@@ -1,6 +1,4 @@
-{ lib, stdenv, rustPlatform, fetchFromGitHub, pkg-config, openssl, libiconv, sqlite, 
-  #CoreServices, Security, SystemConfiguration
-}:
+{ lib, stdenv, rustPlatform, fetchFromGitHub, pkg-config, openssl, libiconv, sqlite }:
 
 rustPlatform.buildRustPackage rec {
   pname = "pankat";
@@ -12,10 +10,6 @@ rustPlatform.buildRustPackage rec {
 
   useFetchCargoVendor = true;
   cargoHash = "sha256-/lTxF1Sqj98ae6hZUlWD52xEFVEE0uWp42gTOv8nqn8=";
-
-  postConfigure = ''
-    cargo metadata --offline
-  '';
 
   meta = with lib; {
     homepage = "https://github.com/nixcloud/pankat-rs";

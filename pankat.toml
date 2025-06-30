@@ -2,7 +2,7 @@
 brand = "lastlog.de/blog"
 
 # input and output directory (both served by the webserver)
-input = "documents/example.de"
+input = "documents/blog.lastlog.de"
 
 # running pankat will write documents to this location
 # these documents can be re-generated easily
@@ -19,7 +19,7 @@ database = "documents"
 
 # a subdirectory like "/blog", "" or "/foo/bar" 
 # lastlog.de/blog uses "/blog"
-subdir = "/blog"
+subdir = ""
 
 # weather to build only the documents or update them in real time using websocket connection
 static_build_only = false

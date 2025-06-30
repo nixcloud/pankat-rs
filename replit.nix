@@ -1,5 +1,6 @@
 {pkgs}: {
   deps = [
+    pkgs.strace
     pkgs.wget
     pkgs.htop
     pkgs.diesel-cli-ext
