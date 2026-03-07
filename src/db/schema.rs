@@ -12,6 +12,7 @@ diesel::table! {
         id -> Integer,
         src_file_name -> Text,
         dst_file_name -> Text,
+        hash -> Text,
         title -> Nullable<Text>,
         modification_date -> Nullable<Timestamp>,
         summary -> Nullable<Text>,

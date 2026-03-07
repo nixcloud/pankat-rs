@@ -1,5 +1,6 @@
 use crate::db::article::{
-    get_prev_and_next_article, get_prev_and_next_article_for_series, ArticleNeighbours,
+    get_article_with_tags_by_src_file_name, get_prev_and_next_article,
+    get_prev_and_next_article_for_series, ArticleNeighbours,
 };
 use crate::db::cache::{compute_hash, get_cache, set_cache};
 use crate::db::DbPool;
@@ -11,6 +12,10 @@ use regex::Regex;
 use serde_json::json;
 use std::error::Error;
 use std::path::PathBuf;
+
+use sha2::{Digest, Sha256};
+use std::fs::File;
+use std::io::Read;
 
 mod plugins;
 mod tests;
@@ -32,6 +37,7 @@ pub struct ArticleWithTags {
     pub id: Option<i32>,
     pub src_file_name: String,
     pub dst_file_name: String,
+    pub hash: String,
     pub title: Option<String>,
     pub modification_date: Option<chrono::NaiveDateTime>,
     pub summary: Option<String>,
@@ -49,6 +55,7 @@ pub struct ArticleWithTags {
 pub struct NewArticle {
     pub src_file_name: String,
     pub dst_file_name: String,
+    pub hash: String,
     pub title: Option<String>,
     pub modification_date: Option<chrono::NaiveDateTime>,
     pub summary: Option<String>,
@@ -65,6 +72,7 @@ impl From<ArticleWithTags> for NewArticle {
         NewArticle {
             src_file_name: article.src_file_name,
             dst_file_name: article.dst_file_name,
+            hash: article.hash,
             title: article.title,
             modification_date: article.modification_date,
             summary: article.summary,
@@ -79,6 +87,23 @@ impl From<ArticleWithTags> for NewArticle {
 }
 
 static PANKAT_FILE: &str = ".pankat_maintained_output_folder";
+
+fn compute_sha256(file_path: &PathBuf) -> anyhow::Result<String> {
+    let mut file = File::open(file_path)?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0u8; 4096];
+
+    loop {
+        let bytes_read = file.read(&mut buffer)?;
+        if bytes_read == 0 {
+            break; // EOF reached
+        }
+        hasher.update(&buffer[..bytes_read]);
+    }
+    let result = hasher.finalize();
+    assert!(!result.is_empty(), "Hash should not be an empty string");
+    Ok(format!("{:x}", result))
+}
 
 pub fn output_folder_check(output_folder: &PathBuf) -> Result<(), Box<dyn Error>> {
     let output_path_check_file = output_folder.join(PANKAT_FILE);
@@ -448,14 +473,28 @@ fn parse_article(
     let input_path: PathBuf = cfg.input.clone();
 
     println!(
-        "Parsing article {} from disk",
+        "Processing article {} from disk",
         article_path.clone().display()
     );
+
+    let article_input_path: PathBuf = cfg.input.join(article_path);
+    let hash: String = compute_sha256(&article_input_path).unwrap();
+    let existing_article: Result<Option<ArticleWithTags>, diesel::result::Error> =
+        get_article_with_tags_by_src_file_name(conn, article_path.display().to_string());
+
+    if let Ok(existing_article) = existing_article {
+        if let Some(article_with_tags) = existing_article {
+            if article_with_tags.hash == hash {
+                return Ok(article_with_tags);
+            }
+        }
+    }
 
     let mut new_article: ArticleWithTags = ArticleWithTags {
         id: None,
         src_file_name: src_file_name_string.clone(),
         dst_file_name: utils::create_dst_file_name(&article_path, cfg.flat),
+        hash,
         title: None,
         modification_date: None,
         summary: None,

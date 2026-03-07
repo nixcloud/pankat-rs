@@ -1,9 +1,7 @@
 # motivation
 
 # what
-**pankat** is a **static blog generator** inspired by [joey hess's ikiwiki](https://ikiwiki.info/users/joey/).
-
-![A screenshot featuring pankat](./.screenshots/pankat.jpg)
+**pankat** is a **static blog generator**
 
 notable features:
 
@@ -26,6 +24,8 @@ notable features:
   * css
   * js
   * fonts
+
+![A screenshot featuring pankat](./.screenshots/pankat.jpg)
 
 # run
 

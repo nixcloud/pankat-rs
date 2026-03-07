@@ -174,18 +174,17 @@ pub fn update_timeline(articles: &Vec<ArticleWithTags>) -> Result<(), Box<dyn Er
 fn create_timeline_container(articles: &Vec<ArticleWithTags>) -> String {
     let mut years_map: HashMap<usize, Vec<ArticleWithTags>> = HashMap::new();
     for article in articles {
-        let year = match article.modification_date {
-            Some(m_date) => m_date
+        if let Some(m_date) = article.modification_date {
+            let year = m_date
                 .format("%Y")
                 .to_string()
                 .parse::<usize>()
-                .unwrap_or(0),
-            None => 0,
-        };
-        years_map
-            .entry(year)
-            .or_insert_with(Vec::new)
-            .insert(0, article.clone());
+                .unwrap_or(0);
+            years_map
+                .entry(year)
+                .or_insert_with(Vec::new)
+                .insert(0, article.clone());
+        }
     }
 
     let mut keys: Vec<_> = years_map.keys().cloned().collect();

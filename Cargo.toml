@@ -38,6 +38,8 @@ futures-util = "0.3.31"
 colored = "3.0.0"
 async-broadcast = "0.7.2"
 figment = { version = "0.10.19", features = ["env", "toml"] }
+sha2 = "0.10.9"
+anyhow = "1.0.102"
 
 [build-dependencies]
 diesel_cli = { version = "2.1.0", default-features = false, features = ["sqlite"] }

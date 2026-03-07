@@ -3,7 +3,7 @@
 [[!series libnix]]
 [[!summary reviewing volth's nix windows port from 2020]]
 
-[[!img media/nlnet-logo.gif class="noFancy" style="float: right"]]
+
 [[!img posts/libnix/Nix_snowflake_windows.svg class="noFancy" style="float: right" width="200px"]]
 
 # motivation11

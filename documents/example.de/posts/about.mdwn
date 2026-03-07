@@ -1,21 +1,8 @@
-[[!summary chatGPT: The blog lastlog.de/blog is a collection of articles and experiments by Joachim Schiele, written using markdown syntax with custom extensions, and generated using the static blog generator Pankat. The blog is hosted independently and all content is licensed under the GNU Free Documentation License 1.2.]]
 [[!SpecialPage]]
-[[!img media/pepper-der-letzte-schliff.png width="400px" class="noFancy" alt="" style="float: right" title="http://peppercarrot.com/"]]
 
-[lastlog.de/blog](https://lastlog.de/blog) is a collection of articles/experiments from joachim schiele. 
-[pankat](https://github.com/nixcloud/pankat) is used for content creation
-and all articles are written using markdown syntax with custom extensions.
+this is the pankat about example page.
 
-for me it is important to not depend on a third party tools for hosting nor for my content creation.
-
-## author
-
-joachim schiele, see [curriculum vitae](CurriculumVitae.html)
-
-## language advice
-
-* **most things are written case insensitive** [comp.], that means: written using small letters
-* **abbrevations with case**, example: HTTP 
+i've added a few articles of my blog illustrating the basics.
 
 ## legal
 
