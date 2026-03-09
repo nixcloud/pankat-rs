@@ -355,3 +355,19 @@ blockquote {
     margin: 0 5px 0 0;
 }
 
+.hidden_text {
+    display: none;
+    border: 1px solid #ccc;
+    padding: 10px;
+    width: 200px;
+    margin-top: 10px;
+}
+.hidden_text_toggle_button {
+    cursor: pointer;
+    color: blue;
+    text-decoration: underline;
+}
+
+.revealed_text {
+    color: rgb(255, 0, 0);
+}

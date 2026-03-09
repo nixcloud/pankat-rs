@@ -6,3 +6,4 @@ pub mod specialpage;
 pub mod summary;
 pub mod tag;
 pub mod title;
+pub mod hiddentext;

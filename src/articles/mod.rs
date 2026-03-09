@@ -29,7 +29,7 @@ use crate::renderer::html::{
 };
 use crate::renderer::pandoc::pandoc_mdwn_2_html;
 
-use self::plugins::{draft, img, meta, series, specialpage, summary, tag, title};
+use self::plugins::{draft, img, meta, series, specialpage, summary, tag, title, hiddentext};
 use diesel::prelude::*;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -637,6 +637,7 @@ pub fn exec_plugin(input: &str, article: &mut ArticleWithTags) -> Result<String,
         match name.to_lowercase().as_str() {
             "title" => title::title(argument, article),
             "specialpage" => specialpage::specialpage(argument, article),
+            "hiddentext" => hiddentext::hiddentext(argument),
             "draft" => draft::draft(argument, article),
             "meta" => meta::meta(argument, article),
             "series" => series::series(argument, article),
