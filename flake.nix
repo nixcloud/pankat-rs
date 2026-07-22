@@ -39,6 +39,8 @@
               just
               sqlite
               pandoc
+
+              #zigbuild
               
               cmake
               clang
@@ -53,8 +55,8 @@
                 targets = [ "wasm32-unknown-unknown" ];
               })
 
-              #zig
-              #cargo-zigbuild
+              zig
+              cargo-zigbuild
             ];
           };
         }

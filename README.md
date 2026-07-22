@@ -82,9 +82,8 @@ pankat uses `diesel` to query the database.
 
 # deployment
 
-currently: `just run`, then `cp target/debug/pankat /home/pankat-app/pankat`.
-
-ideally: `just zig`, then `cp target/release/pankat /home/pankat-app/pankat` and later using a nix expression to build and use a read-only /nix/store for both pankat binary and artifacts.
+    just zig
+    scp target/x86_64-unknown-linux-musl/release/pankat webservi:/tmp
 
 ## directory structure
 
