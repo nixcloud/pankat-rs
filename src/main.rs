@@ -1,3 +1,4 @@
+
 mod articles;
 mod auth;
 mod config;
@@ -329,6 +330,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         subdir,
         Router::new()
             .route("/posts/*path", get(handlers::serve_input))
+            .route("/github-webhook", post(handlers::github_webhook))
             .route("/media/*path", get(handlers::serve_input))
             .route("/assets/*path", get(handlers::serve_internals))
             .route("/wasm/*path", get(handlers::serve_internals))

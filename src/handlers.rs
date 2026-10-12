@@ -93,6 +93,10 @@ pub async fn protected(headers: HeaderMap) -> Result<Json<&'static str>, AppErro
     }
 }
 
+pub async fn github_webhook(Json(payload): Json<Value>) {
+    println!("GitHub event: {}", payload);
+}
+
 pub async fn serve_output(uri: axum::http::Uri) -> Result<Response, AppError> {
     println!("Received request for URI (serve_output): {}", uri);
     let cfg = config::Config::get();

@@ -1,63 +1,136 @@
 {
   description = "pankat static blog generator";
   inputs = {
-    rust-overlay.url = "github:oxalica/rust-overlay";
-    nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+    fenix.url   = "github:nix-community/fenix";
   };
   outputs =
-  { self, nixpkgs, flake-utils, rust-overlay }:
+  { self, nixpkgs, flake-utils, fenix }:
     flake-utils.lib.eachDefaultSystem
       (system:
         let
-          overlays = [ (import rust-overlay) ];
+          overlays = [
+            fenix.overlays.default
+          ];
           pkgs = import nixpkgs {
             inherit system overlays;
           };
-          rust = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-          platform_packages =
-            if pkgs.stdenv.isLinux then
-              with pkgs; [ ]
-            else if pkgs.stdenv.isDarwin then
-              with pkgs.darwin.apple_sdk.frameworks; [
-                CoreFoundation
-                Security
-                SystemConfiguration
-              ]
-            else
-              throw "unsupported platform";
-          pankat = pkgs.callPackage ./pankat.nix {};
-          pankat-wasm = pkgs.callPackage ./pankat-wasm.nix {};
+          
+          fp = fenix.packages.${system};
+          # host std is already inside stable.rustc; listing it again is harmless
+          rust_toolchain = fp.combine [
+            fp.stable.rustc
+            fp.stable.cargo
+            fp.stable.rust-src
+            fp.targets.wasm32-unknown-unknown.stable.rust-std
+          ];
+
+          rustc_1_87_vanilla_pin = (fenix.packages.${system}.toolchainOf {
+            channel = "1.87.0";
+            sha256 = "sha256-KUm16pHj+cRedf8vxs/Hd2YWxpOrWZ7UOrwhILdSJBU=";
+          }).rustc;
+          cargo_1_87_vanilla_pin = (fenix.packages.${system}.toolchainOf {
+            channel = "1.87.0";
+            sha256 = "sha256-KUm16pHj+cRedf8vxs/Hd2YWxpOrWZ7UOrwhILdSJBU=";
+          }).cargo;
+
+          project_root = ./.;
+          cargo-libnix-1_87_0_plus_v3_src = builtins.fetchTarball {
+            url = "https://github.com/nixcloud/cargo/releases/download/libnix-1.87.0%2Bv3/libnix-1.87.0+v3.tar.bz2";
+            sha256 = "sha256:00cqp5s8gdzz2abwlggz3v9qhizln7f06nilkb34fvkr9hywgk2v";
+          };
+          cargo-libnix-1_87_0_plus_v3 = (import (cargo-libnix-1_87_0_plus_v3_src + "/derivations/default.nix"){ 
+            inherit project_root pkgs;
+            external_crate_dependencies = import (cargo-libnix-1_87_0_plus_v3_src + "/Cargo.dependencies.nix") { inherit pkgs; };
+            rustc = rustc_1_87_vanilla_pin;
+            cargo = cargo_1_87_vanilla_pin;
+          }).cargo-0_88_0-bin-8cad88ffd54a16db;
+
+          src = builtins.filterSource
+            (path: type:
+                let base = baseNameOf path;
+                in !(base == "target" || base == "result" || builtins.match "result-*" base != null)
+            ) project_root;
+
+          lock = builtins.fromTOML (builtins.readFile ./Cargo.lock);
+          crateTarballs = map (p: pkgs.fetchurl {
+              name = "crate-${p.name}-${p.version}.tar.gz";
+              url = "https://crates.io/api/v1/crates/${p.name}/${p.version}/download";
+              sha256 = p.checksum;
+            })
+            (builtins.filter (p: (p.source or "") == "registry+https://github.com/rust-lang/crates.io-index") lock.package);
+
+          generated = pkgs.runCommand "cargo-nix-generated" { inherit crateTarballs; nativeBuildInputs = [ cargo-libnix-1_87_0_plus_v3 rustc_1_87_vanilla_pin ]; } ''
+            export HOME=$TMPDIR CARGO_BACKEND=nix
+            cp -r ${src} project && chmod -R u+w project && cd project
+            ${cargo-libnix-1_87_0_plus_v3}/bin/cargo build --offline write-nix-buildsystem --out-dir $out
+          '';
+
+          # the cargo binary unit of a generated build system; its hash isn't known in advance
+          pankatBin = units: units.${pkgs.lib.findFirst (n: pkgs.lib.hasPrefix "pankat-0_1_1-bin-" n)
+            (throw "no cargo-0_88_0-bin-* unit in the generated build system") (builtins.attrNames units)};
+
+          pankat-ifd = pankatBin (import "${generated}/cargo_build_caller.nix" { inherit system; project_root = src; });
+
+          pankat_wasm = pkgs.callPackage ./pankat-wasm.nix {
+             rustc = rust_toolchain;
+             cargo = rust_toolchain;
+          };
+          
+          # pankat_wasm_deps = {
+          #   deps = {
+          #       "openssl-sys" = [ pkgs.pkg-config pkgs.openssl ];
+          #   };
+          #   envs = {};
+          # };
         in
         with pkgs;
         rec {
-          packages.default = pankat-wasm; #[ pankat pankat-wasm ];
+          packages.pankat = pankat-ifd;
+          packages.pankat_wasm = pankat_wasm;
+          # bin/pankat + share/pankat/wasm (pass the latter via --wasm)
+          packages.default = symlinkJoin {
+            name = "pankat-with-wasm";
+            paths = [ packages.pankat ];
+            postBuild = ''
+              mkdir -p $out/share/pankat
+              ln -s ${packages.pankat_wasm} $out/share/pankat/wasm
+            '';
+          };
           devShells.default = mkShell {
             buildInputs = [
-              rust
-              cargo
-              cargo-binutils
+              # pankat-rs requires those (build)
+              cargo-libnix-1_87_0_plus_v3
+              rustc_1_87_vanilla_pin
+
               just
-              sqlite
+              cargo-binutils
+
+              # pankat-rs requires those (runtime)
               pandoc
 
-              #zigbuild
-              
-              cmake
-              clang
-              lld
-              pkg-config
-              openssl
+              # openssl-sys (used in pankat-wasm)
+              #pkg-config
+              #openssl
+              #sqlite
 
-              binaryen  # required to minify WASM files with wasm-opt
+              # required to minify WASM files with wasm-opt
+              binaryen
               wasm-pack
-              (rust-bin.stable.latest.default.override {
-                extensions = [ "rust-src" ];
-                targets = [ "wasm32-unknown-unknown" ];
-              })
 
+              # vanilla rust (nixpkgs)
+              # rust
+              # cargo
+              # patching rust-bin
+              # (rust-bin.stable.latest.default.override {  extensions = [ "rust-src" ];  targets = [ "wasm32-unknown-unknown" ];})
+
+              # 'just zig' creates a standalone binary (not using glibc)
               zig
               cargo-zigbuild
             ];
+            shellHook = ''
+              export CARGO_BACKEND=nix
+            '';
           };
         }
       );
