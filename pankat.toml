@@ -1,5 +1,5 @@
-# the blogs name
-brand = "lastlog.de/blog"
+# public base URL of the blog incl. subdir, used for the label top left and the Open Graph (social preview) tags
+site_url = "https://lastlog.de/blog"
 
 # input and output directory (both served by the webserver)
 input = "documents/blog.lastlog.de"

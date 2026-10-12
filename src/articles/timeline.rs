@@ -142,7 +142,7 @@ pub fn update_timeline(articles: &Vec<ArticleWithTags>) -> Result<(), Box<dyn Er
     );
 
     let data: serde_json::Value = json!({
-        "SiteBrandTitle": cfg.brand,
+        "SiteBrandTitle": crate::renderer::html::site_label(),
         "Title": "timeline",
         "NavAndContent": html,
         "ArticleSrcURL": "",
@@ -154,6 +154,15 @@ pub fn update_timeline(articles: &Vec<ArticleWithTags>) -> Result<(), Box<dyn Er
         "Tocify": false,
         "Timeline": true,
         "Subdir": cfg.subdir,
+        "OpenGraph": crate::renderer::html::open_graph_data(
+            "website",
+            "timeline",
+            Some("a list of all posts, sorted by date".to_string()),
+            "timeline.html",
+            None,
+            None,
+            None,
+        ),
     });
 
     match crate::renderer::html::create_html_from_standalone_template(data) {

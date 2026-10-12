@@ -7,3 +7,4 @@ pub mod summary;
 pub mod tag;
 pub mod title;
 pub mod hiddentext;
+pub mod opengraphimage;

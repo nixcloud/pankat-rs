@@ -29,6 +29,7 @@ mod tests {
             anchorjs: None,
             tocify: None,
             live_updates: None,
+            open_graph_image: None,
         };
 
         let res = set(&mut conn, &article_with_tags1);
@@ -60,6 +61,7 @@ mod tests {
             anchorjs: None,
             tocify: None,
             live_updates: None,
+            open_graph_image: None,
         };
 
         let res = set(&mut conn, &article_with_tags2);
@@ -90,6 +92,7 @@ mod tests {
             anchorjs: None,
             tocify: None,
             live_updates: None,
+            open_graph_image: None,
         };
 
         let res = set(&mut conn, &article_with_tags3);
@@ -112,6 +115,7 @@ mod tests {
             anchorjs: None,
             tocify: None,
             live_updates: None,
+            open_graph_image: None,
         };
 
         let res = set(&mut conn, &article_with_tags_draft);
@@ -134,6 +138,7 @@ mod tests {
             anchorjs: None,
             tocify: None,
             live_updates: None,
+            open_graph_image: None,
         };
 
         let res = set(&mut conn, &article_with_tags_special_page1);
@@ -156,6 +161,7 @@ mod tests {
             anchorjs: None,
             tocify: None,
             live_updates: None,
+            open_graph_image: None,
         };
 
         let res = set(&mut conn, &article_with_tags_special_page2);

@@ -22,6 +22,7 @@ diesel::table! {
         anchorjs -> Nullable<Bool>,
         tocify -> Nullable<Bool>,
         live_updates -> Nullable<Bool>,
+        open_graph_image -> Nullable<Text>,
     }
 }
 

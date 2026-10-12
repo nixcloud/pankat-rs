@@ -35,7 +35,7 @@ pub struct CliConfig {
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub subdir: Option<PathBuf>,
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
-    pub brand: Option<String>,
+    pub site_url: Option<String>,
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub jwt_token: Option<String>,
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
@@ -56,7 +56,7 @@ pub struct Config {
     pub wasm: PathBuf,
     pub database: PathBuf,
     pub subdir: PathBuf,
-    pub brand: String,
+    pub site_url: String,
     pub jwt_token: String,
     pub admin_password: String,
     pub port: u16,
@@ -124,7 +124,7 @@ fn create_config(
             },
             _ => None,
         }),
-        brand: config_values.get("brand").and_then(|cv| match &cv.value {
+        site_url: config_values.get("site_url").and_then(|cv| match &cv.value {
             ConfigValueType::String(p) => match creation_mode {
                 OnlyDefaultValues::OnlyDefaultValues if cv.is_default => p.clone(),
                 OnlyDefaultValues::OnlySetValues if !cv.is_default => p.clone(),

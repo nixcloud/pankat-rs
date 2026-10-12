@@ -9,6 +9,81 @@ use std::error::Error;
 use std::fs;
 use std::path::{PathBuf, MAIN_SEPARATOR};
 
+/// site_url without scheme and trailing slash, shown top left: "lastlog.de/blog"
+pub fn site_label() -> String {
+    let cfg = config::Config::get();
+    let url = cfg.site_url.trim_end_matches('/');
+    match url.split_once("://") {
+        Some((_, rest)) => rest.to_string(),
+        None => url.to_string(),
+    }
+}
+
+/// absolute URL below site_url for a path relative to the site root, absolute URLs pass through
+pub fn absolute_url(path: &str) -> String {
+    if path.contains("://") {
+        return path.to_string();
+    }
+    let cfg = config::Config::get();
+    let base = cfg.site_url.trim_end_matches('/');
+    let base = if base.contains("://") {
+        base.to_string()
+    } else {
+        format!("https://{}", base)
+    };
+    format!("{}/{}", base, path.trim_start_matches('/'))
+}
+
+/// Open Graph / twitter card data for the social preview of a page, used by
+/// templates/open-graph-template.html
+pub fn open_graph_data(
+    og_type: &str,
+    title: &str,
+    description: Option<String>,
+    dst_file_name: &str,
+    image: Option<String>,
+    published_time: Option<chrono::NaiveDateTime>,
+    tags: Option<Vec<String>>,
+) -> serde_json::Value {
+    let image_url: Option<String> = image.map(|i| absolute_url(&i));
+    json!({
+        "Type": og_type,
+        "SiteName": site_label(),
+        "Title": title,
+        "Description": description,
+        "Url": absolute_url(dst_file_name),
+        "TwitterCard": if image_url.is_some() { "summary_large_image" } else { "summary" },
+        "Image": image_url,
+        "PublishedTime": published_time.map(|t| t.format("%Y-%m-%dT%H:%M:%S").to_string()),
+        "Tags": tags.unwrap_or_default(),
+    })
+}
+
+pub fn open_graph_data_by_article(article: &ArticleWithTags) -> serde_json::Value {
+    if article.draft == Some(true) {
+        return serde_json::Value::Null;
+    }
+    let special_page = article.special_page == Some(true);
+    open_graph_data(
+        if special_page { "website" } else { "article" },
+        article.title.as_deref().unwrap_or(""),
+        article.summary.clone(),
+        &article.dst_file_name,
+        article.open_graph_image.clone(),
+        if special_page { None } else { article.modification_date },
+        article.tags.clone(),
+    )
+}
+
+fn register_open_graph_partial(handlebars: &mut Handlebars) -> Result<(), Box<dyn Error>> {
+    let cfg = config::Config::get();
+    let mut assets: PathBuf = PathBuf::from(cfg.assets.clone());
+    assets.push("templates/open-graph-template.html");
+    let template_content = fs::read_to_string(assets.as_path())?;
+    handlebars.register_partial("open_graph", template_content)?;
+    Ok(())
+}
+
 pub fn create_html_from_standalone_template_by_article(
     article: ArticleWithTags,
     html: String,
@@ -16,7 +91,7 @@ pub fn create_html_from_standalone_template_by_article(
     let cfg = config::Config::get();
 
     let data: serde_json::Value = json!({
-        "SiteBrandTitle": cfg.brand,
+        "SiteBrandTitle": site_label(),
         "Subdir": cfg.subdir,
         "Title": article.title,
         "NavAndContent": html,
@@ -26,6 +101,7 @@ pub fn create_html_from_standalone_template_by_article(
         "Timeline": false,
         "ArticleSrcFileName": article.src_file_name,
         "ArticleDstFileName": article.dst_file_name,
+        "OpenGraph": open_graph_data_by_article(&article),
     });
 
     create_html_from_standalone_template(data)
@@ -43,6 +119,7 @@ pub fn create_html_from_standalone_template(
     let template = assets.as_path();
     let template_content = fs::read_to_string(template)?;
 
+    register_open_graph_partial(&mut handlebars)?;
     handlebars.register_template_string("standalone-template", &template_content)?;
 
     let result = handlebars.render("standalone-template", &data)?;
@@ -200,7 +277,7 @@ pub fn create_html_from_navigation_series_template(
 }
 
 pub fn create_index_from_most_recent_article_template(
-    most_recent_article: String,
+    most_recent_article: &ArticleWithTags,
 ) -> Result<String, Box<dyn Error>> {
     let cfg = config::Config::get();
 
@@ -211,10 +288,14 @@ pub fn create_index_from_most_recent_article_template(
     let template = assets.as_path();
     let template_content = fs::read_to_string(template)?;
 
+    register_open_graph_partial(&mut handlebars)?;
     handlebars.register_template_string("most-recent-article", &template_content)?;
 
+    // scrapers of X/linkedin don't follow the meta refresh, so the index carries
+    // the social preview of the most recent article
     let data = json!({
-        "most_recent_article": most_recent_article,
+        "most_recent_article": most_recent_article.dst_file_name,
+        "OpenGraph": open_graph_data_by_article(most_recent_article),
     });
 
     let result = handlebars.render("most-recent-article", &data)?;

@@ -21,6 +21,7 @@ mod tests {
             anchorjs: None,
             tocify: None,
             live_updates: None,
+            open_graph_image: None,
             tags: None,
         };
 
@@ -38,6 +39,7 @@ mod tests {
             anchorjs: None,
             tocify: None,
             live_updates: None,
+            open_graph_image: None,
             tags: None,
         };
 
@@ -75,6 +77,7 @@ mod tests {
             anchorjs: None,
             tocify: None,
             live_updates: None,
+            open_graph_image: None,
             tags: None,
         };
 
@@ -92,6 +95,7 @@ mod tests {
             anchorjs: None,
             tocify: None,
             live_updates: None,
+            open_graph_image: None,
             tags: None,
         };
 
@@ -129,6 +133,7 @@ mod tests {
             anchorjs: None,
             tocify: None,
             live_updates: None,
+            open_graph_image: None,
             tags: None,
         };
 
@@ -146,6 +151,7 @@ mod tests {
             anchorjs: None,
             tocify: None,
             live_updates: None,
+            open_graph_image: None,
             tags: None,
         };
 
@@ -186,6 +192,7 @@ mod tests {
             anchorjs: None,
             tocify: None,
             live_updates: None,
+            open_graph_image: None,
             tags: None,
         };
 
@@ -206,6 +213,7 @@ mod tests {
             anchorjs: None,
             tocify: None,
             live_updates: None,
+            open_graph_image: None,
             tags: None,
         };
 
@@ -244,6 +252,7 @@ mod tests {
             anchorjs: None,
             tocify: None,
             live_updates: None,
+            open_graph_image: None,
             tags: None,
         };
 
@@ -261,6 +270,7 @@ mod tests {
             anchorjs: None,
             tocify: None,
             live_updates: None,
+            open_graph_image: None,
             tags: None,
         };
 
@@ -282,6 +292,44 @@ mod tests {
     }
 
     #[test]
+    fn test_open_graph_image() {
+        let input = "hi!\n[[!OpenGraphImage posts/libnix/card.png ]]\n".to_string();
+        let expected_output = "hi!\n\n".to_string();
+        let mut article = ArticleWithTags {
+            id: None,
+            src_file_name: "example.mdwn".to_string(),
+            dst_file_name: String::new(),
+            hash: "".to_string(),
+            title: None,
+            modification_date: None,
+            summary: None,
+            series: None,
+            draft: None,
+            special_page: None,
+            anchorjs: None,
+            tocify: None,
+            live_updates: None,
+            open_graph_image: None,
+            tags: None,
+        };
+
+        let result = eval_plugins(&input, &mut article);
+        assert_eq!(result.unwrap(), expected_output);
+        assert_eq!(
+            article.open_graph_image,
+            Some("posts/libnix/card.png".to_string())
+        );
+
+        // more than one argument is an error, the plugin text stays in the document
+        let mut article2 = article.clone();
+        article2.open_graph_image = None;
+        let input2 = "[[!OpenGraphImage a.png b.png]]".to_string();
+        let result2 = eval_plugins(&input2, &mut article2);
+        assert_eq!(result2.unwrap(), input2);
+        assert_eq!(article2.open_graph_image, None);
+    }
+
+    #[test]
     fn test_tag() {
         let input = "hi!\n[[!tag   foo bar asdf]]\n".to_string();
         let expected_output = "hi!\n\n".to_string();
@@ -299,6 +347,7 @@ mod tests {
             anchorjs: None,
             tocify: None,
             live_updates: None,
+            open_graph_image: None,
             tags: None,
         };
 
@@ -316,6 +365,7 @@ mod tests {
             anchorjs: None,
             tocify: None,
             live_updates: None,
+            open_graph_image: None,
             tags: vec!["foo".to_string(), "bar".to_string(), "asdf".to_string()].into(),
         };
 
@@ -354,6 +404,7 @@ mod tests {
             anchorjs: None,
             tocify: None,
             live_updates: None,
+            open_graph_image: None,
             tags: None,
         };
 
@@ -371,6 +422,7 @@ mod tests {
             anchorjs: None,
             tocify: None,
             live_updates: None,
+            open_graph_image: None,
             tags: None,
         };
 
@@ -422,6 +474,7 @@ mod tests {
             anchorjs: None,
             tocify: None,
             live_updates: None,
+            open_graph_image: None,
             tags: None,
         };
 
@@ -439,6 +492,7 @@ mod tests {
             anchorjs: None,
             tocify: None,
             live_updates: None,
+            open_graph_image: None,
             tags: None,
         };
 

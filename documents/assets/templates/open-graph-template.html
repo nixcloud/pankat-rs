@@ -1,0 +1,14 @@
+{{#if OpenGraph}}{{#with OpenGraph}}
+    <link rel="canonical" href="{{Url}}" />
+    {{#if Description}}<meta name="description" content="{{Description}}" />{{/if}}
+    <meta property="og:type" content="{{Type}}" />
+    <meta property="og:site_name" content="{{SiteName}}" />
+    <meta property="og:title" content="{{Title}}" />
+    {{#if Description}}<meta property="og:description" content="{{Description}}" />{{/if}}
+    <meta property="og:url" content="{{Url}}" />
+    {{#if Image}}<meta property="og:image" content="{{Image}}" />{{/if}}
+    {{#if PublishedTime}}<meta property="article:published_time" content="{{PublishedTime}}" />{{/if}}
+    {{#each Tags}}<meta property="article:tag" content="{{this}}" />
+    {{/each}}
+    <meta name="twitter:card" content="{{TwitterCard}}" />
+{{/with}}{{/if}}

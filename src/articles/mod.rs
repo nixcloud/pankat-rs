@@ -29,7 +29,9 @@ use crate::renderer::html::{
 };
 use crate::renderer::pandoc::pandoc_mdwn_2_html;
 
-use self::plugins::{draft, img, meta, series, specialpage, summary, tag, title, hiddentext};
+use self::plugins::{
+    draft, hiddentext, img, meta, opengraphimage, series, specialpage, summary, tag, title,
+};
 use diesel::prelude::*;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -48,6 +50,7 @@ pub struct ArticleWithTags {
     pub anchorjs: Option<bool>,
     pub tocify: Option<bool>,
     pub live_updates: Option<bool>,
+    pub open_graph_image: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Insertable, AsChangeset)]
@@ -65,6 +68,7 @@ pub struct NewArticle {
     pub anchorjs: Option<bool>,
     pub tocify: Option<bool>,
     pub live_updates: Option<bool>,
+    pub open_graph_image: Option<String>,
 }
 
 impl From<ArticleWithTags> for NewArticle {
@@ -82,6 +86,7 @@ impl From<ArticleWithTags> for NewArticle {
             anchorjs: article.anchorjs,
             tocify: article.tocify,
             live_updates: article.live_updates,
+            open_graph_image: article.open_graph_image,
         }
     }
 }
@@ -448,7 +453,7 @@ pub fn update_most_recent_article(conn: &mut SqliteConnection) {
     match crate::db::article::get_most_recent_article(conn) {
         Ok(article_option) => match article_option {
             Some(article) => {
-                match create_index_from_most_recent_article_template(article.dst_file_name) {
+                match create_index_from_most_recent_article_template(&article) {
                     Ok(html) => {
                         let cfg = config::Config::get();
                         let output_path: PathBuf = cfg.output.clone();
@@ -567,6 +572,7 @@ fn parse_article(
         anchorjs: Some(true),
         tocify: Some(true),
         live_updates: Some(true),
+        open_graph_image: None,
     };
 
     let file_path: PathBuf = input_path.join(article_path);
@@ -706,6 +712,7 @@ pub fn exec_plugin(input: &str, article: &mut ArticleWithTags) -> Result<String,
             "tag" => tag::tag(argument, article),
             "img" => img::img(argument, article),
             "summary" => summary::summary(argument, article),
+            "opengraphimage" => opengraphimage::opengraphimage(argument, article),
             _ => Err(format!("Plugin '{}' is not supported", name).into()),
         }
     } else {

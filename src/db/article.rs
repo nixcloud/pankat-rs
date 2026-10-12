@@ -35,6 +35,7 @@ pub struct Article {
     pub anchorjs: Option<bool>,
     pub tocify: Option<bool>,
     pub live_updates: Option<bool>,
+    pub open_graph_image: Option<String>,
 }
 
 impl From<Article> for ArticleWithTags {
@@ -53,6 +54,7 @@ impl From<Article> for ArticleWithTags {
             anchorjs: article.anchorjs,
             tocify: article.tocify,
             live_updates: article.live_updates,
+            open_graph_image: article.open_graph_image,
             tags: None,
         }
     }

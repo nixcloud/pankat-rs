@@ -25,6 +25,7 @@ mod tests {
             anchorjs: None,
             tocify: None,
             live_updates: None,
+            open_graph_image: None,
         };
 
         let res = set(&mut conn, &article_with_tags1);
@@ -54,6 +55,7 @@ mod tests {
             anchorjs: None,
             tocify: None,
             live_updates: None,
+            open_graph_image: None,
         };
 
         set(&mut conn, &article_with_tags2).unwrap();
@@ -82,6 +84,7 @@ mod tests {
             anchorjs: None,
             tocify: None,
             live_updates: None,
+            open_graph_image: None,
         };
 
         set(&mut conn, &article_with_tags3).unwrap();

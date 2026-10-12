@@ -71,13 +71,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .default_value("documents")
         )
         .arg(
-            Arg::new("brand")
+            Arg::new("site_url")
                 .short('b')
-                .long("brand")
+                .long("site_url")
                 .value_name("URL")
-                .help("A brand name shown on every page top left")
+                .help("Public base URL of the site incl. subdir, e.g. https://lastlog.de/blog (used for the label top left and Open Graph tags)")
                 .required(false)
-                .default_value("lastlog.de/blog")
+                .default_value("https://lastlog.de/blog")
         )
         .arg(
             Arg::new("subdir")
@@ -208,11 +208,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     );
 
     config_values.insert(
-        "brand".to_string(),
+        "site_url".to_string(),
         ConfigValue {
-            value: ConfigValueType::String(matches.get_one::<String>("brand").map(|v| v.into())),
+            value: ConfigValueType::String(matches.get_one::<String>("site_url").map(|v| v.into())),
             is_default: Some(clap::parser::ValueSource::DefaultValue)
-                == matches.value_source("brand"),
+                == matches.value_source("site_url"),
         },
     );
 
@@ -283,7 +283,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("WASM Path: {}", cfg.wasm.display());
     println!("Database Path: {}", cfg.database.display());
     println!("Subdir: {}", cfg.subdir.display());
-    println!("Brand: {}", cfg.brand);
+    println!("Site URL: {}", cfg.site_url);
     println!("Port Number: {}", cfg.port);
     println!(
         "JWT-token: {}{}",
