@@ -115,18 +115,14 @@ fn handle_event(pool: &DbPool, event: &Event) {
                         kind: event.kind,
                         path: relative_article_path.to_path_buf(),
                     };
-                    debounce(
-                        pool,
-                        pankat_event,
-                        relative_article_path.display().to_string(),
-                    );
+                    debounce(pool, pankat_event);
                 }
             }
         }
     }
 }
 
-fn debounce(pool: &DbPool, pankat_event: PankatFileMonitorEvent, a: String) {
+fn debounce(pool: &DbPool, pankat_event: PankatFileMonitorEvent) {
     // Debounce logic
     use std::collections::HashMap;
     use std::sync::Mutex;
@@ -154,9 +150,6 @@ fn debounce(pool: &DbPool, pankat_event: PankatFileMonitorEvent, a: String) {
     // );
     let lock = Arc::new(tokio::sync::Mutex::new(()));
     tokio::spawn(async move {
-        let (sender, _) = PubSubRegistry::instance()
-            .get_sender_receiver_by_name(a)
-            .await;
         loop {
             let next_event = {
                 let cache = EVENT_CACHE.lock().unwrap();
@@ -182,14 +175,15 @@ fn debounce(pool: &DbPool, pankat_event: PankatFileMonitorEvent, a: String) {
                             &mut pool.get().unwrap(),
                             &event,
                         ) {
-                            Ok(data) => {
-                                // println!("sending the good news");
-                                //println!("sending the good news: {}", data);
-                                match sender.send(data) {
-                                    Ok(_) => {}
-                                    Err(_) => {
-                                        println!("Error sending command via websocket");
-                                    }
+                            Ok(updates) => {
+                                // each update goes to the clients registered for that article,
+                                // which is not necessarily the article that triggered this task
+                                for (src_file_name, data) in updates {
+                                    let (sender, _) = PubSubRegistry::instance()
+                                        .get_sender_receiver_by_name(src_file_name)
+                                        .await;
+                                    // send only fails when nobody is subscribed
+                                    let _ = sender.send(data);
                                 }
                             }
                             Err(e) => {

@@ -789,21 +789,16 @@ impl ArticleNeighbours {
         }
     }
     pub fn diff(&self, other: &ArticleNeighbours) -> HashSet<i32> {
+        // both the old and the new neighbour need a re-render of their navigation
         let mut differences = HashSet::new();
         if &self.prev != &other.prev {
-            match &self.prev {
-                Some(article) => {
-                    differences.insert(article.id.unwrap());
-                }
-                None => {}
+            for article in [&self.prev, &other.prev].into_iter().flatten() {
+                differences.insert(article.id.unwrap());
             }
         }
         if &self.next != &other.next {
-            match &self.next {
-                Some(article) => {
-                    differences.insert(article.id.unwrap());
-                }
-                None => {}
+            for article in [&self.next, &other.next].into_iter().flatten() {
+                differences.insert(article.id.unwrap());
             }
         }
         differences

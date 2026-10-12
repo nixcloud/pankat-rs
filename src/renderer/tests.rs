@@ -96,6 +96,7 @@ mod tests {
             id: None,
             src_file_name: "documents/blog.lastlog.de/posts/test_src.md".to_string(),
             dst_file_name: "test_dst.html".to_string(),
+            hash: "".to_string(),
             title: Some("Test NewArticle".to_string()),
             modification_date: None,
             summary: None,

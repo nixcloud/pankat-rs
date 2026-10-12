@@ -124,11 +124,54 @@ pub fn output_folder_check(output_folder: &PathBuf) -> Result<(), Box<dyn Error>
     }
 }
 
-/// returns a command: json string which is sent to via WS to the client or an error
+/// re-renders the articles whose navigation changed (prev/next, series, most recent)
+/// and returns their (src_file_name, json command) pairs for the WS clients
+fn update_affected_articles(
+    conn: &mut SqliteConnection,
+    changed_article_id: Option<i32>,
+    affected_articles: &std::collections::HashSet<i32>,
+) -> Vec<(String, String)> {
+    let mut updates: Vec<(String, String)> = Vec::new();
+    for id in affected_articles {
+        if Some(*id) == changed_article_id {
+            continue;
+        }
+        match crate::db::article::get_article_with_tags_by_id(conn, *id) {
+            Ok(Some(affected_article)) => {
+                println!(
+                    "Updating affected article {} (id: {})",
+                    affected_article.dst_file_name, id
+                );
+                write_article_to_disk(conn, &affected_article);
+                if let Some(cache_entry) =
+                    get_cache(conn, affected_article.src_file_name.clone())
+                {
+                    let html: String =
+                        create_nav_content_template(conn, &affected_article, cache_entry.html);
+                    updates.push((
+                        affected_article.src_file_name.clone(),
+                        json!({ "update": html, }).to_string(),
+                    ));
+                }
+            }
+            Ok(None) => {}
+            Err(e) => {
+                println!("Error loading affected article (id: {}): {:?}", id, e);
+            }
+        }
+    }
+    if let Ok(articles) = crate::db::article::get_visible_articles(conn) {
+        let _ = crate::articles::timeline::update_timeline(&articles);
+    }
+    updates
+}
+
+/// returns (src_file_name, json command) pairs which are sent via WS to the clients
+/// registered for the respective article or an error
 pub fn file_monitor_articles_change(
     conn: &mut SqliteConnection,
     event: &crate::file_monitor::PankatFileMonitorEvent,
-) -> Result<String, String> {
+) -> Result<Vec<(String, String)>, String> {
     println!("-----------> file_monitor_articles_change begin");
     defer! {
         println!("-----------< file_monitor_articles_change end");
@@ -150,8 +193,11 @@ pub fn file_monitor_articles_change(
                             if db_reply.most_recent_article_change.is_some() {
                                 update_most_recent_article(conn);
                             }
-                            // FIXME: timeline? change on: nav, summary, date, title, tags, series
-                            //let _ = crate::articles::timeline::update_timeline(&articles);
+                            let mut updates: Vec<(String, String)> = update_affected_articles(
+                                conn,
+                                db_reply.article.id,
+                                &db_reply.affected_articles,
+                            );
 
                             if Some(true) == db_reply.article.draft {
                                 let cfg = config::Config::get();
@@ -162,7 +208,11 @@ pub fn file_monitor_articles_change(
                                     Ok(_) => {
                                         let target: String =
                                             format!("/draft?{}", output_filename.display());
-                                        return Ok(json!({ "redirect": target, }).to_string());
+                                        updates.push((
+                                            article.src_file_name.clone(),
+                                            json!({ "redirect": target, }).to_string(),
+                                        ));
+                                        return Ok(updates);
                                     }
                                     Err(e) => {
                                         println!("Error removing file: {}", e);
@@ -177,7 +227,11 @@ pub fn file_monitor_articles_change(
                                         &db_reply.article,
                                         cache_entry.html,
                                     );
-                                    Ok(json!({ "update": html, }).to_string())
+                                    updates.push((
+                                        article.src_file_name.clone(),
+                                        json!({ "update": html, }).to_string(),
+                                    ));
+                                    Ok(updates)
                                 }
                                 None => Err("Error loading cache for Article".to_string()),
                             }
@@ -200,9 +254,17 @@ pub fn file_monitor_articles_change(
             let res =
                 crate::db::article::del_by_src_file_name(conn, event.path.display().to_string());
             match res {
-                // FIXME implement this
-                Ok(_) => Err("FIXME: implement this".to_string()),
-                Err(_) => Err("FIXME".to_string()),
+                Ok(db_reply) => {
+                    if db_reply.most_recent_article_change.is_some() {
+                        update_most_recent_article(conn);
+                    }
+                    Ok(update_affected_articles(
+                        conn,
+                        None,
+                        &db_reply.affected_articles,
+                    ))
+                }
+                Err(e) => Err(format!("Error: {:?}", e)),
             }
         }
         _ => Err("file_monitor_articles_change: Unknown event type".to_string()),
