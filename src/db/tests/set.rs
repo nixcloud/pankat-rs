@@ -353,4 +353,53 @@ mod tests {
             Err(_) => {}
         }
     }
+
+    #[test]
+    fn test_db_set_update_clears_removed_fields() {
+        use crate::db::article::get_article_with_tags_by_id;
+        let mut conn: SqliteConnection = establish_connection_and_initialize_schema();
+
+        let date = |d: &str| {
+            Some(chrono::NaiveDateTime::parse_from_str(d, "%Y-%m-%d %H:%M").unwrap())
+        };
+        let article = |src: &str, modification_date, series: Option<&str>| ArticleWithTags {
+            id: None,
+            src_file_name: format!("{}.mdwn", src),
+            dst_file_name: format!("{}.html", src),
+            hash: "".to_string(),
+            title: Some(src.to_string()),
+            modification_date,
+            summary: Some("summary".to_string()),
+            tags: None,
+            series: series.map(str::to_string),
+            draft: None,
+            special_page: None,
+            anchorjs: None,
+            tocify: None,
+            live_updates: None,
+            open_graph_image: Some("card.png".to_string()),
+        };
+
+        let first = set(&mut conn, &article("first", date("2026-10-11 12:00"), Some("libnix")))
+            .unwrap()
+            .article;
+        let second = set(&mut conn, &article("second", date("2026-10-12 12:00"), Some("libnix")))
+            .unwrap()
+            .article;
+
+        // [[!series libnix]], [[!summary ...]] and [[!OpenGraphImage ...]] removed from "second"
+        let mut updated = article("second", date("2026-10-12 12:00"), None);
+        updated.summary = None;
+        updated.open_graph_image = None;
+        let db_reply = set(&mut conn, &updated).unwrap();
+
+        let second = get_article_with_tags_by_id(&mut conn, second.id.unwrap())
+            .unwrap()
+            .unwrap();
+        assert_eq!(second.series, None);
+        assert_eq!(second.summary, None);
+        assert_eq!(second.open_graph_image, None);
+        // the former series neighbour loses its "next in series" link
+        assert!(db_reply.affected_articles.contains(&first.id.unwrap()));
+    }
 }

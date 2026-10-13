@@ -55,6 +55,9 @@ pub struct ArticleWithTags {
 
 #[derive(Debug, Clone, Eq, PartialEq, Insertable, AsChangeset)]
 #[diesel(table_name = crate::db::schema::articles)]
+// an update must clear fields whose plugin call was removed from the article, by default
+// AsChangeset skips None fields and the old value (e.g. series) would stay in the database
+#[diesel(treat_none_as_null = true)]
 pub struct NewArticle {
     pub src_file_name: String,
     pub dst_file_name: String,
