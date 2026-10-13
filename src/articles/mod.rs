@@ -182,8 +182,12 @@ pub fn file_monitor_articles_change(
         println!("-----------< file_monitor_articles_change end");
     }
 
+    // a rename arrives as Modify(Name(From)) for the old and Modify(Name(To)) for the new
+    // path, so whether the file is still there decides between update and removal
+    let exists: bool = config::Config::get().input.join(&event.path).is_file();
+
     match event.kind {
-        EventKind::Create(_) | EventKind::Modify(_) => {
+        EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_) if exists => {
             println!(
                 "📝 created / ✏️ modified called on {}",
                 event.path.display()
@@ -254,8 +258,22 @@ pub fn file_monitor_articles_change(
                 }
             }
         }
-        EventKind::Remove(_) => {
+        EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_) => {
             println!("🗑️ removed called on {}", event.path.display());
+            if let Ok(Some(article)) =
+                get_article_with_tags_by_src_file_name(conn, event.path.display().to_string())
+            {
+                let output_filename: PathBuf =
+                    config::Config::get().output.join(&article.dst_file_name);
+                if let Err(e) = std::fs::remove_file(&output_filename) {
+                    println!("Error removing file {}: {}", output_filename.display(), e);
+                }
+            }
+            let mut updates: Vec<(String, String)> = Vec::new();
+            updates.push((
+                event.path.display().to_string(),
+                json!({ "update": removed_article_notice(event.renamed_to.as_ref()) }).to_string(),
+            ));
             let res =
                 crate::db::article::del_by_src_file_name(conn, event.path.display().to_string());
             match res {
@@ -263,17 +281,49 @@ pub fn file_monitor_articles_change(
                     if db_reply.most_recent_article_change.is_some() {
                         update_most_recent_article(conn);
                     }
-                    Ok(update_affected_articles(
+                    updates.extend(update_affected_articles(
                         conn,
                         None,
                         &db_reply.affected_articles,
-                    ))
+                    ));
+                    Ok(updates)
                 }
+                // already gone, e.g. the rename target arrived after the removal was processed
+                Err(diesel::result::Error::NotFound) => Ok(updates),
                 Err(e) => Err(format!("Error: {:?}", e)),
             }
         }
         _ => Err("file_monitor_articles_change: Unknown event type".to_string()),
     }
+}
+
+/// replaces the content of a removed or renamed article in open browsers, the reader
+/// follows the link to the new location or to the blog's index
+fn removed_article_notice(renamed_to: Option<&PathBuf>) -> String {
+    let cfg = config::Config::get();
+    let (heading, text, dst_file_name) = match renamed_to {
+        Some(renamed_to) => (
+            "article moved",
+            "this article was renamed, it is now available at",
+            utils::create_dst_file_name(renamed_to, cfg.flat),
+        ),
+        None => (
+            "article removed",
+            "this article was removed, continue reading at",
+            "index.html".to_string(),
+        ),
+    };
+    format!(
+        r#"<div class="article">
+             <h1 id="SiteTitle">{}</h1>
+             <p>{} <a href="{}/{}">{}</a>.</p>
+           </div>"#,
+        heading,
+        text,
+        cfg.subdir.display(),
+        dst_file_name,
+        dst_file_name
+    )
 }
 
 pub fn collect_garbage(pool: &DbPool) {

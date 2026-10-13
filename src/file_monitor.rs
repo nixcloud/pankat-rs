@@ -1,6 +1,7 @@
 use crate::registry::PubSubRegistry;
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
+use notify::event::{ModifyKind, RenameMode};
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::Path;
 use std::path::PathBuf;
@@ -12,6 +13,8 @@ pub type DbPool = r2d2::Pool<ConnectionManager<SqliteConnection>>;
 pub struct PankatFileMonitorEvent {
     pub kind: EventKind,
     pub path: PathBuf,
+    /// set on the old path of a rename, clients of the old article get a link to the new one
+    pub renamed_to: Option<PathBuf>,
 }
 
 impl PartialEq for PankatFileMonitorEvent {
@@ -87,37 +90,48 @@ pub fn spawn_async_monitor(
     Ok(handle)
 }
 
-fn handle_event(pool: &DbPool, event: &Event) {
+/// path of an article relative to the input directory, None for anything that isn't one
+fn article_path(path: &Path) -> Option<PathBuf> {
+    if path.extension()? != "mdwn" {
+        return None;
+    }
     let cfg = crate::config::Config::get();
-    let input_path: PathBuf = cfg.input.clone();
+    let relative_path = path.strip_prefix(std::env::current_dir().ok()?).ok()?;
+    relative_path
+        .strip_prefix(&cfg.input)
+        .ok()
+        .map(Path::to_path_buf)
+}
+
+fn handle_event(pool: &DbPool, event: &Event) {
+    // after Name(From) and Name(To) for the single paths, a rename ends with Name(Both)
+    // carrying [old, new], which tags the pending removal of the old path
+    if event.kind == EventKind::Modify(ModifyKind::Name(RenameMode::Both)) {
+        if let [from, to] = event.paths.as_slice() {
+            if let (Some(from), Some(to)) = (article_path(from), article_path(to)) {
+                debounce(
+                    pool,
+                    PankatFileMonitorEvent {
+                        kind: event.kind,
+                        path: from,
+                        renamed_to: Some(to),
+                    },
+                );
+            }
+        }
+        return;
+    }
 
     for path in &event.paths {
-        if let Some(extension) = path.extension() {
-            if extension == "mdwn" {
-                if let Ok(relative_path) = path.strip_prefix(std::env::current_dir().unwrap()) {
-                    let relative_article_path: PathBuf = relative_path
-                        .strip_prefix(input_path.clone())
-                        .unwrap()
-                        .to_path_buf();
-                    // let event_type = match event.kind {
-                    //     EventKind::Create(_) => "📝 created",
-                    //     EventKind::Modify(_) => "✏️ modified",
-                    //     EventKind::Remove(_) => "🗑️ removed",
-                    //     _ => return,
-                    // };
-                    // println!(
-                    //     "  📍 Path: {} was {}",
-                    //     relative_article_path.display(),
-                    //     event_type
-                    // );
-
-                    let pankat_event: PankatFileMonitorEvent = PankatFileMonitorEvent {
-                        kind: event.kind,
-                        path: relative_article_path.to_path_buf(),
-                    };
-                    debounce(pool, pankat_event);
-                }
-            }
+        if let Some(relative_article_path) = article_path(path) {
+            debounce(
+                pool,
+                PankatFileMonitorEvent {
+                    kind: event.kind,
+                    path: relative_article_path,
+                    renamed_to: None,
+                },
+            );
         }
     }
 }
@@ -137,8 +151,22 @@ fn debounce(pool: &DbPool, pankat_event: PankatFileMonitorEvent) {
 
     {
         let mut cache = EVENT_CACHE.lock().unwrap();
-        if !cache.contains_key(&pankat_event) {
-            cache.insert(pankat_event.clone(), Instant::now() + DEBOUNCE_DURATION);
+        // events are equal by path, a rename target must survive in the pending one
+        let pending = cache.remove_entry(&pankat_event);
+        match pending {
+            Some((pending_event, instant)) => {
+                let renamed_to = pankat_event.renamed_to.or(pending_event.renamed_to.clone());
+                cache.insert(
+                    PankatFileMonitorEvent {
+                        renamed_to,
+                        ..pending_event
+                    },
+                    instant,
+                );
+            }
+            None => {
+                cache.insert(pankat_event, Instant::now() + DEBOUNCE_DURATION);
+            }
         }
     }
 
