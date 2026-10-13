@@ -175,6 +175,14 @@
 #           proxy_set_header Connection "upgrade";
 #           proxy_read_timeout 86400;
 #         }
+#         # admin login, drafts and the session state for the navbar are served by pankat,
+#         # longer prefixes than ^~ /blog/ below so they win
+#         location ^~ /blog/login { proxy_pass http://127.0.0.1:5000; proxy_set_header Host $host; }
+#         location ^~ /blog/logout { proxy_pass http://127.0.0.1:5000; proxy_set_header Host $host; }
+#         location ^~ /blog/draft { proxy_pass http://127.0.0.1:5000; proxy_set_header Host $host; }
+#         location = /blog/api/session { proxy_pass http://127.0.0.1:5000; proxy_set_header Host $host; }
+#         # written by pankat to the output directory
+#         error_page 404 /blog/404.html;
 #         location ^~ /blog/posts/ {
 #           alias /pankat-app/documents/blog.lastlog.de/posts/;
 #           autoindex on;
