@@ -295,6 +295,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!("-------------------------------------------------");
 
     check_pandoc()?;
+    if let Err(e) = renderer::assets::Asset::check_all() {
+        eprintln!("Error: {}", e);
+        std::process::exit(1);
+    }
 
     // Initialize SQLite database with Diesel
     let pool = db::establish_connection_pool();

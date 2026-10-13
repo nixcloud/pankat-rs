@@ -1,7 +1,6 @@
-use crate::config;
+use crate::renderer::assets::Asset;
 use std::error::Error;
 use std::io::Write;
-use std::path::PathBuf;
 
 pub fn check_pandoc() -> Result<(), Box<dyn Error + Send + Sync>> {
     let pandoc_process = std::process::Command::new("pandoc")
@@ -45,14 +44,11 @@ pub fn pandoc_mdwn_2_html(
     // println!("-------------------------");
     // println!("{}", article_markdown.clone());
     // println!("-------------------------");
-    let cfg = config::Config::get();
-    let mut assets: PathBuf = PathBuf::from(cfg.assets.clone());
-    assets.push("pandoc-lua/shifted-numbered-headings.lua");
-    let shifted_numbered_headings = assets.display().to_string();
-
-    let mut assets2: PathBuf = PathBuf::from(cfg.assets.clone());
-    assets2.push("pandoc-lua/create-anchors.lua");
-    let create_anchors = assets2.display().to_string();
+    let shifted_numbered_headings = Asset::ShiftedNumberedHeadingsLua
+        .path()
+        .display()
+        .to_string();
+    let create_anchors = Asset::CreateAnchorsLua.path().display().to_string();
 
     // Print the command line for debugging
     //println!("Executing pandoc with command: pandoc --lua-filter {:?} --lua-filter {:?} -f markdown -t html5 --highlight-style kate", luafile, luafile2);

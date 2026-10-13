@@ -1,3 +1,4 @@
+pub mod assets;
 pub mod html;
 pub mod pandoc;
 mod tests;

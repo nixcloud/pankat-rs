@@ -6,7 +6,7 @@ use crate::renderer::utils::date_and_time;
 use handlebars::Handlebars;
 use serde_json::json;
 use std::error::Error;
-use std::fs;
+use crate::renderer::assets::Asset;
 use std::path::{PathBuf, MAIN_SEPARATOR};
 
 /// site_url without scheme and trailing slash, shown top left: "lastlog.de/blog"
@@ -75,12 +75,21 @@ pub fn open_graph_data_by_article(article: &ArticleWithTags) -> serde_json::Valu
     )
 }
 
-fn register_open_graph_partial(handlebars: &mut Handlebars) -> Result<(), Box<dyn Error>> {
-    let cfg = config::Config::get();
-    let mut assets: PathBuf = PathBuf::from(cfg.assets.clone());
-    assets.push("templates/open-graph-template.html");
-    let template_content = fs::read_to_string(assets.as_path())?;
-    handlebars.register_partial("open_graph", template_content)?;
+fn register_template(
+    handlebars: &mut Handlebars,
+    name: &str,
+    asset: Asset,
+) -> Result<(), Box<dyn Error>> {
+    handlebars.register_template_string(name, asset.read()?)?;
+    Ok(())
+}
+
+fn register_partial(
+    handlebars: &mut Handlebars,
+    name: &str,
+    asset: Asset,
+) -> Result<(), Box<dyn Error>> {
+    handlebars.register_partial(name, asset.read()?)?;
     Ok(())
 }
 
@@ -110,17 +119,10 @@ pub fn create_html_from_standalone_template_by_article(
 pub fn create_html_from_standalone_template(
     data: serde_json::Value,
 ) -> Result<String, Box<dyn Error>> {
-    let cfg = config::Config::get();
-
     let mut handlebars = Handlebars::new();
 
-    let mut assets: PathBuf = PathBuf::from(cfg.assets.clone());
-    assets.push("templates/standalone-template.html");
-    let template = assets.as_path();
-    let template_content = fs::read_to_string(template)?;
-
-    register_open_graph_partial(&mut handlebars)?;
-    handlebars.register_template_string("standalone-template", &template_content)?;
+    register_partial(&mut handlebars, "open_graph", Asset::OpenGraphTemplate)?;
+    register_template(&mut handlebars, "standalone-template", Asset::StandaloneTemplate)?;
 
     let result = handlebars.render("standalone-template", &data)?;
     Ok(result)
@@ -161,12 +163,7 @@ pub fn create_html_from_content_template(
 
     let mut handlebars = Handlebars::new();
 
-    let mut assets: PathBuf = PathBuf::from(cfg.assets.clone());
-    assets.push("templates/content-template.html");
-    let article_template = assets.as_path();
-    let template_content = fs::read_to_string(article_template)?;
-
-    handlebars.register_template_string("content_template", &template_content)?;
+    register_template(&mut handlebars, "content_template", Asset::ContentTemplate)?;
 
     let articles_nav = create_html_from_navigation_articles_template(
         match article_neighbours.prev.clone() {
@@ -230,12 +227,11 @@ pub fn create_html_from_navigation_articles_template(
 
     let mut handlebars = Handlebars::new();
 
-    let mut assets: PathBuf = PathBuf::from(cfg.assets.clone());
-    assets.push("templates/navigation-articles-template.html");
-    let article_template = assets.as_path();
-    let template_content = fs::read_to_string(article_template)?;
-
-    handlebars.register_template_string("navigation_articles_template", &template_content)?;
+    register_template(
+        &mut handlebars,
+        "navigation_articles_template",
+        Asset::NavigationArticlesTemplate,
+    )?;
 
     let data = json!({
         "article_previous_link": article_previous_link,
@@ -257,12 +253,11 @@ pub fn create_html_from_navigation_series_template(
 
     let mut handlebars = Handlebars::new();
 
-    let mut assets: PathBuf = PathBuf::from(cfg.assets.clone());
-    assets.push("templates/navigation-series-template.html");
-    let article_template = assets.as_path();
-    let template_content = fs::read_to_string(article_template)?;
-
-    handlebars.register_template_string("navigation_series_template", &template_content)?;
+    register_template(
+        &mut handlebars,
+        "navigation_series_template",
+        Asset::NavigationSeriesTemplate,
+    )?;
 
     let data = json!({
         "series": series,
@@ -279,17 +274,14 @@ pub fn create_html_from_navigation_series_template(
 pub fn create_index_from_most_recent_article_template(
     most_recent_article: &ArticleWithTags,
 ) -> Result<String, Box<dyn Error>> {
-    let cfg = config::Config::get();
-
     let mut handlebars = Handlebars::new();
 
-    let mut assets: PathBuf = PathBuf::from(cfg.assets.clone());
-    assets.push("templates/most-recent-article.html");
-    let template = assets.as_path();
-    let template_content = fs::read_to_string(template)?;
-
-    register_open_graph_partial(&mut handlebars)?;
-    handlebars.register_template_string("most-recent-article", &template_content)?;
+    register_partial(&mut handlebars, "open_graph", Asset::OpenGraphTemplate)?;
+    register_template(
+        &mut handlebars,
+        "most-recent-article",
+        Asset::MostRecentArticleTemplate,
+    )?;
 
     // scrapers of X/linkedin don't follow the meta refresh, so the index carries
     // the social preview of the most recent article
