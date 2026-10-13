@@ -1,4 +1,8 @@
-use axum::{http::StatusCode, response::IntoResponse, Json};
+use axum::{
+    http::{header, StatusCode},
+    response::IntoResponse,
+    Json,
+};
 use diesel::result::Error as DieselError;
 use serde_json::json;
 use thiserror::Error;
@@ -11,6 +15,8 @@ pub enum AppError {
     DatabaseError(#[from] DieselError),
     #[error("Internal server error")]
     InternalError,
+    #[error("Not found")]
+    NotFound,
 }
 
 impl IntoResponse for AppError {
@@ -25,6 +31,14 @@ impl IntoResponse for AppError {
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Internal server error".to_string(),
             ),
+            AppError::NotFound => {
+                return (
+                    StatusCode::NOT_FOUND,
+                    [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+                    crate::renderer::html::create_not_found_page(),
+                )
+                    .into_response();
+            }
         };
 
         let body = Json(json!({

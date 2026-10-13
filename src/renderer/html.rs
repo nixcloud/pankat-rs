@@ -294,3 +294,37 @@ pub fn create_index_from_most_recent_article_template(
 
     Ok(result)
 }
+
+/// a page that isn't an article, e.g. the 404 or login page, in the look of the blog
+pub fn create_html_page(title: &str, content: &str) -> Result<String, Box<dyn Error>> {
+    let cfg = config::Config::get();
+    let data: serde_json::Value = json!({
+        "SiteBrandTitle": site_label(),
+        "Subdir": cfg.subdir,
+        "Title": title,
+        "NavAndContent": format!(r#"<div class="article">{}</div>"#, content),
+        "LiveUpdates": false,
+        "SpecialPage": true,
+        "Tocify": false,
+        "Timeline": false,
+        "ArticleSrcFileName": "",
+        "ArticleDstFileName": "",
+        "OpenGraph": serde_json::Value::Null,
+    });
+    create_html_from_standalone_template(data)
+}
+
+pub fn create_not_found_page() -> String {
+    let cfg = config::Config::get();
+    let content = format!(
+        r#"<h1 id="SiteTitle">page not found</h1>
+           <p>the page you were looking for doesn't exist (anymore), continue reading at
+           <a href="{}/index.html">{}</a>.</p>"#,
+        cfg.subdir.display(),
+        site_label()
+    );
+    create_html_page("page not found", &content).unwrap_or_else(|e| {
+        println!("Error rendering the 404 page: {}", e);
+        "page not found".to_string()
+    })
+}

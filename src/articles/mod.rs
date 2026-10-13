@@ -480,6 +480,11 @@ pub fn build_articles(pool: &DbPool) {
 
     update_special_pages(&mut conn);
     update_most_recent_article(&mut conn);
+    // for nginx (error_page 404), pankat renders it on request
+    write_to_disk(
+        &crate::renderer::html::create_not_found_page(),
+        &config::Config::get().output.join("404.html"),
+    );
 
     let duration = start_time.elapsed();
     println!("Time to build articles: {:?}", duration);

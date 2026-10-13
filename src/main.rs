@@ -342,11 +342,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             .route("/api/auth/login", post(handlers::login))
             .route("/api/protected", get(handlers::protected))
             .route("/api/ws", get(handlers::websocket_route))
-            .route("/", get(handlers::serve_output))
+            .route("/", get(handlers::serve_index))
             .route("/*path", get(handlers::serve_output))
             .layer(CorsLayer::permissive())
             .with_state(pool.clone()),
-    );
+    )
+    // requests outside of subdir, inside it /*path renders the 404 page
+    .fallback(handlers::not_found);
+    // nest() doesn't pass "{subdir}/" to the nested router, only "{subdir}" and "{subdir}/..."
+    let app = match subdir {
+        "" => app,
+        _ => app.route(&format!("{}/", subdir), get(handlers::serve_index)),
+    };
 
     // Start server
     let address_config = format!("[::]:{}", cfg.port);

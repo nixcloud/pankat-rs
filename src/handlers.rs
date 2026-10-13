@@ -16,7 +16,7 @@ use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::SqliteConnection;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 use tokio::fs;
 use tokio::time;
 use tokio::time::Duration;
@@ -97,122 +97,62 @@ pub async fn github_webhook(Json(payload): Json<Value>) {
     println!("GitHub event: {}", payload);
 }
 
+/// `uri_path` below `base`, None if it would leave `base` (e.g. /../../pankat.toml)
+fn safe_join(base: &Path, uri_path: &str) -> Option<PathBuf> {
+    let mut path = base.to_path_buf();
+    for component in Path::new(uri_path.trim_start_matches('/')).components() {
+        match component {
+            Component::Normal(c) => path.push(c),
+            Component::CurDir => {}
+            _ => return None,
+        }
+    }
+    Some(path)
+}
+
+async fn serve_file(path: Option<PathBuf>) -> Result<Response, AppError> {
+    let path = path.ok_or(AppError::NotFound)?;
+    let contents = fs::read(&path).await.map_err(|_| AppError::NotFound)?;
+    let mime_type = mime_guess::from_path(&path).first_or_text_plain();
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, mime_type.as_ref())
+        .body(contents.into())
+        .map_err(|_| AppError::InternalError)
+}
+
+pub async fn serve_index() -> Result<Response, AppError> {
+    let cfg = config::Config::get();
+    serve_file(Some(cfg.output.join("index.html"))).await
+}
+
 pub async fn serve_output(uri: axum::http::Uri) -> Result<Response, AppError> {
     println!("Received request for URI (serve_output): {}", uri);
     let cfg = config::Config::get();
-    let mut path = PathBuf::from(cfg.output.clone());
-
-    let path_str = uri.path();
-    if path_str == "/" {
-        path.push("index.html");
-    } else {
-        path.push(&path_str[1..]);
-    }
-
-    match fs::read(&path).await {
-        Ok(contents) => {
-            let mime_type = mime_guess::from_path(&path).first_or_text_plain();
-
-            let response = Response::builder()
-                .status(StatusCode::OK)
-                .header(header::CONTENT_TYPE, mime_type.as_ref())
-                .body(contents.into())
-                .map_err(|_| AppError::InternalError)?;
-
-            Ok(response)
-        }
-        Err(_) => {
-            if path_str != "/" {
-                return Err(AppError::InternalError);
-            }
-
-            let file_path = PathBuf::from(cfg.output.clone()).join("index.html");
-            let html = fs::read_to_string(file_path)
-                .await
-                .map_err(|_| AppError::InternalError)?;
-
-            let response = Response::builder()
-                .status(StatusCode::OK)
-                .header(header::CONTENT_TYPE, "text/html")
-                .body(html.into())
-                .map_err(|_| AppError::InternalError)?;
-
-            Ok(response)
-        }
-    }
+    serve_file(safe_join(&cfg.output, uri.path())).await
 }
 
 pub async fn serve_input(uri: axum::http::Uri) -> Result<Response, AppError> {
     println!("Received request for URI (serve_input): {}", uri);
     let cfg = config::Config::get();
-    let mut input = PathBuf::from(cfg.input.clone());
-
-    let uri_path = PathBuf::from(uri.path());
-    let path_str = uri_path
-        .strip_prefix("/")
-        .map_err(|_| AppError::InternalError)?;
-
-    input.push(&path_str);
-
-    match fs::read(&input).await {
-        Ok(contents) => {
-            let mime_type = mime_guess::from_path(&input).first_or_text_plain();
-
-            let response = Response::builder()
-                .status(StatusCode::OK)
-                .header(header::CONTENT_TYPE, mime_type.as_ref())
-                .body(contents.into())
-                .map_err(|_| AppError::InternalError)?;
-
-            Ok(response)
-        }
-        Err(_) => Err(AppError::InternalError),
-    }
+    serve_file(safe_join(&cfg.input, uri.path())).await
 }
 
 pub async fn serve_internals(uri: axum::http::Uri) -> Result<Response, AppError> {
     println!("Received request for URI (serve_internals): {}", uri);
-    let mut path_to_serve = PathBuf::new();
-    let uri_path = PathBuf::from(uri.path());
     let cfg = config::Config::get();
-
-    if let Some(first_path) = uri.path().split('/').nth(1) {
-        //println!("First path segment: {}", first_path);
-        match first_path {
-            "assets" => {
-                path_to_serve = PathBuf::from(cfg.assets.clone());
-                let path_str = uri_path
-                    .strip_prefix("/assets/")
-                    .map_err(|_| AppError::InternalError)?;
-                path_to_serve.push(&path_str);
-            }
-            "wasm" => {
-                path_to_serve = PathBuf::from(cfg.wasm.clone());
-                let path_str = uri_path
-                    .strip_prefix("/wasm/")
-                    .map_err(|_| AppError::InternalError)?;
-                path_to_serve.push(&path_str);
-            }
-            _ => {}
-        }
+    let path = if let Some(p) = uri.path().strip_prefix("/assets/") {
+        safe_join(&cfg.assets, p)
+    } else if let Some(p) = uri.path().strip_prefix("/wasm/") {
+        safe_join(&cfg.wasm, p)
     } else {
-        return Err(AppError::InternalError);
-    }
+        None
+    };
+    serve_file(path).await
+}
 
-    match fs::read(&path_to_serve).await {
-        Ok(contents) => {
-            let mime_type = mime_guess::from_path(&path_to_serve).first_or_text_plain();
-
-            let response = Response::builder()
-                .status(StatusCode::OK)
-                .header(header::CONTENT_TYPE, mime_type.as_ref())
-                .body(contents.into())
-                .map_err(|_| AppError::InternalError)?;
-
-            Ok(response)
-        }
-        Err(_) => Err(AppError::InternalError),
-    }
+pub async fn not_found() -> AppError {
+    AppError::NotFound
 }
 
 pub async fn websocket_route(ws: WebSocketUpgrade) -> Response {
@@ -289,4 +229,26 @@ async fn handle_socket(mut socket: WebSocket) {
         }
     }
     //println!("WS close, loop done");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::safe_join;
+    use std::path::{Path, PathBuf};
+
+    #[test]
+    fn test_safe_join() {
+        let base = Path::new("documents/output");
+        assert_eq!(
+            safe_join(base, "/index.html"),
+            Some(PathBuf::from("documents/output/index.html"))
+        );
+        assert_eq!(
+            safe_join(base, "/posts/./libnix/x.png"),
+            Some(PathBuf::from("documents/output/posts/libnix/x.png"))
+        );
+        assert_eq!(safe_join(base, "/../../pankat.toml"), None);
+        assert_eq!(safe_join(base, "/posts/../../pankat.toml"), None);
+        assert_eq!(safe_join(base, "/posts/.."), None);
+    }
 }
