@@ -147,15 +147,6 @@
               >
             </li>
             <li>
-              <a href="{{{Subdir}}}/draft" id="draft" style="display: none"
-                ><span
-                  class="glyphicon glyphicon-folder-open"
-                  aria-hidden="true"
-                ></span>
-                draft</a
-              >
-            </li>
-            <li>
               <a
                 href="{{{Subdir}}}/draft?article=posts/roadmap.mdwn"
                 id="roadmap"
@@ -183,7 +174,42 @@
                 websocket</a
               >
             </li>
-            <!-- <li><a href="#">Login</a></li> -->
+            <li id="adminDrafts" style="display: none">
+              <a href="{{{Subdir}}}/drafts/"
+                ><span
+                  class="glyphicon glyphicon-folder-open"
+                  aria-hidden="true"
+                ></span>
+                drafts</a
+              >
+            </li>
+            <li id="adminLogin" style="display: none">
+              <a href="{{{Subdir}}}/login"
+                ><span class="glyphicon glyphicon-log-in" aria-hidden="true"></span>
+                login</a
+              >
+            </li>
+            <li id="adminLogout" style="display: none">
+              <form method="post" action="{{{Subdir}}}/logout" class="navbar-form">
+                <button type="submit" class="btn btn-link">
+                  <span class="glyphicon glyphicon-log-out" aria-hidden="true"></span>
+                  logout
+                </button>
+              </form>
+            </li>
+            <script>
+              // the pages are static, only the server knows about the session; without a
+              // server (static build) the buttons stay hidden
+              fetch("{{{Subdir}}}/api/session", { credentials: "same-origin" })
+                .then((response) => response.json())
+                .then((session) => {
+                  const shown = session.admin
+                    ? ["adminDrafts", "adminLogout"]
+                    : ["adminLogin"];
+                  shown.forEach((id) => (document.getElementById(id).style.display = ""));
+                })
+                .catch(() => {});
+            </script>
           </ul>
 
           <!--<div id="right">

@@ -8,6 +8,8 @@ mod file_monitor;
 mod handlers;
 mod registry;
 mod renderer;
+#[cfg(test)]
+mod test_config;
 use crate::config::*;
 use crate::renderer::pandoc::check_pandoc;
 use axum::{
@@ -91,14 +93,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             Arg::new("jwt_token")
                 .long("jwt_token")
                 .value_name("STRING")
-                .help("A JWT-Token used for client authentication/authentification")
+                .help("Server side secret which signs the admin session cookies, changing it logs out all sessions")
                 .required(false)
         )
         .arg(
             Arg::new("admin_password")
                 .long("admin_password")
                 .value_name("STRING")
-                .help("Admin password for initial setup of users")
+                .help("Password of the admin, the only user, for the /login page")
                 .required(false)
         )
         .arg(
@@ -288,7 +290,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     println!(
         "JWT-token: {}{}",
         &cfg.jwt_token.chars().take(2).collect::<String>(),
-        "*".repeat(cfg.jwt_token.len() - 2)
+        "*".repeat(cfg.jwt_token.len().saturating_sub(2))
     );
     println!("Admin password: {}", "*".repeat(cfg.admin_password.len()));
     println!("Flat filename structure: {}", cfg.flat);
@@ -338,9 +340,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             .route("/media/*path", get(handlers::serve_input))
             .route("/assets/*path", get(handlers::serve_internals))
             .route("/wasm/*path", get(handlers::serve_internals))
-            .route("/api/auth/register", post(handlers::register))
-            .route("/api/auth/login", post(handlers::login))
-            .route("/api/protected", get(handlers::protected))
+            .route("/login", get(handlers::login_form).post(handlers::login))
+            .route("/logout", post(handlers::logout))
+            .route("/api/session", get(handlers::session))
             .route("/api/ws", get(handlers::websocket_route))
             .route("/", get(handlers::serve_index))
             .route("/*path", get(handlers::serve_output))

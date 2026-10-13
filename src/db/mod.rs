@@ -11,7 +11,6 @@ pub mod article;
 pub mod cache;
 pub mod schema;
 mod tests;
-pub mod users;
 
 pub fn establish_connection_pool() -> DbPool {
     let cfg = config::Config::get();

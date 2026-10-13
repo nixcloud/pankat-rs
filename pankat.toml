@@ -27,10 +27,13 @@ static_build_only = false
 # the port for the pankat webserver, point your browser to localhost:5000
 port = 5000
 
+# server side secret which signs the admin session cookies (valid for 50 days), changing it
+# logs out all sessions; use a long random string, e.g. `openssl rand -hex 32`
 # instead of passing the token from here, use PANKAT_JWT_TOKEN environment variable
 jwt_token = "not set"
 
-# admin user password
+# password of the admin, the only user, for the /login page which gives access to /drafts
+# the login is disabled while this or jwt_token is "not set"; or use PANKAT_ADMIN_PASSWORD
 admin_password = "not set"
 
 # documents/mydir/myarticle.mdwn -> documents/output/myarticle.html with flat being true

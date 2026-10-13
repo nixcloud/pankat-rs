@@ -1,96 +1,111 @@
-use crate::auth::{create_token, validate_token, UserLevel};
+use crate::auth::{self, Admin};
 use crate::config;
-use crate::db::users::{create_user, get_user_by_username};
 use crate::error::AppError;
 use crate::registry::*;
 use axum::extract::ws::{Message, WebSocket};
 use axum::http::{header, StatusCode};
-use axum::response::Response;
+use axum::response::{IntoResponse, Redirect, Response};
 use axum::{
-    extract::{ws::WebSocketUpgrade, State},
-    http::header::{HeaderMap, AUTHORIZATION},
-    Json,
+    extract::{ws::WebSocketUpgrade, Query},
+    Form, Json,
 };
-use bcrypt::{hash, verify, DEFAULT_COST};
-use diesel::r2d2::{ConnectionManager, Pool};
-use diesel::SqliteConnection;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value;
 use std::path::{Component, Path, PathBuf};
 use tokio::fs;
 use tokio::time;
 use tokio::time::Duration;
 
-type DbPool = Pool<ConnectionManager<SqliteConnection>>;
+#[derive(Deserialize)]
+pub struct LoginQuery {
+    next: Option<String>,
+}
 
 #[derive(Deserialize)]
-pub struct AuthRequest {
-    username: String,
+pub struct LoginForm {
     password: String,
+    next: Option<String>,
 }
 
-#[derive(Serialize)]
-pub struct AuthResponse {
-    token: String,
+fn login_page(next: &str, error: Option<&str>) -> Result<String, AppError> {
+    let cfg = config::Config::get();
+    let content = if auth::login_enabled() {
+        format!(
+            r#"<h1 id="SiteTitle">admin login</h1>
+               <p>this blog has a single user, the administrator. sign in with the
+               <code>admin_password</code> from pankat.toml.</p>
+               {}
+               <form method="post" action="{}/login" class="form-inline">
+                 <input type="hidden" name="next" value="{}" />
+                 <input type="password" name="password" class="form-control"
+                   placeholder="password" autofocus required />
+                 <button type="submit" class="btn btn-primary">sign in</button>
+               </form>"#,
+            error.map_or(String::new(), |e| format!(
+                r#"<p class="alert alert-danger">{}</p>"#,
+                e
+            )),
+            cfg.subdir.display(),
+            handlebars::html_escape(next),
+        )
+    } else {
+        r#"<h1 id="SiteTitle">admin login</h1>
+           <p>the login is disabled, set <code>admin_password</code> and
+           <code>jwt_token</code> in pankat.toml to enable it.</p>"#
+            .to_string()
+    };
+    crate::renderer::html::create_html_page("admin login", &content)
+        .map_err(|_| AppError::InternalError)
 }
 
-pub async fn register(
-    State(pool): State<DbPool>,
-    Json(req): Json<AuthRequest>,
-) -> Result<Json<AuthResponse>, AppError> {
-    let mut conn = pool.get().map_err(|_| AppError::InternalError)?;
-
-    let hashed =
-        hash(req.password.as_bytes(), DEFAULT_COST).map_err(|_| AppError::InternalError)?;
-
-    let user_id = create_user(&mut conn, &req.username, &hashed, UserLevel::User)
-        .map_err(AppError::DatabaseError)?;
-
-    let token =
-        create_token(user_id.to_string(), UserLevel::User).map_err(|_| AppError::InternalError)?;
-
-    Ok(Json(AuthResponse { token }))
+fn html_response(status: StatusCode, html: String) -> Response {
+    (
+        status,
+        [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+        html,
+    )
+        .into_response()
 }
 
-pub async fn login(
-    State(pool): State<DbPool>,
-    Json(req): Json<AuthRequest>,
-) -> Result<Json<AuthResponse>, AppError> {
-    let mut conn = pool.get().map_err(|_| AppError::InternalError)?;
-
-    let user = get_user_by_username(&mut conn, &req.username)
-        .map_err(AppError::DatabaseError)?
-        .ok_or(AppError::AuthError)?;
-
-    let valid =
-        verify(req.password.as_bytes(), &user.password).map_err(|_| AppError::InternalError)?;
-
-    if !valid {
-        return Err(AppError::AuthError);
+pub async fn login_form(
+    admin: Option<Admin>,
+    Query(query): Query<LoginQuery>,
+) -> Result<Response, AppError> {
+    let next = auth::sanitize_next(query.next.as_deref());
+    if admin.is_some() {
+        return Ok(Redirect::to(&next).into_response());
     }
-
-    let level = serde_json::from_str(&user.level).unwrap_or(UserLevel::Guest);
-
-    let token = create_token(user.id.to_string(), level).map_err(|_| AppError::InternalError)?;
-
-    Ok(Json(AuthResponse { token }))
+    Ok(html_response(StatusCode::OK, login_page(&next, None)?))
 }
 
-pub async fn protected(headers: HeaderMap) -> Result<Json<&'static str>, AppError> {
-    let auth_header = headers
-        .get(AUTHORIZATION)
-        .and_then(|value| value.to_str().ok())
-        .and_then(|header| header.strip_prefix("Bearer "))
-        .ok_or(AppError::AuthError)?;
-
-    match validate_token(auth_header) {
-        Ok(token_data) => {
-            let _level = token_data.claims.level;
-            let _uid = token_data.claims.user_id;
-            Ok(Json("Welcome '{_uid}' to protected route with '{_level}'!"))
-        }
-        Err(_) => return Err(AppError::AuthError),
+pub async fn login(Form(form): Form<LoginForm>) -> Result<Response, AppError> {
+    let next = auth::sanitize_next(form.next.as_deref());
+    if !auth::check_password(&form.password) {
+        // slows down guessing
+        time::sleep(Duration::from_secs(1)).await;
+        let html = login_page(&next, Some("wrong password"))?;
+        return Ok(html_response(StatusCode::UNAUTHORIZED, html));
     }
+    let token = auth::create_session().map_err(|_| AppError::InternalError)?;
+    Ok((
+        [(header::SET_COOKIE, auth::session_cookie(&token))],
+        Redirect::to(&next),
+    )
+        .into_response())
+}
+
+pub async fn logout() -> Response {
+    let cfg = config::Config::get();
+    (
+        [(header::SET_COOKIE, auth::logout_cookie())],
+        Redirect::to(&format!("{}/index.html", cfg.subdir.display())),
+    )
+        .into_response()
+}
+
+/// for the login/logout buttons, the pages themselves are static
+pub async fn session(admin: Option<Admin>) -> Json<Value> {
+    Json(serde_json::json!({ "admin": admin.is_some() }))
 }
 
 pub async fn github_webhook(Json(payload): Json<Value>) {
