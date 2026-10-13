@@ -25,6 +25,8 @@
             fp.targets.wasm32-unknown-unknown.stable.rust-std
           ];
 
+          ######################## cargo-libnix-1_87_0_plus_v4 ###########################
+
           rustc_1_87_vanilla_pin = (fenix.packages.${system}.toolchainOf {
             channel = "1.87.0";
             sha256 = "sha256-KUm16pHj+cRedf8vxs/Hd2YWxpOrWZ7UOrwhILdSJBU=";
@@ -35,16 +37,19 @@
           }).cargo;
 
           project_root = ./.;
-          cargo-libnix-1_87_0_plus_v3_src = builtins.fetchTarball {
-            url = "https://github.com/nixcloud/cargo/releases/download/libnix-1.87.0%2Bv3/libnix-1.87.0+v3.tar.bz2";
-            sha256 = "sha256:00cqp5s8gdzz2abwlggz3v9qhizln7f06nilkb34fvkr9hywgk2v";
+
+          cargo-libnix-1_87_0_plus_v4_src = builtins.fetchTarball {
+            url = "https://github.com/nixcloud/cargo/releases/download/libnix-1.87.0%2Bv4/libnix-1.87.0+v4.tar.bz2";
+            sha256 = "sha256:0zhj8sl05g861c7pkwgd1ij26mf68qj1flbad2ivwj113vac9chq";
           };
-          cargo-libnix-1_87_0_plus_v3 = (import (cargo-libnix-1_87_0_plus_v3_src + "/derivations/default.nix"){ 
+          cargo-libnix-1_87_0_plus_v4 = (import (cargo-libnix-1_87_0_plus_v4_src + "/derivations/default.nix"){ 
             inherit project_root pkgs;
-            external_crate_dependencies = import (cargo-libnix-1_87_0_plus_v3_src + "/Cargo.dependencies.nix") { inherit pkgs; };
+            external_crate_dependencies = import (cargo-libnix-1_87_0_plus_v4_src + "/Cargo.dependencies.nix") { inherit pkgs; };
             rustc = rustc_1_87_vanilla_pin;
             cargo = cargo_1_87_vanilla_pin;
           }).cargo-0_88_0-bin-8cad88ffd54a16db;
+
+          ######################################################################################
 
           src = builtins.filterSource
             (path: type:
@@ -60,10 +65,10 @@
             })
             (builtins.filter (p: (p.source or "") == "registry+https://github.com/rust-lang/crates.io-index") lock.package);
 
-          generated = pkgs.runCommand "cargo-nix-generated" { inherit crateTarballs; nativeBuildInputs = [ cargo-libnix-1_87_0_plus_v3 rustc_1_87_vanilla_pin ]; } ''
+          generated = pkgs.runCommand "cargo-nix-generated" { inherit crateTarballs; nativeBuildInputs = [ cargo-libnix-1_87_0_plus_v4 rustc_1_87_vanilla_pin ]; } ''
             export HOME=$TMPDIR CARGO_BACKEND=nix
             cp -r ${src} project && chmod -R u+w project && cd project
-            ${cargo-libnix-1_87_0_plus_v3}/bin/cargo build --offline write-nix-buildsystem --out-dir $out
+            ${cargo-libnix-1_87_0_plus_v4}/bin/cargo build --offline write-nix-buildsystem --out-dir $out
           '';
 
           # the cargo binary unit of a generated build system; its hash isn't known in advance
@@ -100,7 +105,7 @@
           devShells.default = mkShell {
             buildInputs = [
               # pankat-rs requires those (build)
-              cargo-libnix-1_87_0_plus_v3
+              cargo-libnix-1_87_0_plus_v4
               rustc_1_87_vanilla_pin
 
               just
