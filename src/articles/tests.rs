@@ -447,7 +447,7 @@ mod tests {
     fn test_img() {
         let input = r#"
         hi!
-        
+        [[!img media/nlnet-logo.gif class="noFancy" style="float: right"]]
         abab
         [[!img posts/libnix/Nix_snowflake_windows.svg class="noFancy" style="float: right" width="200px"]]
         "#.to_string();
