@@ -327,15 +327,15 @@ pub fn get_visible_articles_by_tag(
     }
 }
 
-#[allow(dead_code)]
+/// newest first, drafts without a date are likely the freshest and come on top
 pub fn get_drafts(
     conn: &mut SqliteConnection,
 ) -> Result<Vec<ArticleWithTags>, diesel::result::Error> {
     let res = articles_table
         .filter(articles_objects::draft.eq(true))
         .order((
-            sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL"),
-            articles_objects::modification_date.asc(),
+            sql::<Nullable<diesel::sql_types::Timestamp>>("modification_date IS NULL").desc(),
+            articles_objects::modification_date.desc(),
         ))
         .load::<Article>(conn);
     match res {

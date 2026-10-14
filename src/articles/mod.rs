@@ -25,7 +25,7 @@ mod utils;
 use crate::config;
 use crate::renderer::html::{
     create_html_from_content_template, create_html_from_standalone_template_by_article,
-    create_index_from_most_recent_article_template,
+    create_html_page, create_index_from_most_recent_article_template,
 };
 use crate::renderer::pandoc::pandoc_mdwn_2_html;
 
@@ -195,82 +195,82 @@ pub fn file_monitor_articles_change(
                 "📝 created / ✏️ modified called on {}",
                 event.path.display()
             );
-            match parse_article(conn, &event.path) {
-                Ok(article) => {
-                    //println!("Parsed article: {:#?}", article);
-                    let reply = crate::db::article::set(conn, &article);
-                    match reply {
-                        Ok(db_reply) => {
-                            write_article_to_disk(conn, &db_reply.article);
-                            if db_reply.most_recent_article_change.is_some() {
-                                update_most_recent_article(conn);
-                            }
-                            let mut updates: Vec<(String, String)> = update_affected_articles(
-                                conn,
-                                db_reply.article.id,
-                                &db_reply.affected_articles,
-                            );
+            // tells a published article turning into a draft apart from editing a draft
+            let was_draft: Option<bool> =
+                get_article_with_tags_by_src_file_name(conn, event.path.display().to_string())
+                    .ok()
+                    .flatten()
+                    .map(|article| article.draft == Some(true));
+            let article = parse_article(conn, &event.path).map_err(|e| {
+                println!("Error: {:?}", e);
+                format!("Error: {:?}", e)
+            })?;
+            let db_reply = crate::db::article::set(conn, &article).map_err(|e| {
+                let error_message = format!("Error: {:?}", e);
+                println!("{}", error_message);
+                error_message
+            })?;
+            let is_draft: bool = db_reply.article.draft == Some(true);
+            if is_draft {
+                remove_from_output(&db_reply.article);
+            } else {
+                write_article_to_disk(conn, &db_reply.article);
+            }
+            if db_reply.most_recent_article_change.is_some() {
+                update_most_recent_article(conn);
+            }
+            let mut updates: Vec<(String, String)> =
+                update_affected_articles(conn, db_reply.article.id, &db_reply.affected_articles);
 
-                            if Some(true) == db_reply.article.draft {
-                                let cfg = config::Config::get();
-                                let output_path: PathBuf = cfg.output.clone();
-                                let mut output_filename = output_path.clone();
-                                output_filename.push(article.dst_file_name.clone());
-                                match std::fs::remove_file(output_filename.clone()) {
-                                    Ok(_) => {
-                                        let target: String =
-                                            format!("/draft?{}", output_filename.display());
-                                        updates.push((
-                                            article.src_file_name.clone(),
-                                            json!({ "redirect": target, }).to_string(),
-                                        ));
-                                        return Ok(updates);
-                                    }
-                                    Err(e) => {
-                                        println!("Error removing file: {}", e);
-                                    }
-                                }
-                            };
-
-                            match crate::db::cache::get_cache(conn, article.src_file_name.clone()) {
-                                Some(cache_entry) => {
-                                    let html: String = create_nav_content_template(
-                                        conn,
-                                        &db_reply.article,
-                                        cache_entry.html,
-                                    );
-                                    updates.push((
-                                        article.src_file_name.clone(),
-                                        json!({ "update": html, }).to_string(),
-                                    ));
-                                    Ok(updates)
-                                }
-                                None => Err("Error loading cache for Article".to_string()),
-                            }
-                        }
-                        Err(e) => {
-                            let error_message = format!("Error: {:?}", e);
-                            println!("{}", error_message);
-                            Err(error_message)
-                        }
+            let src_file_name: String = article.src_file_name.clone();
+            let dst_file_name: &str = &db_reply.article.dst_file_name;
+            match (was_draft, is_draft) {
+                (Some(false), true) => {
+                    updates.push((
+                        src_file_name.clone(),
+                        admin_only(json!({ "update": notice(
+                            "article turned into a draft",
+                            "this article is a draft now, only visible to you at",
+                            &format!("drafts/{}", dst_file_name),
+                        )})),
+                    ));
+                    updates.push((
+                        src_file_name,
+                        public_only(json!({ "update": removed_article_notice(None) })),
+                    ));
+                }
+                (Some(true), false) => {
+                    updates.push((
+                        src_file_name,
+                        json!({ "update": notice(
+                            "draft published",
+                            "this draft was published, it is now available at",
+                            dst_file_name,
+                        )})
+                        .to_string(),
+                    ));
+                }
+                _ => {
+                    let cache_entry = get_cache(conn, src_file_name.clone())
+                        .ok_or("Error loading cache for Article".to_string())?;
+                    if is_draft {
+                        let html = create_draft_content(&db_reply.article, cache_entry.html);
+                        updates.push((src_file_name, admin_only(json!({ "update": html }))));
+                    } else {
+                        let html =
+                            create_nav_content_template(conn, &db_reply.article, cache_entry.html);
+                        updates.push((src_file_name, json!({ "update": html }).to_string()));
                     }
                 }
-                Err(e) => {
-                    println!("Error: {:?}", e);
-                    Err(format!("Error: {:?}", e))
-                }
             }
+            Ok(updates)
         }
         EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_) => {
             println!("🗑️ removed called on {}", event.path.display());
             if let Ok(Some(article)) =
                 get_article_with_tags_by_src_file_name(conn, event.path.display().to_string())
             {
-                let output_filename: PathBuf =
-                    config::Config::get().output.join(&article.dst_file_name);
-                if let Err(e) = std::fs::remove_file(&output_filename) {
-                    println!("Error removing file {}: {}", output_filename.display(), e);
-                }
+                remove_from_output(&article);
             }
             let mut updates: Vec<(String, String)> = Vec::new();
             updates.push((
@@ -300,22 +300,30 @@ pub fn file_monitor_articles_change(
     }
 }
 
-/// replaces the content of a removed or renamed article in open browsers, the reader
-/// follows the link to the new location or to the blog's index
-fn removed_article_notice(renamed_to: Option<&PathBuf>) -> String {
+/// drafts and removed articles must not stay in the public output
+fn remove_from_output(article: &ArticleWithTags) {
+    let output_filename: PathBuf = config::Config::get().output.join(&article.dst_file_name);
+    match std::fs::remove_file(&output_filename) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => {
+            println!("Error removing file {}: {}", output_filename.display(), e);
+        }
+        _ => {}
+    }
+}
+
+/// live update messages: {"admin": message} reaches only browsers with an admin session,
+/// {"public": message} only the others, anything else all of them (see handlers::handle_socket)
+pub fn admin_only(message: serde_json::Value) -> String {
+    json!({ "admin": message }).to_string()
+}
+
+pub fn public_only(message: serde_json::Value) -> String {
+    json!({ "public": message }).to_string()
+}
+
+/// replaces the content of an article in open browsers, the reader follows the link
+fn notice(heading: &str, text: &str, path: &str) -> String {
     let cfg = config::Config::get();
-    let (heading, text, dst_file_name) = match renamed_to {
-        Some(renamed_to) => (
-            "article moved",
-            "this article was renamed, it is now available at",
-            utils::create_dst_file_name(renamed_to, cfg.flat),
-        ),
-        None => (
-            "article removed",
-            "this article was removed, continue reading at",
-            "index.html".to_string(),
-        ),
-    };
     format!(
         r#"<div class="article">
              <h1 id="SiteTitle">{}</h1>
@@ -324,9 +332,71 @@ fn removed_article_notice(renamed_to: Option<&PathBuf>) -> String {
         heading,
         text,
         cfg.subdir.display(),
-        dst_file_name,
-        dst_file_name
+        path,
+        path
     )
+}
+
+/// for a removed or renamed article, links to the new location or to the blog's index
+fn removed_article_notice(renamed_to: Option<&PathBuf>) -> String {
+    let cfg = config::Config::get();
+    match renamed_to {
+        Some(renamed_to) => notice(
+            "article moved",
+            "this article was renamed, it is now available at",
+            &utils::create_dst_file_name(renamed_to, cfg.flat),
+        ),
+        None => notice(
+            "article removed",
+            "this article was removed, continue reading at",
+            "index.html",
+        ),
+    }
+}
+
+/// a draft is only visible to the admin below drafts/, without prev/next navigation
+/// since drafts aren't part of the timeline
+fn create_draft_content(article: &ArticleWithTags, html: String) -> String {
+    create_html_from_content_template(
+        article.clone(),
+        html,
+        ArticleNeighbours::new(),
+        ArticleNeighbours::new(),
+    )
+    .unwrap()
+}
+
+pub fn create_draft_page(conn: &mut SqliteConnection, dst_file_name: &str) -> Option<String> {
+    let article = crate::db::article::get_drafts(conn)
+        .ok()?
+        .into_iter()
+        .find(|article| article.dst_file_name == dst_file_name)?;
+    let cache_entry = get_cache(conn, article.src_file_name.clone())?;
+    let content = create_draft_content(&article, cache_entry.html);
+    create_html_from_standalone_template_by_article(article, content).ok()
+}
+
+pub fn create_drafts_index(conn: &mut SqliteConnection) -> Result<String, Box<dyn Error>> {
+    let cfg = config::Config::get();
+    let drafts = crate::db::article::get_drafts(conn)?;
+    let mut content = String::from(r#"<h1 id="SiteTitle">drafts</h1>"#);
+    if drafts.is_empty() {
+        content.push_str("<p>there are no drafts, add <code>[[!draft]]</code> to an article.</p>");
+    }
+    for draft in drafts {
+        content.push_str(&format!(
+            r#"<div class="draft">
+                 <h3><a href="{}/drafts/{}">{}</a></h3>
+                 <p><span class="draftDate">{}</span> {}</p>
+               </div>"#,
+            cfg.subdir.display(),
+            draft.dst_file_name,
+            handlebars::html_escape(draft.title.as_deref().unwrap_or(&draft.dst_file_name)),
+            crate::renderer::utils::date_and_time(&draft.modification_date),
+            draft.summary.unwrap_or_default(),
+        ));
+    }
+    create_html_page("drafts", &content)
 }
 
 pub fn collect_garbage(pool: &DbPool) {

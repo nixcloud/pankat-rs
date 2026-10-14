@@ -10,6 +10,8 @@ mod registry;
 mod renderer;
 #[cfg(test)]
 mod test_config;
+#[cfg(test)]
+mod router_tests;
 use crate::config::*;
 use crate::renderer::pandoc::check_pandoc;
 use axum::{
@@ -25,6 +27,38 @@ use tokio::sync::broadcast;
 use tower_http::cors::CorsLayer;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
+
+fn create_router(pool: db::DbPool, subdir: &str) -> Router {
+    let app = Router::new()
+        .nest(
+            subdir,
+            Router::new()
+                .route("/posts/*path", get(handlers::serve_input))
+                .route("/github-webhook", post(handlers::github_webhook))
+                .route("/media/*path", get(handlers::serve_input))
+                .route("/assets/*path", get(handlers::serve_internals))
+                .route("/wasm/*path", get(handlers::serve_internals))
+                .route("/login", get(handlers::login_form).post(handlers::login))
+                .route("/logout", post(handlers::logout))
+                .route("/api/session", get(handlers::session))
+                .route("/draft", get(handlers::drafts_redirect))
+                .route("/drafts", get(handlers::drafts_redirect))
+                .route("/drafts/", get(handlers::drafts_index))
+                .route("/drafts/*path", get(handlers::draft))
+                .route("/api/ws", get(handlers::websocket_route))
+                .route("/", get(handlers::serve_index))
+                .route("/*path", get(handlers::serve_output))
+                .layer(CorsLayer::permissive())
+                .with_state(pool),
+        )
+        // requests outside of subdir, inside it /*path renders the 404 page
+        .fallback(handlers::not_found);
+    // nest() doesn't pass "{subdir}/" to the nested router, only "{subdir}" and "{subdir}/..."
+    match subdir {
+        "" => app,
+        _ => app.route(&format!("{}/", subdir), get(handlers::serve_index)),
+    }
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -331,31 +365,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let binding = cfg.subdir.clone().display().to_string();
     let subdir = binding.as_str();
 
-    // Create router
-    let app = Router::new().nest(
-        subdir,
-        Router::new()
-            .route("/posts/*path", get(handlers::serve_input))
-            .route("/github-webhook", post(handlers::github_webhook))
-            .route("/media/*path", get(handlers::serve_input))
-            .route("/assets/*path", get(handlers::serve_internals))
-            .route("/wasm/*path", get(handlers::serve_internals))
-            .route("/login", get(handlers::login_form).post(handlers::login))
-            .route("/logout", post(handlers::logout))
-            .route("/api/session", get(handlers::session))
-            .route("/api/ws", get(handlers::websocket_route))
-            .route("/", get(handlers::serve_index))
-            .route("/*path", get(handlers::serve_output))
-            .layer(CorsLayer::permissive())
-            .with_state(pool.clone()),
-    )
-    // requests outside of subdir, inside it /*path renders the 404 page
-    .fallback(handlers::not_found);
-    // nest() doesn't pass "{subdir}/" to the nested router, only "{subdir}" and "{subdir}/..."
-    let app = match subdir {
-        "" => app,
-        _ => app.route(&format!("{}/", subdir), get(handlers::serve_index)),
-    };
+    let app = create_router(pool.clone(), subdir);
 
     // Start server
     let address_config = format!("[::]:{}", cfg.port);

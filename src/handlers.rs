@@ -1,12 +1,14 @@
 use crate::auth::{self, Admin};
+use crate::articles;
 use crate::config;
+use crate::db::DbPool;
 use crate::error::AppError;
 use crate::registry::*;
 use axum::extract::ws::{Message, WebSocket};
 use axum::http::{header, StatusCode};
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::{
-    extract::{ws::WebSocketUpgrade, Query},
+    extract::{ws::WebSocketUpgrade, Query, State},
     Form, Json,
 };
 use serde::Deserialize;
@@ -108,6 +110,41 @@ pub async fn session(admin: Option<Admin>) -> Json<Value> {
     Json(serde_json::json!({ "admin": admin.is_some() }))
 }
 
+pub async fn drafts_redirect() -> Redirect {
+    let cfg = config::Config::get();
+    Redirect::permanent(&format!("{}/drafts/", cfg.subdir.display()))
+}
+
+pub async fn drafts_index(_: Admin, State(pool): State<DbPool>) -> Result<Response, AppError> {
+    let mut conn = pool.get().map_err(|_| AppError::InternalError)?;
+    let html = articles::create_drafts_index(&mut conn).map_err(|_| AppError::InternalError)?;
+    Ok(html_response(StatusCode::OK, html))
+}
+
+/// drafts are rendered on request, never written to the (public) output; relative links in a
+/// draft (posts/.., media/.., assets) resolve below drafts/ and are served from where they live
+pub async fn draft(
+    admin: Admin,
+    State(pool): State<DbPool>,
+    uri: axum::http::Uri,
+) -> Result<Response, AppError> {
+    let path = uri.path().strip_prefix("/drafts/").unwrap_or_default();
+    if path == "index.html" {
+        return drafts_index(admin, State(pool)).await;
+    }
+    let mut conn = pool.get().map_err(|_| AppError::InternalError)?;
+    if let Some(html) = articles::create_draft_page(&mut conn, path) {
+        return Ok(html_response(StatusCode::OK, html));
+    }
+    let cfg = config::Config::get();
+    let base = if path.starts_with("posts/") || path.starts_with("media/") {
+        &cfg.input
+    } else {
+        &cfg.output
+    };
+    serve_file(safe_join(base, path)).await
+}
+
 pub async fn github_webhook(Json(payload): Json<Value>) {
     println!("GitHub event: {}", payload);
 }
@@ -170,12 +207,36 @@ pub async fn not_found() -> AppError {
     AppError::NotFound
 }
 
-pub async fn websocket_route(ws: WebSocketUpgrade) -> Response {
+pub async fn websocket_route(admin: Option<Admin>, ws: WebSocketUpgrade) -> Response {
     println!("Received request for new ws connection request");
-    ws.on_upgrade(handle_socket)
+    // the browser sends the session cookie along with the upgrade request
+    let admin: bool = admin.is_some();
+    ws.on_upgrade(move |socket| handle_socket(socket, admin))
 }
 
-async fn handle_socket(mut socket: WebSocket) {
+/// unwraps {"admin": message} / {"public": message} for the matching audience, drops it for
+/// the other one and passes everything else on; this keeps drafts away from the public
+fn message_for_audience(message: String, admin: bool) -> Option<String> {
+    let (own, other) = if admin {
+        ("admin", "public")
+    } else {
+        ("public", "admin")
+    };
+    match serde_json::from_str::<Value>(&message) {
+        Ok(Value::Object(object)) if object.len() == 1 => {
+            if let Some(inner) = object.get(own) {
+                Some(inner.to_string())
+            } else if object.contains_key(other) {
+                None
+            } else {
+                Some(message)
+            }
+        }
+        _ => Some(message),
+    }
+}
+
+async fn handle_socket(mut socket: WebSocket, admin: bool) {
     // Step 1: Wait for the initial message to determine the subscription
     let register_name = if let Some(Ok(Message::Text(text))) = socket.recv().await {
         match serde_json::from_str::<Value>(&text) {
@@ -232,6 +293,9 @@ async fn handle_socket(mut socket: WebSocket) {
             msg = receiver.recv() => {
                 match msg {
                     Ok(message) => {
+                        let Some(message) = message_for_audience(message, admin) else {
+                            continue;
+                        };
                         if let Err(e) = socket.send(Message::Text(message)).await {
                             println!("Error sending data: {:?}", e);
                         }
@@ -265,5 +329,29 @@ mod tests {
         assert_eq!(safe_join(base, "/../../pankat.toml"), None);
         assert_eq!(safe_join(base, "/posts/../../pankat.toml"), None);
         assert_eq!(safe_join(base, "/posts/.."), None);
+    }
+}
+
+#[cfg(test)]
+mod audience_tests {
+    use super::message_for_audience;
+
+    #[test]
+    fn test_message_for_audience() {
+        let admin = r#"{"admin":{"update":"draft"}}"#.to_string();
+        let public = r#"{"public":{"update":"removed"}}"#.to_string();
+        let all = r#"{"update":"article"}"#.to_string();
+        assert_eq!(
+            message_for_audience(admin.clone(), true).as_deref(),
+            Some(r#"{"update":"draft"}"#)
+        );
+        assert_eq!(message_for_audience(admin, false), None);
+        assert_eq!(message_for_audience(public.clone(), true), None);
+        assert_eq!(
+            message_for_audience(public, false).as_deref(),
+            Some(r#"{"update":"removed"}"#)
+        );
+        assert_eq!(message_for_audience(all.clone(), true), Some(all.clone()));
+        assert_eq!(message_for_audience(all.clone(), false), Some(all));
     }
 }

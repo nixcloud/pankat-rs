@@ -35,7 +35,7 @@
     {{/if}} {{#if LiveUpdates}}
     <script src="{{{Subdir}}}/assets/js/diffDOM.js"></script>
     <script type="module">
-      import init, { main_js } from "..{{{Subdir}}}/wasm/pankat_wasm.js";
+      import init, { main_js } from "{{{Subdir}}}/wasm/pankat_wasm.js";
       async function run() {
         console.log("pankat_wasm call to init()!");
         await init();
