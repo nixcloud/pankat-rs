@@ -76,14 +76,14 @@ then open http://localhost:5000 (see `port` and `subdir` in [pankat.toml](pankat
 ## building
 
 `nix develop` provides **cargo+libnix**, a cargo which builds every crate as its own nix
-derivation (`CARGO_BACKEND=nix` is set in the dev shell). at the moment it can build the main
+derivation (`CARGO_BACKEND=nix` is set in the dev shell). at the moment it can build and test the main
 webserver, but not the static musl binary of `just zig` nor `pankat-wasm`.
 
 | what | command | with cargo+libnix |
 |---|---|---|
 | webserver | `cargo build` | yes |
 | webserver as nix package | `nix build .#pankat` | yes |
-| tests | `CARGO_BACKEND=legacy cargo test` | no, `cargo test` needs the legacy backend |
+| tests | `cargo test` | yes (since cargo+libnix v4) |
 | static musl binary for deployment | `just zig` | no, not at the moment |
 | wasm client (live updates in the browser) | `just build-pankat-wasm copy-pankat-wasm` | no, not at the moment |
 
@@ -197,7 +197,7 @@ startup.
 
 # development
 
-* run the tests with `CARGO_BACKEND=legacy cargo test`
+* run the tests with `cargo test` (or `just test`)
 * `cargo run`, then connect to localhost:5000 with any webbrowser
 * you can delete **documents/output** and **documents/pankat.sqlite** then start `pankat` again
 * use the `documents/example.de` documents, theme contributions are welcome
