@@ -60,16 +60,6 @@ pub fn get_cache(conn: &mut SqliteConnection, src_file_name: String) -> Option<C
     }
 }
 
-pub fn compute_hash(html: String) -> String {
-    use std::hash::Hasher;
-    use twox_hash::XxHash64;
-
-    let mut hasher = XxHash64::default();
-    hasher.write(html.as_bytes());
-    let xxhash64_hash = hasher.finish();
-    format!("{:x}", xxhash64_hash)
-}
-
 pub fn set_cache(
     conn: &mut SqliteConnection,
     src_file_name: String,

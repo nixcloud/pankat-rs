@@ -33,8 +33,8 @@ documents folder and updates open browser tabs via websocket.
   * the session lasts 50 days (http-only cookie with a JWT signed by `jwt_token`)
 * minimalistic
   * the output is **static html**, hosted with **nginx** in production
-  * **sqlite** database with a cache of the pandoc output, unchanged articles aren't parsed
-    again on startup
+  * **sqlite** database with a cache of the pandoc output
+  * **incremental builds**: a startup only does what changed (see [rebuilds](#rebuilds))
   * **out of source** builds: input, output, assets and database are separate directories
   * stale files in the output directory are removed on startup
   * all templates and pandoc filters are checked on startup, a missing or broken one stops
@@ -117,6 +117,24 @@ pankat reads, in this order (later ones win):
 | `admin_password` | password of the admin for `/login` |
 
 the login is disabled while `jwt_token` or `admin_password` is `"not set"`.
+
+## rebuilds
+
+every build stage stores a fingerprint of exactly the inputs it uses and runs only when that
+changes (see [src/fingerprint.rs](src/fingerprint.rs)):
+
+| stage | runs again when |
+|---|---|
+| plugins | the article file, pankat's generator code or pandoc changed |
+| pandoc | the markdown after the plugins, the pandoc binary (version, nix store path) or a lua filter changed |
+| html output | the generator code, a template, `site_url`/`subdir`/`flat` or the data of the page (incl. prev/next neighbours) changed, or the file is missing |
+
+the generator code fingerprint is computed by [build.rs](build.rs) from the plugin, pandoc and
+rendering sources, `Cargo.lock` and the rustc version; changes elsewhere, e.g. in the
+webserver, don't cause rebuilds. a startup logs what changed and a summary like
+`articles: 1 parsed (1 pandoc runs), 186 unchanged | output: 4 written, 180 unchanged`.
+
+`pankat --rebuild` forgets all fingerprints and builds everything again.
 
 ## admin login
 

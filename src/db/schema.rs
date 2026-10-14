@@ -42,7 +42,28 @@ diesel::table! {
     }
 }
 
+diesel::table! {
+    build_state (key) {
+        key -> Text,
+        value -> Text,
+    }
+}
+
+diesel::table! {
+    outputs (dst_file_name) {
+        dst_file_name -> Text,
+        fingerprint -> Text,
+    }
+}
+
 diesel::joinable!(article_tags -> articles (article_id));
 diesel::joinable!(article_tags -> tags (tag_id));
 
-diesel::allow_tables_to_appear_in_same_query!(article_tags, articles, cache, tags,);
+diesel::allow_tables_to_appear_in_same_query!(
+    article_tags,
+    articles,
+    build_state,
+    cache,
+    outputs,
+    tags,
+);

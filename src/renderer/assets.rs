@@ -3,8 +3,9 @@ use std::path::{Path, PathBuf};
 
 /// every file pankat reads from the assets directory at runtime; the loaders only
 /// accept an `Asset`, so a new template has to be added here and is then checked on startup
+/// and part of the fingerprints which decide what has to be rebuilt
 macro_rules! assets {
-    ($($name:ident => $path:literal,)*) => {
+    ($($name:ident => $path:literal ($kind:ident),)*) => {
         #[derive(Debug, Clone, Copy)]
         pub enum Asset { $($name,)* }
 
@@ -14,19 +15,31 @@ macro_rules! assets {
             pub fn relative_path(self) -> &'static str {
                 match self { $(Asset::$name => $path,)* }
             }
+
+            pub fn kind(self) -> AssetKind {
+                match self { $(Asset::$name => AssetKind::$kind,)* }
+            }
         }
     };
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AssetKind {
+    /// used when rendering the html of a page
+    Template,
+    /// used by pandoc, changes require running pandoc again
+    PandocFilter,
+}
+
 assets! {
-    StandaloneTemplate         => "templates/standalone-template.html",
-    OpenGraphTemplate          => "templates/open-graph-template.html",
-    ContentTemplate            => "templates/content-template.html",
-    NavigationArticlesTemplate => "templates/navigation-articles-template.html",
-    NavigationSeriesTemplate   => "templates/navigation-series-template.html",
-    MostRecentArticleTemplate  => "templates/most-recent-article.html",
-    ShiftedNumberedHeadingsLua => "pandoc-lua/shifted-numbered-headings.lua",
-    CreateAnchorsLua           => "pandoc-lua/create-anchors.lua",
+    StandaloneTemplate         => "templates/standalone-template.html"           (Template),
+    OpenGraphTemplate          => "templates/open-graph-template.html"           (Template),
+    ContentTemplate            => "templates/content-template.html"              (Template),
+    NavigationArticlesTemplate => "templates/navigation-articles-template.html"  (Template),
+    NavigationSeriesTemplate   => "templates/navigation-series-template.html"    (Template),
+    MostRecentArticleTemplate  => "templates/most-recent-article.html"           (Template),
+    ShiftedNumberedHeadingsLua => "pandoc-lua/shifted-numbered-headings.lua"     (PandocFilter),
+    CreateAnchorsLua           => "pandoc-lua/create-anchors.lua"                (PandocFilter),
 }
 
 impl Asset {

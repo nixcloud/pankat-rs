@@ -5,6 +5,7 @@ mod config;
 mod db;
 mod error;
 mod file_monitor;
+mod fingerprint;
 mod handlers;
 mod registry;
 mod renderer;
@@ -153,6 +154,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .short('f')
                 .long("flat")
                 .help("Flatten the output directory like (foo/bar.mdwn -> bar.html)")
+                .required(false)
+                .action(ArgAction::SetTrue)
+        )
+        .arg(
+            Arg::new("rebuild")
+                .long("rebuild")
+                .help("Ignore what is known about earlier builds: parse all articles, run pandoc and write all html again")
                 .required(false)
                 .action(ArgAction::SetTrue)
         )
@@ -341,6 +349,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     // Initialize SQLite database with Diesel
     let pool = db::establish_connection_pool();
+    {
+        let mut conn = pool.get().expect("Failed to get a connection from the pool");
+        if matches.get_flag("rebuild") {
+            println!("--rebuild: forgetting all fingerprints");
+            db::build_state::forget_fingerprints(&mut conn)?;
+        }
+        fingerprint::report_changes(&mut conn);
+    }
 
     articles::collect_garbage(&pool);
     articles::scan_articles(&pool);

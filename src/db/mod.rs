@@ -8,9 +8,11 @@ use diesel::r2d2::{self, ConnectionManager};
 pub type DbPool = r2d2::Pool<ConnectionManager<SqliteConnection>>;
 
 pub mod article;
+pub mod build_state;
 pub mod cache;
+pub mod outputs;
 pub mod schema;
-mod tests;
+pub(crate) mod tests;
 
 pub fn establish_connection_pool() -> DbPool {
     let cfg = config::Config::get();

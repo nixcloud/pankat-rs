@@ -1,10 +1,10 @@
 use crate::articles::ArticleWithTags;
 use crate::config;
+use crate::fingerprint::{self, Fingerprint};
 use serde_json::json;
 
 use std::collections::HashMap;
 use std::error::Error;
-use std::path::PathBuf;
 
 fn create_json_metadata(articles: &Vec<ArticleWithTags>) -> String {
     let meta_data: MetaData = MetaData::create_js_metadata(articles);
@@ -122,8 +122,20 @@ fn tag_to_link_list(article: &ArticleWithTags) -> String {
     output
 }
 
-pub fn update_timeline(articles: &Vec<ArticleWithTags>) -> Result<(), Box<dyn Error>> {
-    println!("update_timeline");
+pub fn update_timeline(conn: &mut diesel::SqliteConnection, articles: &Vec<ArticleWithTags>) {
+    // the timeline shows the metadata of all articles
+    let fingerprint: String = Fingerprint::new("timeline")
+        .add(fingerprint::inputs().render())
+        .add(articles.iter().map(crate::articles::page_data).collect::<String>())
+        .finish();
+    crate::articles::write_output(conn, "timeline.html", &fingerprint, || {
+        create_timeline_html(articles)
+            .map_err(|e| println!("Error rendering the timeline: {}", e))
+            .ok()
+    });
+}
+
+fn create_timeline_html(articles: &Vec<ArticleWithTags>) -> Result<String, Box<dyn Error>> {
     let cfg = config::Config::get();
 
     let html: String = format!(
@@ -165,19 +177,7 @@ pub fn update_timeline(articles: &Vec<ArticleWithTags>) -> Result<(), Box<dyn Er
         ),
     });
 
-    match crate::renderer::html::create_html_from_standalone_template(data) {
-        Ok(html) => {
-            let cfg = config::Config::get();
-            let mut output_path: PathBuf = cfg.output.clone();
-            output_path.push("timeline.html");
-            crate::articles::write_to_disk(&html, &output_path);
-            Ok(())
-        }
-        Err(e) => {
-            println!("{}", e);
-            Err(e)
-        }
-    }
+    crate::renderer::html::create_html_from_standalone_template(data)
 }
 
 fn create_timeline_container(articles: &Vec<ArticleWithTags>) -> String {

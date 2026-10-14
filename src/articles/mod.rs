@@ -2,7 +2,9 @@ use crate::db::article::{
     get_article_with_tags_by_src_file_name, get_prev_and_next_article,
     get_prev_and_next_article_for_series, ArticleNeighbours,
 };
-use crate::db::cache::{compute_hash, get_cache, set_cache};
+use crate::db::cache::{get_cache, set_cache};
+use crate::fingerprint::{self, Fingerprint};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use crate::db::DbPool;
 use colored::Colorize;
 use notify::EventKind;
@@ -95,6 +97,7 @@ impl From<ArticleWithTags> for NewArticle {
 }
 
 static PANKAT_FILE: &str = ".pankat_maintained_output_folder";
+const GENERATED_PAGES: [&str; 3] = ["index.html", "timeline.html", "404.html"];
 
 fn compute_sha256(file_path: &PathBuf) -> anyhow::Result<String> {
     let mut file = File::open(file_path)?;
@@ -169,7 +172,7 @@ fn update_affected_articles(
         }
     }
     if let Ok(articles) = crate::db::article::get_visible_articles(conn) {
-        let _ = crate::articles::timeline::update_timeline(&articles);
+        crate::articles::timeline::update_timeline(conn, &articles);
     }
     updates
 }
@@ -212,7 +215,7 @@ pub fn file_monitor_articles_change(
             })?;
             let is_draft: bool = db_reply.article.draft == Some(true);
             if is_draft {
-                remove_from_output(&db_reply.article);
+                remove_from_output(conn, &db_reply.article);
             } else {
                 write_article_to_disk(conn, &db_reply.article);
             }
@@ -270,7 +273,7 @@ pub fn file_monitor_articles_change(
             if let Ok(Some(article)) =
                 get_article_with_tags_by_src_file_name(conn, event.path.display().to_string())
             {
-                remove_from_output(&article);
+                remove_from_output(conn, &article);
             }
             let mut updates: Vec<(String, String)> = Vec::new();
             updates.push((
@@ -301,7 +304,7 @@ pub fn file_monitor_articles_change(
 }
 
 /// drafts and removed articles must not stay in the public output
-fn remove_from_output(article: &ArticleWithTags) {
+fn remove_from_output(conn: &mut SqliteConnection, article: &ArticleWithTags) {
     let output_filename: PathBuf = config::Config::get().output.join(&article.dst_file_name);
     match std::fs::remove_file(&output_filename) {
         Err(e) if e.kind() != std::io::ErrorKind::NotFound => {
@@ -309,6 +312,7 @@ fn remove_from_output(article: &ArticleWithTags) {
         }
         _ => {}
     }
+    crate::db::outputs::delete(conn, &article.dst_file_name);
 }
 
 /// live update messages: {"admin": message} reaches only browsers with an admin session,
@@ -466,6 +470,8 @@ pub fn collect_garbage(pool: &DbPool) {
                         // a stale html of an article turned into a draft must go
                         .filter(|article| article.draft != Some(true))
                         .map(|article| article.dst_file_name.clone())
+                        // generated, but no articles; only rewritten when they changed
+                        .chain(GENERATED_PAGES.iter().map(|page| page.to_string()))
                         .collect();
                     for entry in std::fs::read_dir(output_path.clone()).unwrap() {
                         let entry = entry.unwrap();
@@ -486,6 +492,7 @@ pub fn collect_garbage(pool: &DbPool) {
                         if !lookup_articles_set.contains(relative_entry_string.as_str()) {
                             println!("Removing garbage 'output' entry: {:?}", relative_entry);
                             std::fs::remove_file(entry.path()).unwrap();
+                            crate::db::outputs::delete(&mut conn, &relative_entry_string);
                         }
                     }
                 }
@@ -545,6 +552,7 @@ pub fn scan_articles(pool: &DbPool) {
                             if ext == "mdwn" {
                                 let article_path: PathBuf =
                                     path.strip_prefix(input_path).unwrap().to_path_buf();
+                                STATS.scanned.fetch_add(1, Ordering::Relaxed);
                                 match parse_article(conn, &article_path) {
                                     Ok(article) => {
                                         //println!("Parsed article: {:#?}", article);
@@ -575,15 +583,9 @@ pub fn build_articles(pool: &DbPool) {
 
     match crate::db::article::get_visible_articles(&mut conn) {
         Ok(articles) => {
-            let _ = crate::articles::timeline::update_timeline(&articles);
+            crate::articles::timeline::update_timeline(&mut conn, &articles);
 
             for article in articles {
-                let article_id = article.id.unwrap();
-                println!(
-                    "Writing article {} (id: {}) to disk",
-                    article.clone().dst_file_name,
-                    article_id
-                );
                 write_article_to_disk(&mut conn, &article);
             }
         }
@@ -593,13 +595,25 @@ pub fn build_articles(pool: &DbPool) {
     update_special_pages(&mut conn);
     update_most_recent_article(&mut conn);
     // for nginx (error_page 404), pankat renders it on request
-    write_to_disk(
-        &crate::renderer::html::create_not_found_page(),
-        &config::Config::get().output.join("404.html"),
-    );
+    let fingerprint: String = Fingerprint::new("404")
+        .add(fingerprint::inputs().render())
+        .finish();
+    write_output(&mut conn, "404.html", &fingerprint, || {
+        Some(crate::renderer::html::create_not_found_page())
+    });
 
     let duration = start_time.elapsed();
     println!("Time to build articles: {:?}", duration);
+    let scanned = STATS.scanned.load(Ordering::Relaxed);
+    let parsed = STATS.parsed.load(Ordering::Relaxed);
+    println!(
+        "articles: {} parsed ({} pandoc runs), {} unchanged | output: {} written, {} unchanged",
+        parsed,
+        STATS.pandoc.load(Ordering::Relaxed),
+        scanned.saturating_sub(parsed),
+        STATS.written.load(Ordering::Relaxed),
+        STATS.unchanged.load(Ordering::Relaxed),
+    );
 }
 
 pub fn update_special_pages(conn: &mut SqliteConnection) {
@@ -607,12 +621,6 @@ pub fn update_special_pages(conn: &mut SqliteConnection) {
         Ok(special_pages) => {
             // a special page can be a draft as well, those stay out of the public output
             for article in special_pages.into_iter().filter(|a| a.draft != Some(true)) {
-                let article_id = article.id.unwrap();
-                println!(
-                    "Writing special_page article {} (id: {}) to disk",
-                    article.clone().dst_file_name,
-                    article_id
-                );
                 write_article_to_disk(conn, &article);
             }
         }
@@ -624,18 +632,16 @@ pub fn update_most_recent_article(conn: &mut SqliteConnection) {
     match crate::db::article::get_most_recent_article(conn) {
         Ok(article_option) => match article_option {
             Some(article) => {
-                match create_index_from_most_recent_article_template(&article) {
-                    Ok(html) => {
-                        let cfg = config::Config::get();
-                        let output_path: PathBuf = cfg.output.clone();
-                        let mut output_filename = output_path.clone();
-                        output_filename.push("index.html");
-                        write_to_disk(&html, &output_filename);
-                    }
-                    Err(e) => {
-                        println!("Error: {}", e);
-                    }
-                }
+                // the index redirects to the most recent article and carries its social preview
+                let fingerprint: String = Fingerprint::new("index")
+                    .add(fingerprint::inputs().render())
+                    .add(page_data(&article))
+                    .finish();
+                write_output(conn, "index.html", &fingerprint, || {
+                    create_index_from_most_recent_article_template(&article)
+                        .map_err(|e| println!("Error: {}", e))
+                        .ok()
+                });
             }
             None => {}
         },
@@ -643,54 +649,125 @@ pub fn update_most_recent_article(conn: &mut SqliteConnection) {
     };
 }
 
+fn neighbours(conn: &mut SqliteConnection, article_id: i32) -> (ArticleNeighbours, ArticleNeighbours) {
+    (
+        get_prev_and_next_article(conn, article_id).unwrap_or_else(|_| ArticleNeighbours::new()),
+        get_prev_and_next_article_for_series(conn, article_id)
+            .unwrap_or_else(|_| ArticleNeighbours::new()),
+    )
+}
+
 fn create_nav_content_template(
     conn: &mut SqliteConnection,
     article: &ArticleWithTags,
     html: String,
 ) -> String {
-    let article_id = article.id.unwrap();
-
-    let article_neighbours: ArticleNeighbours = match get_prev_and_next_article(conn, article_id) {
-        Ok(neighbours) => neighbours,
-        Err(_) => ArticleNeighbours::new(),
-    };
-    let article_series_neighbours: ArticleNeighbours =
-        match get_prev_and_next_article_for_series(conn, article_id) {
-            Ok(neighbours) => neighbours,
-            Err(_) => ArticleNeighbours::new(),
-        };
-
-    let content: String = create_html_from_content_template(
+    let (article_neighbours, article_series_neighbours) = neighbours(conn, article.id.unwrap());
+    create_html_from_content_template(
         article.clone(),
         html,
         article_neighbours,
         article_series_neighbours,
     )
-    .unwrap();
-    content
+    .unwrap()
+}
+
+/// the data of an article which ends up on its pages, for the output fingerprints; without
+/// `hash`, which only tells the parse stage whether to run again
+pub(crate) fn page_data(article: &ArticleWithTags) -> String {
+    format!(
+        "{:?}",
+        ArticleWithTags {
+            hash: String::new(),
+            ..article.clone()
+        }
+    )
+}
+
+/// the navigation only links the neighbours, so only their names matter
+fn neighbour_names(neighbours: &ArticleNeighbours) -> [Option<&str>; 2] {
+    [&neighbours.prev, &neighbours.next].map(|n| n.as_ref().map(|a| a.dst_file_name.as_str()))
 }
 
 fn write_article_to_disk(conn: &mut SqliteConnection, article: &ArticleWithTags) {
-    let cfg = config::Config::get();
-    let output_path: PathBuf = cfg.output.clone();
+    let Some(cache_entry) = get_cache(conn, article.src_file_name.clone()) else {
+        println!("Error retrieving cache for path: {}", &article.src_file_name);
+        return;
+    };
+    let (article_neighbours, article_series_neighbours) = neighbours(conn, article.id.unwrap());
+    let fingerprint: String = Fingerprint::new("article-page")
+        .add(fingerprint::inputs().render())
+        .add(page_data(article))
+        .add(&cache_entry.html)
+        .add(format!(
+            "{:?} {:?}",
+            neighbour_names(&article_neighbours),
+            neighbour_names(&article_series_neighbours)
+        ))
+        .finish();
+    write_output(conn, &article.dst_file_name, &fingerprint, || {
+        let content = create_html_from_content_template(
+            article.clone(),
+            cache_entry.html,
+            article_neighbours,
+            article_series_neighbours,
+        )
+        .ok()?;
+        create_html_from_standalone_template_by_article(article.clone(), content).ok()
+    });
+}
 
-    match get_cache(conn, article.src_file_name.clone()) {
-        Some(cache_entry) => {
-            let content: String = create_nav_content_template(conn, article, cache_entry.html);
-            let standalone_html: String =
-                create_html_from_standalone_template_by_article(article.clone(), content).unwrap();
+/// what a scan and build did, for the summary in the log
+struct Stats {
+    scanned: AtomicUsize,
+    parsed: AtomicUsize,
+    pandoc: AtomicUsize,
+    written: AtomicUsize,
+    unchanged: AtomicUsize,
+}
 
-            let mut output_filename = output_path.clone();
-            output_filename.push(article.dst_file_name.clone());
-            write_to_disk(&standalone_html, &output_filename)
-        }
-        None => {
-            println!(
-                "Error retrieving cache for path: {}",
-                &article.src_file_name
-            );
-        }
+static STATS: Stats = Stats {
+    scanned: AtomicUsize::new(0),
+    parsed: AtomicUsize::new(0),
+    pandoc: AtomicUsize::new(0),
+    written: AtomicUsize::new(0),
+    unchanged: AtomicUsize::new(0),
+};
+
+/// the only way generated pages get into the output: `fingerprint` covers every input of
+/// `render`, so with an unchanged fingerprint and an existing file there's nothing to do
+pub(crate) fn write_output(
+    conn: &mut SqliteConnection,
+    dst_file_name: &str,
+    fingerprint: &str,
+    render: impl FnOnce() -> Option<String>,
+) {
+    let output: PathBuf = config::Config::get().output.clone();
+    write_output_in(conn, &output, dst_file_name, fingerprint, render);
+}
+
+fn write_output_in(
+    conn: &mut SqliteConnection,
+    output: &std::path::Path,
+    dst_file_name: &str,
+    fingerprint: &str,
+    render: impl FnOnce() -> Option<String>,
+) -> bool {
+    let path: PathBuf = output.join(dst_file_name);
+    if path.is_file() && crate::db::outputs::get(conn, dst_file_name).as_deref() == Some(fingerprint)
+    {
+        STATS.unchanged.fetch_add(1, Ordering::Relaxed);
+        return false;
     }
+    let Some(html) = render() else {
+        println!("Error rendering {}", dst_file_name);
+        return false;
+    };
+    println!("Writing {}", dst_file_name);
+    write_to_disk(&html, &path);
+    crate::db::outputs::set(conn, dst_file_name, fingerprint);
+    STATS.written.fetch_add(1, Ordering::Relaxed);
+    true
 }
 
 pub fn write_to_disk(content: &String, filepath: &PathBuf) {
@@ -710,13 +787,12 @@ fn parse_article(
     let cfg = config::Config::get();
     let input_path: PathBuf = cfg.input.clone();
 
-    println!(
-        "Processing article {} from disk",
-        article_path.clone().display()
-    );
-
     let article_input_path: PathBuf = cfg.input.join(article_path);
-    let hash: String = compute_sha256(&article_input_path).unwrap();
+    // the plugins run again when the file, the generator code or pandoc changed
+    let hash: String = Fingerprint::new("article")
+        .add(compute_sha256(&article_input_path).unwrap())
+        .add(fingerprint::inputs().parse())
+        .finish();
     let existing_article: Result<Option<ArticleWithTags>, diesel::result::Error> =
         get_article_with_tags_by_src_file_name(conn, article_path.display().to_string());
 
@@ -727,6 +803,8 @@ fn parse_article(
             }
         }
     }
+    println!("Parsing article {}", article_path.display());
+    STATS.parsed.fetch_add(1, Ordering::Relaxed);
 
     let mut new_article: ArticleWithTags = ArticleWithTags {
         id: None,
@@ -753,7 +831,13 @@ fn parse_article(
             if new_article.special_page == Some(true) {
                 new_article.tocify = None;
             }
-            let hash: String = compute_hash(article_mdwn_refined_source.clone());
+            // pandoc runs again when its input, pandoc itself or the lua filters changed
+            let anchorjs: bool = new_article.anchorjs.unwrap_or(false);
+            let hash: String = Fingerprint::new("pandoc-input")
+                .add(&article_mdwn_refined_source)
+                .add(&fingerprint::inputs().pandoc)
+                .add([anchorjs as u8])
+                .finish();
             // println!(
             //     "src_file_name_string.clone(): {}",
             //     src_file_name_string.clone()
@@ -770,11 +854,8 @@ fn parse_article(
                 None => true,
             };
             if renew_cache {
-                //println!(" ... cache outdated, regenerating");
-                match pandoc_mdwn_2_html(
-                    article_mdwn_refined_source.clone(),
-                    new_article.anchorjs.unwrap_or(false),
-                ) {
+                STATS.pandoc.fetch_add(1, Ordering::Relaxed);
+                match pandoc_mdwn_2_html(article_mdwn_refined_source.clone(), anchorjs) {
                     Ok(html) => {
                         match set_cache(conn, src_file_name_string.clone(), html.clone(), hash) {
                             Ok(_) => {}

@@ -512,4 +512,27 @@ mod tests {
         println!("article_expected: {:#?}", article_expected);
         assert_eq!(article, article_expected);
     }
+
+    #[test]
+    fn test_write_output_skips_unchanged() {
+        use crate::articles::write_output_in;
+        let mut conn = crate::db::tests::establish_connection_and_initialize_schema();
+        let dir = std::env::temp_dir().join("pankat-test-write-output");
+        let _ = std::fs::remove_dir_all(&dir);
+        let mut renders = 0;
+        let mut write = |conn: &mut diesel::SqliteConnection, fingerprint: &str| {
+            write_output_in(conn, &dir, "page.html", fingerprint, || {
+                renders += 1;
+                Some(format!("<p>{}</p>", fingerprint))
+            })
+        };
+
+        assert!(write(&mut conn, "a"), "first build writes");
+        assert!(!write(&mut conn, "a"), "same inputs, nothing to do");
+        assert!(write(&mut conn, "b"), "changed inputs write again");
+        std::fs::remove_file(dir.join("page.html")).unwrap();
+        assert!(write(&mut conn, "b"), "a deleted file is written again");
+        assert_eq!(renders, 3, "unchanged pages aren't even rendered");
+        assert_eq!(std::fs::read_to_string(dir.join("page.html")).unwrap(), "<p>b</p>");
+    }
 }
