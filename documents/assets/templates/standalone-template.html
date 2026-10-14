@@ -183,6 +183,12 @@
                 drafts</a
               >
             </li>
+            <li id="adminSpecialPages" style="display: none">
+              <a href="{{{Subdir}}}/specialpages/"
+                ><span class="glyphicon glyphicon-file" aria-hidden="true"></span>
+                special pages</a
+              >
+            </li>
             <li id="adminLogin" style="display: none">
               <a href="{{{Subdir}}}/login"
                 ><span class="glyphicon glyphicon-log-in" aria-hidden="true"></span>
@@ -204,7 +210,7 @@
                 .then((response) => response.json())
                 .then((session) => {
                   const shown = session.admin
-                    ? ["adminDrafts", "adminLogout"]
+                    ? ["adminDrafts", "adminSpecialPages", "adminLogout"]
                     : ["adminLogin"];
                   shown.forEach((id) => (document.getElementById(id).style.display = ""));
                 })

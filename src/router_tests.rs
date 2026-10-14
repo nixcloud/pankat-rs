@@ -8,7 +8,7 @@ use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::SqliteConnection;
 use tower::ServiceExt;
 
-fn article(name: &str, date: &str, draft: bool) -> ArticleWithTags {
+fn article(name: &str, date: &str, draft: bool, special_page: bool) -> ArticleWithTags {
     ArticleWithTags {
         id: None,
         src_file_name: format!("posts/{}.mdwn", name),
@@ -22,7 +22,7 @@ fn article(name: &str, date: &str, draft: bool) -> ArticleWithTags {
         tags: None,
         series: None,
         draft: if draft { Some(true) } else { None },
-        special_page: None,
+        special_page: if special_page { Some(true) } else { None },
         anchorjs: None,
         tocify: None,
         live_updates: None,
@@ -37,12 +37,14 @@ fn app() -> Router {
     let pool = Pool::builder().max_size(1).build(manager).unwrap();
     let mut conn = pool.get().unwrap();
     db::initialize_schema(&mut conn);
-    for (name, date, draft) in [
-        ("draft_old", "2026-10-01 12:00", true),
-        ("draft_new", "2026-10-10 12:00", true),
-        ("published", "2026-10-05 12:00", false),
+    for (name, date, draft, special_page) in [
+        ("draft_old", "2026-10-01 12:00", true, false),
+        ("draft_new", "2026-10-10 12:00", true, false),
+        ("published", "2026-10-05 12:00", false, false),
+        ("about", "2026-09-01 12:00", false, true),
+        ("secret_page", "2026-09-02 12:00", true, true),
     ] {
-        let article = article(name, date, draft);
+        let article = article(name, date, draft, special_page);
         db::article::set(&mut conn, &article).unwrap();
         let html = format!("<p>body of {}</p>", name);
         db::cache::set_cache(&mut conn, article.src_file_name, html, "".to_string()).unwrap();
@@ -194,4 +196,30 @@ async fn test_not_found() {
         assert!(body.contains(r#"<a href="/index.html">"#));
         assert!(!body.contains("admin_password"));
     }
+}
+
+#[tokio::test]
+async fn test_special_pages() {
+    let app = app();
+    let (status, headers, _) = request(&app, "GET", "/specialpages/", None, None).await;
+    assert_eq!(status, StatusCode::SEE_OTHER);
+    assert_eq!(location(&headers), "/login?next=%2Fspecialpages%2F");
+
+    let (status, headers, _) = request(&app, "GET", "/specialpages", None, None).await;
+    assert_eq!(status, StatusCode::PERMANENT_REDIRECT);
+    assert_eq!(location(&headers), "/specialpages/");
+
+    let cookie = admin_cookie();
+    let (status, _, body) = request(&app, "GET", "/specialpages/", Some(&cookie), None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body.contains(r#"<a href="/about.html">about</a>"#));
+    // a special page which is a draft as well is only reachable below drafts/
+    assert!(body.contains(r#"<a href="/drafts/secret_page.html">secret_page</a>"#));
+    assert!(!body.contains("published.html"));
+    assert!(!body.contains("draft_new.html"));
+
+    let (status, _, index) =
+        request(&app, "GET", "/specialpages/index.html", Some(&cookie), None).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(index, body);
 }

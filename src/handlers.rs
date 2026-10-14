@@ -145,6 +145,21 @@ pub async fn draft(
     serve_file(safe_join(base, path)).await
 }
 
+pub async fn special_pages_redirect() -> Redirect {
+    let cfg = config::Config::get();
+    Redirect::permanent(&format!("{}/specialpages/", cfg.subdir.display()))
+}
+
+pub async fn special_pages_index(
+    _: Admin,
+    State(pool): State<DbPool>,
+) -> Result<Response, AppError> {
+    let mut conn = pool.get().map_err(|_| AppError::InternalError)?;
+    let html =
+        articles::create_special_pages_index(&mut conn).map_err(|_| AppError::InternalError)?;
+    Ok(html_response(StatusCode::OK, html))
+}
+
 pub async fn github_webhook(Json(payload): Json<Value>) {
     println!("GitHub event: {}", payload);
 }

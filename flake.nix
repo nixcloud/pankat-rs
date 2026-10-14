@@ -180,6 +180,7 @@
 #         location ^~ /blog/login { proxy_pass http://127.0.0.1:5000; proxy_set_header Host $host; }
 #         location ^~ /blog/logout { proxy_pass http://127.0.0.1:5000; proxy_set_header Host $host; }
 #         location ^~ /blog/draft { proxy_pass http://127.0.0.1:5000; proxy_set_header Host $host; }
+#         location ^~ /blog/specialpages { proxy_pass http://127.0.0.1:5000; proxy_set_header Host $host; }
 #         location = /blog/api/session { proxy_pass http://127.0.0.1:5000; proxy_set_header Host $host; }
 #         # written by pankat to the output directory
 #         error_page 404 /blog/404.html;

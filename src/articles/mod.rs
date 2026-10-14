@@ -376,27 +376,67 @@ pub fn create_draft_page(conn: &mut SqliteConnection, dst_file_name: &str) -> Op
     create_html_from_standalone_template_by_article(article, content).ok()
 }
 
-pub fn create_drafts_index(conn: &mut SqliteConnection) -> Result<String, Box<dyn Error>> {
+/// one entry of the drafts or special pages list, `path` is relative to subdir
+fn article_list_entry(path: &str, article: &ArticleWithTags, note: &str) -> String {
     let cfg = config::Config::get();
+    format!(
+        r#"<div class="articleListEntry">
+             <h3><a href="{}/{}">{}</a> {}</h3>
+             <p><span class="articleListDate">{}</span> {}</p>
+           </div>"#,
+        cfg.subdir.display(),
+        path,
+        handlebars::html_escape(article.title.as_deref().unwrap_or(&article.dst_file_name)),
+        note,
+        crate::renderer::utils::date_and_time(&article.modification_date),
+        article.summary.as_deref().unwrap_or_default(),
+    )
+}
+
+pub fn create_drafts_index(conn: &mut SqliteConnection) -> Result<String, Box<dyn Error>> {
     let drafts = crate::db::article::get_drafts(conn)?;
     let mut content = String::from(r#"<h1 id="SiteTitle">drafts</h1>"#);
     if drafts.is_empty() {
         content.push_str("<p>there are no drafts, add <code>[[!draft]]</code> to an article.</p>");
     }
     for draft in drafts {
-        content.push_str(&format!(
-            r#"<div class="draft">
-                 <h3><a href="{}/drafts/{}">{}</a></h3>
-                 <p><span class="draftDate">{}</span> {}</p>
-               </div>"#,
-            cfg.subdir.display(),
-            draft.dst_file_name,
-            handlebars::html_escape(draft.title.as_deref().unwrap_or(&draft.dst_file_name)),
-            crate::renderer::utils::date_and_time(&draft.modification_date),
-            draft.summary.unwrap_or_default(),
+        content.push_str(&article_list_entry(
+            &format!("drafts/{}", draft.dst_file_name),
+            &draft,
+            "",
         ));
     }
     create_html_page("drafts", &content)
+}
+
+/// special pages (about, imprint, ...) aren't in the timeline, so this is the overview
+pub fn create_special_pages_index(conn: &mut SqliteConnection) -> Result<String, Box<dyn Error>> {
+    let mut special_pages = crate::db::article::get_special_pages(conn)?;
+    special_pages.sort_by_key(|article| {
+        article
+            .title
+            .clone()
+            .unwrap_or_else(|| article.dst_file_name.clone())
+            .to_lowercase()
+    });
+    let mut content = String::from(r#"<h1 id="SiteTitle">special pages</h1>"#);
+    if special_pages.is_empty() {
+        content.push_str(
+            "<p>there are no special pages, add <code>[[!SpecialPage]]</code> to an article.</p>",
+        );
+    }
+    for page in special_pages {
+        content.push_str(&if page.draft == Some(true) {
+            article_list_entry(
+                &format!("drafts/{}", page.dst_file_name),
+                &page,
+                r#"<span class="label label-default">draft</span>"#,
+            )
+        } else {
+            article_list_entry(&page.dst_file_name, &page, "")
+        });
+    }
+    create_html_page("special pages", &content)
 }
 
 pub fn collect_garbage(pool: &DbPool) {
