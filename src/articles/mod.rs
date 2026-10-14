@@ -353,6 +353,8 @@ pub fn collect_garbage(pool: &DbPool) {
                 Ok(_) => {
                     let lookup_articles_set: std::collections::HashSet<String> = articles
                         .iter()
+                        // a stale html of an article turned into a draft must go
+                        .filter(|article| article.draft != Some(true))
                         .map(|article| article.dst_file_name.clone())
                         .collect();
                     for entry in std::fs::read_dir(output_path.clone()).unwrap() {
@@ -493,7 +495,8 @@ pub fn build_articles(pool: &DbPool) {
 pub fn update_special_pages(conn: &mut SqliteConnection) {
     match crate::db::article::get_special_pages(conn) {
         Ok(special_pages) => {
-            for article in special_pages {
+            // a special page can be a draft as well, those stay out of the public output
+            for article in special_pages.into_iter().filter(|a| a.draft != Some(true)) {
                 let article_id = article.id.unwrap();
                 println!(
                     "Writing special_page article {} (id: {}) to disk",
