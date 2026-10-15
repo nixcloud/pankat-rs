@@ -21,7 +21,6 @@
           rust_toolchain = fp.combine [
             fp.stable.rustc
             fp.stable.cargo
-            fp.stable.rust-src
             fp.targets.wasm32-unknown-unknown.stable.rust-std
           ];
 
@@ -42,8 +41,31 @@
             url = "https://github.com/nixcloud/cargo/releases/download/libnix-1.87.0%2Bv4/libnix-1.87.0+v4.tar.bz2";
             sha256 = "sha256:0zhj8sl05g861c7pkwgd1ij26mf68qj1flbad2ivwj113vac9chq";
           };
-          cargo-libnix-1_87_0_plus_v4 = (import (cargo-libnix-1_87_0_plus_v4_src + "/derivations/default.nix"){ 
-            inherit project_root pkgs;
+          # the generated cargo_build_caller.nix (used by `cargo build` in `nix develop` and by pankat-ifd) builds
+          # with fenix.stable.toolchain, which ships rust-src: rustc then maps std's /rustc/<commit>/ paths in panic
+          # locations back to that toolchain's store path, pulling the whole toolchain (4 GB) into pankat's runtime
+          # closure (#24). build cargo (libnix) from a source whose template uses rustc_1_87_vanilla_pin instead,
+          # which has no rust-src; appendContext and not builtins.storePath, so it also works in pure evaluation
+          cargo-libnix-1_87_0_plus_v4_cargo_src_url = "https://github.com/nixcloud/cargo/archive/refs/tags/libnix-1.87.0+v4.tar.gz";
+          cargo-libnix-1_87_0_plus_v4_cargo_src = pkgs.runCommand "cargo-libnix-1.87.0-v4-src" {} ''
+            mkdir $out
+            tar xzf ${pkgs.fetchurl {
+              url = cargo-libnix-1_87_0_plus_v4_cargo_src_url;
+              sha256 = "0cy6nff1arj08xiddpv4r3jr8306ch7lvi8najyngr3zaiby1mkg";
+            }} -C $out --strip-components=1
+            substituteInPlace $out/src/cargo/core/compiler/nix_build/templates/cargo_build_caller.nix.handlebars \
+              --replace-fail 'toolchain = fenix.stable.toolchain;' \
+                'toolchain = builtins.appendContext "${rustc_1_87_vanilla_pin}" { "${rustc_1_87_vanilla_pin}" = { path = true; }; };'
+          '';
+          # the cargo units fetch their source with pkgs.fetchurl, all other crates are passed through
+          pkgs_cargo_libnix = pkgs // {
+            pkgs = pkgs_cargo_libnix;
+            fetchurl = args: if (args.url or null) == cargo-libnix-1_87_0_plus_v4_cargo_src_url
+              then cargo-libnix-1_87_0_plus_v4_cargo_src else pkgs.fetchurl args;
+          };
+          cargo-libnix-1_87_0_plus_v4 = (import (cargo-libnix-1_87_0_plus_v4_src + "/derivations/default.nix"){
+            inherit project_root;
+            pkgs = pkgs_cargo_libnix;
             external_crate_dependencies = import (cargo-libnix-1_87_0_plus_v4_src + "/Cargo.dependencies.nix") { inherit pkgs; };
             rustc = rustc_1_87_vanilla_pin;
             cargo = cargo_1_87_vanilla_pin;
@@ -68,7 +90,7 @@
           generated = pkgs.runCommand "cargo-nix-generated" { inherit crateTarballs; nativeBuildInputs = [ cargo-libnix-1_87_0_plus_v4 rustc_1_87_vanilla_pin ]; } ''
             export HOME=$TMPDIR CARGO_BACKEND=nix
             cp -r ${src} project && chmod -R u+w project && cd project
-            ${cargo-libnix-1_87_0_plus_v4}/bin/cargo build --offline write-nix-buildsystem --out-dir $out
+            ${cargo-libnix-1_87_0_plus_v4}/bin/cargo build --release --offline write-nix-buildsystem --out-dir $out
           '';
 
           # the cargo binary unit of a generated build system; its hash isn't known in advance
@@ -107,7 +129,7 @@
               # pankat-rs requires those (build)
               cargo-libnix-1_87_0_plus_v4
               rustc_1_87_vanilla_pin
-
+              patchelf
               just
               cargo-binutils
 
