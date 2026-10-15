@@ -21,3 +21,6 @@ test:
 
 fmt:
   cargo fmt
+# end-to-end checks against a running pankat, see tests/live.sh
+test-live: build-backend
+  tests/live.sh
