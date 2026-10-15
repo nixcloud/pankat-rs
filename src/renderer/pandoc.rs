@@ -37,9 +37,11 @@ pub fn check_pandoc() -> Result<(), Box<dyn Error + Send + Sync>> {
     }
 }
 
+/// toc_title: Some(article title) adds the table of contents (toc.lua) with the title as its root
 pub fn pandoc_mdwn_2_html(
     article_markdown: String,
-    tocify: bool,
+    anchorjs: bool,
+    toc_title: Option<&str>,
 ) -> Result<String, Box<dyn Error>> {
     // println!("-------------------------");
     // println!("{}", article_markdown.clone());
@@ -49,19 +51,29 @@ pub fn pandoc_mdwn_2_html(
         .display()
         .to_string();
     let create_anchors = Asset::CreateAnchorsLua.path().display().to_string();
+    let toc = Asset::TocLua.path().display().to_string();
+    let toc_title_metadata = format!("pankat-title={}", toc_title.unwrap_or(""));
 
     // Print the command line for debugging
     //println!("Executing pandoc with command: pandoc --lua-filter {:?} --lua-filter {:?} -f markdown -t html5 --highlight-style kate", luafile, luafile2);
 
     let mut args = vec![];
 
-    if tocify {
+    if anchorjs {
         args.push("--lua-filter");
         args.push(&shifted_numbered_headings);
     }
 
     args.push("--lua-filter");
     args.push(&create_anchors);
+
+    // after create-anchors.lua, the toc then lists the final heading ids
+    if toc_title.is_some() {
+        args.push("--lua-filter");
+        args.push(&toc);
+        args.push("--metadata");
+        args.push(&toc_title_metadata);
+    }
 
     args.push("-f");
     args.push("markdown");

@@ -97,4 +97,33 @@ mod tests {
         let formatted_date_none = date_and_time(&None);
         assert_eq!(formatted_date_none, "");
     }
+
+    #[test]
+    fn test_pandoc_table_of_contents() {
+        use crate::renderer::pandoc::pandoc_mdwn_2_html;
+        crate::test_config::init();
+
+        let markdown = "# Intro\n\ntext\n\n## Sub A\n\n### Deep\n\n# Intro\n".to_string();
+        let html = pandoc_mdwn_2_html(markdown.clone(), true, Some("My <Title>")).unwrap();
+        let toc = html.split("</div>").next().unwrap();
+        println!("{}", html);
+        // the title is the root, the sections (h2, h3 after shifting the headings) are nested below it
+        assert!(toc.starts_with(r#"<div id="toc-source" hidden="">"#));
+        assert!(toc.contains(r##"<a href="#SiteTitle">My &lt;Title&gt;</a>"##));
+        assert!(toc.contains(r##"<a href="#Intro" id="toc-Intro">Intro</a>"##));
+        assert!(toc.contains(r##"<a href="#Sub-A" id="toc-Sub-A">Sub A</a>"##));
+        assert!(toc.contains(r##"<a href="#Intro-1" id="toc-Intro-1">Intro</a>"##));
+        // h4, deeper than tocify went, and the heading anchors are left out
+        assert!(!toc.contains("#Deep"));
+        assert!(!toc.contains("glyphicon"));
+        // the title stays the only h1
+        assert!(!html.contains("<h1"));
+        assert!(html.contains(r##"<h3 data-number="1.1" id="Sub-A">Sub A<a href="#Sub-A""##));
+        assert!(html.contains(r#"class="glyphicon glyphicon-link" aria-label="Anchor""#));
+
+        let html = pandoc_mdwn_2_html(markdown, true, None).unwrap();
+        assert!(!html.contains("toc-source"));
+        let html = pandoc_mdwn_2_html("no headings".to_string(), true, Some("Title")).unwrap();
+        assert!(!html.contains("toc-source"));
+    }
 }

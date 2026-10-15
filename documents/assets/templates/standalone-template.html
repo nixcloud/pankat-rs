@@ -11,27 +11,12 @@
 
     <script src="{{{Subdir}}}/assets/js/jquery-3.7.1.min.js"></script>
     {{#if Tocify}}
-    <script src="{{{Subdir}}}/assets/js/jquery-ui-1.9.1.custom.min.js"></script>
-    <script src="{{{Subdir}}}/assets/js/jquery.tocify.min.js"></script>
+    <script src="{{{Subdir}}}/assets/js/toc.js"></script>
     <link
       type="text/css"
       rel="stylesheet"
-      href="{{{Subdir}}}/assets/css/jquery.tocify.css"
+      href="{{{Subdir}}}/assets/css/toc.css"
     />
-    <script>
-      $(document).ready(function () {
-        //Calls the tocify method on your HTML div.
-        $("#toc").tocify();
-      });
-      $("#toc").hover(
-        function () {
-          $("#toc").css("z-index", "111");
-        },
-        function () {
-          $("#toc").css("z-index", "1");
-        },
-      );
-    </script>
     {{/if}} {{#if LiveUpdates}}
     <script src="{{{Subdir}}}/assets/js/diffDOM.js"></script>
     <script type="module">
@@ -55,6 +40,10 @@
 
         var diff = dd.diff(outDiv, newElement);
         dd.apply(outDiv, diff);
+        // the table of contents is copied out of the article, see toc.js
+        if (window.initToc) {
+          window.initToc();
+        }
       }
     </script>
     {{/if}}

@@ -1,0 +1,82 @@
+/*
+ * static table of contents (pandoc-lua/toc.lua, js/toc.js), the look of jquery.tocify.css 1.9.0
+ * (@gregfranko) with its bootstrap theme: the title is the root, the sections are nested lists below it
+ */
+
+html {
+    scroll-behavior: smooth;
+}
+
+/* behind #container (z-index: 2), in front of it while hovered */
+#toc {
+    top: 130px;
+    position: fixed;
+    left: 30px;
+    min-width: 300px;
+    max-height: 90%;
+    overflow: auto;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background-color: white;
+    z-index: 1;
+}
+
+#toc:hover {
+    z-index: 111;
+}
+
+#toc:empty {
+    display: none;
+}
+
+@media only screen and (max-width: 1200px) {
+    #toc {
+        display: none;
+    }
+}
+
+#toc ul, #toc li {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: none;
+    line-height: 30px;
+}
+
+#toc a {
+    display: block;
+    padding: 5px;
+    text-indent: 10px;
+    text-decoration: none;
+}
+
+#toc a:hover, #toc a:focus {
+    background-color: #eee;
+}
+
+/* the sections, then their subsections */
+#toc ul ul a {
+    text-indent: 20px;
+    font-size: 12px;
+}
+
+#toc ul ul ul a {
+    text-indent: 30px;
+}
+
+#toc ul ul ul ul a {
+    text-indent: 40px;
+}
+
+/* subsections only show for the section in view, toc.js sets .open */
+#toc ul ul ul {
+    display: none;
+}
+
+#toc li.open > ul {
+    display: block;
+}
+
+#toc li.active > a {
+    background-color: #D0E4EF;
+}

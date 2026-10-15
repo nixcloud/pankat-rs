@@ -40,6 +40,7 @@ assets! {
     MostRecentArticleTemplate  => "templates/most-recent-article.html"           (Template),
     ShiftedNumberedHeadingsLua => "pandoc-lua/shifted-numbered-headings.lua"     (PandocFilter),
     CreateAnchorsLua           => "pandoc-lua/create-anchors.lua"                (PandocFilter),
+    TocLua                     => "pandoc-lua/toc.lua"                           (PandocFilter),
 }
 
 impl Asset {

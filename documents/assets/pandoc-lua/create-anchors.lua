@@ -23,8 +23,11 @@ Header = function(h)
   -- Set the header's ID
   h.identifier = unique_id
 
-  -- Create the anchor as a RawInline and insert it into the header content
-  local anchor_html = pandoc.RawInline('html', '<a class="glyphicon glyphicon-link" aria-label="Anchor"  href="#' .. unique_id .. '" style="font-size: medium; font-style: normal; font-variant: normal; font-weight: normal; line-height: 1; padding-left: 0.375em; vertical-align: middle;"></a>')
+  -- Create the anchor as a Link (not RawInline html) so pandoc drops it from the table of contents (toc.lua)
+  local anchor_html = pandoc.Link({}, '#' .. unique_id, '', pandoc.Attr('', { 'glyphicon', 'glyphicon-link' }, {
+    { 'aria-label', 'Anchor' },
+    { 'style', 'font-size: medium; font-style: normal; font-variant: normal; font-weight: normal; line-height: 1; padding-left: 0.375em; vertical-align: middle;' },
+  }))
 
   -- Insert the anchor into the header's content
   table.insert(h.content, anchor_html)

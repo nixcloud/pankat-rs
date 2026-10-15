@@ -831,12 +831,22 @@ fn parse_article(
             if new_article.special_page == Some(true) {
                 new_article.tocify = None;
             }
+            if new_article.title == None {
+                let title = utils::article_src_file_name_to_title(&article_path);
+                new_article.title = Some(title);
+            }
             // pandoc runs again when its input, pandoc itself or the lua filters changed
             let anchorjs: bool = new_article.anchorjs.unwrap_or(false);
+            // the title is the root of the table of contents
+            let toc_title: Option<&str> = match new_article.tocify {
+                Some(true) => new_article.title.as_deref(),
+                _ => None,
+            };
             let hash: String = Fingerprint::new("pandoc-input")
                 .add(&article_mdwn_refined_source)
                 .add(&fingerprint::inputs().pandoc)
-                .add([anchorjs as u8])
+                .add([anchorjs as u8, toc_title.is_some() as u8])
+                .add(toc_title.unwrap_or(""))
                 .finish();
             // println!(
             //     "src_file_name_string.clone(): {}",
@@ -855,7 +865,7 @@ fn parse_article(
             };
             if renew_cache {
                 STATS.pandoc.fetch_add(1, Ordering::Relaxed);
-                match pandoc_mdwn_2_html(article_mdwn_refined_source.clone(), anchorjs) {
+                match pandoc_mdwn_2_html(article_mdwn_refined_source.clone(), anchorjs, toc_title) {
                     Ok(html) => {
                         match set_cache(conn, src_file_name_string.clone(), html.clone(), hash) {
                             Ok(_) => {}
@@ -875,10 +885,6 @@ fn parse_article(
             } else {
                 println!(" ... skipping call to pandoc, already in cache");
             };
-            if new_article.title == None {
-                let title = utils::article_src_file_name_to_title(&article_path);
-                new_article.title = Some(title);
-            }
             Ok(new_article)
         }
         Err(e) => {
