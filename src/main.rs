@@ -301,7 +301,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     );
 
     config_values.insert(
-        "static".to_string(),
+        "static_build_only".to_string(),
         ConfigValue {
             value: ConfigValueType::Bool(matches.get_one::<bool>("static").copied()),
             is_default: Some(clap::parser::ValueSource::DefaultValue)

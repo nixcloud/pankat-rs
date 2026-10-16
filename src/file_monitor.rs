@@ -96,11 +96,47 @@ fn article_path(path: &Path) -> Option<PathBuf> {
         return None;
     }
     let cfg = crate::config::Config::get();
-    let relative_path = path.strip_prefix(std::env::current_dir().ok()?).ok()?;
-    relative_path
-        .strip_prefix(&cfg.input)
+    relative_to_input(path, &cfg.input, &std::env::current_dir().ok()?)
+}
+
+/// notify reports absolute paths, the input directory is absolute (e.g. /var/lib/pankat/input) or relative
+/// to the working directory (documents/blog.lastlog.de)
+fn relative_to_input(path: &Path, input: &Path, current_dir: &Path) -> Option<PathBuf> {
+    path.strip_prefix(current_dir.join(input))
         .ok()
         .map(Path::to_path_buf)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::relative_to_input;
+    use std::path::{Path, PathBuf};
+
+    #[test]
+    fn test_relative_to_input() {
+        let cwd = Path::new("/home/joachim/pankat-rs");
+        let article = Some(PathBuf::from("posts/foo/foo.mdwn"));
+        assert_eq!(
+            relative_to_input(
+                Path::new("/home/joachim/pankat-rs/documents/blog/posts/foo/foo.mdwn"),
+                Path::new("documents/blog"),
+                cwd
+            ),
+            article
+        );
+        assert_eq!(
+            relative_to_input(
+                Path::new("/var/lib/pankat/input/posts/foo/foo.mdwn"),
+                Path::new("/var/lib/pankat/input"),
+                Path::new("/var/lib/pankat")
+            ),
+            article
+        );
+        assert_eq!(
+            relative_to_input(Path::new("/tmp/posts/foo/foo.mdwn"), Path::new("/var/lib/pankat/input"), cwd),
+            None
+        );
+    }
 }
 
 fn handle_event(pool: &DbPool, event: &Event) {
