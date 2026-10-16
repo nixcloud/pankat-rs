@@ -6,7 +6,7 @@
   };
   outputs =
   { self, nixpkgs, flake-utils, fenix }:
-    flake-utils.lib.eachDefaultSystem
+    (flake-utils.lib.eachDefaultSystem
       (system:
         let
           overlays = [
@@ -115,13 +115,15 @@
         rec {
           packages.pankat = pankat-ifd;
           packages.pankat_wasm = pankat_wasm;
-          # bin/pankat + share/pankat/wasm (pass the latter via --wasm)
+          # bin/pankat + share/pankat/wasm and share/pankat/assets (pass them via --wasm and --assets),
+          # all a deployment needs besides the documents, see nixos-module.nix
           packages.default = symlinkJoin {
             name = "pankat-with-wasm";
             paths = [ packages.pankat ];
             postBuild = ''
               mkdir -p $out/share/pankat
               ln -s ${packages.pankat_wasm} $out/share/pankat/wasm
+              ln -s ${./documents/assets} $out/share/pankat/assets
             '';
           };
           devShells.default = mkShell {
@@ -160,108 +162,9 @@
             '';
           };
         }
-      );
+      )) // {
+        # services.pankat: the pankat service, nginx and optionally a git checkout of the documents
+        nixosModules.pankat = import ./nixos-module.nix self;
+        nixosModules.default = self.nixosModules.pankat;
+      };
 }
-
-#  users.users = {
-# pankat-app = {
-#   isSystemUser = true;
-#   home = "/pankat-app";
-#   group = "pankat-app";
-#   description = "pankat app users";
-# };
-#  };
-# users.groups.pankat-app = {};
-
-# security.acme = {
-#   acceptTerms = true;
-#   defaults.email = "info@nixcloud.io";
-# };
-
-# services.nginx = {
-#   enable = true;
-#   recommendedGzipSettings = true;
-#   recommendedOptimisation = true;
-#   virtualHosts = {
-#     lastlogblog = {
-#       serverName = "lastlog.de";
-#       serverAliases = [ "www.lastlog.de" ];
-#       forceSSL = true;
-#       enableACME = true;
-#       extraConfig = ''
-#         location /blog/api/ws {
-#           proxy_pass http://127.0.0.1:5000;
-#           proxy_set_header Host $host;
-#           proxy_http_version 1.1;
-#           proxy_set_header Upgrade $http_upgrade;
-#           proxy_set_header Connection "upgrade";
-#           proxy_read_timeout 86400;
-#         }
-#         # admin login, drafts and the session state for the navbar are served by pankat,
-#         # longer prefixes than ^~ /blog/ below so they win
-#         location ^~ /blog/login { proxy_pass http://127.0.0.1:5000; proxy_set_header Host $host; }
-#         location ^~ /blog/logout { proxy_pass http://127.0.0.1:5000; proxy_set_header Host $host; }
-#         location ^~ /blog/draft { proxy_pass http://127.0.0.1:5000; proxy_set_header Host $host; }
-#         location ^~ /blog/specialpages { proxy_pass http://127.0.0.1:5000; proxy_set_header Host $host; }
-#         location = /blog/api/session { proxy_pass http://127.0.0.1:5000; proxy_set_header Host $host; }
-#         # written by pankat to the output directory
-#         error_page 404 /blog/404.html;
-#         location ^~ /blog/posts/ {
-#           alias /pankat-app/documents/blog.lastlog.de/posts/;
-#           autoindex on;
-#         }
-#         location ^~ /blog/media/ {
-#           alias /pankat-app/documents/blog.lastlog.de/media/;
-#           autoindex on;
-#         }
-#         location ^~ /blog/assets/ {
-#           alias /pankat-app/documents/assets/;
-#           autoindex on;
-#         }
-#         location ^~ /blog/wasm/ {
-#           alias /pankat-app/documents/wasm/;
-#           autoindex on;
-#         }
-#         location ^~ /blog/ {
-#           alias /pankat-app/documents/output/;
-#           autoindex on;
-#         }
-#         location = / {
-#           return 301 https://lastlog.de/blog/index.html;
-#         }
-#         location = /blog {
-#           return 301 https://lastlog.de/blog/index.html;
-#         }
-#       '';
-#     };
-#   };
-# };
-
-# systemd.services.pankat-app = {
-#   wantedBy = [ "multi-user.target" ];
-#   after = [ "network.target" ];
-#   description = "Start the pankat server backend";
-#   environment = { RUST_LOG = "info"; };
-#   path = with pkgs; [ pandoc ];
-#   serviceConfig = {
-#     Restart = "always";
-#     Type = "simple";
-#     User = "pankat-app";
-#     ExecStart = "/pankat-app/pankat";
-#     WorkingDirectory = "/pankat-app";
-#   };
-# };
-
-# systemd.services.pankat-git-pull = {
-#   wantedBy = [ "multi-user.target" ];
-#   after = [ "network.target" ];
-#   description = "Git pull for blog.lastlog.de every 10 minutes";
-#   path = with pkgs; [ git bash ];
-#   serviceConfig = {
-#     Type = "simple";
-#     User = "pankat-app";
-#     ExecStart =
-#       "${pkgs.bash}/bin/bash -c 'while true; do git -C /pankat-app/documents/blog.lastlog.de pull; sleep 600; done'";
-#     WorkingDirectory = "/pankat-app/documents/blog.lastlog.de";
-#   };
-# };

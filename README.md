@@ -235,88 +235,64 @@ the moment (see [building](#building)).
 ╰───┴────────────────────────────────────────────┴──────┴─────────┴─────────────╯
 ```
 
-# configuration.nix
+# NixOS module
 
-in production nginx serves the static files from `documents/output`, `documents/assets`, ...
-directly and passes only the websocket, the login, the drafts, the special pages and the
-session state to `pankat`. live updates still work, pankat rewrites the html documents in
-`documents/output` on file system changes.
+**note: untested** on a real host, so far only checked in a NixOS VM test (no TLS/ACME, no
+`git.url`), report what breaks.
+
+the flake has a NixOS module, `nixosModules.default`, which runs pankat as a systemd service and
+puts nginx in front of it: nginx serves the static files from the output and input directories
+and from the package (assets, wasm) directly, and passes only the websocket, the login, the drafts,
+the special pages and the session state to `pankat`. live updates still work, pankat rewrites the
+html documents in the output directory on file system changes.
 
 ```nix
-users.users = {
-  pankat-app = {
-    isSystemUser = true;
-    home = "/pankat-app";
-    group = "pankat-app";
-    description = "pankat app users";
-  };
-};
-users.groups.pankat-app = {};
+{
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+  inputs.pankat.url = "github:nixcloud/pankat-rs";
 
-security.acme = {
-  acceptTerms = true;
-  defaults.email = "info@nixcloud.io";
-};
+  outputs = { nixpkgs, pankat, ... }: {
+    nixosConfigurations.webservi = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        ./configuration.nix
+        pankat.nixosModules.default
+        {
+          services.pankat = {
+            enable = true;
+            siteUrl = "https://lastlog.de/blog";
+            subdir = "/blog";
+            # optional: clone the documents to /var/lib/pankat/input and pull them every 10 minutes
+            git.url = "https://github.com/you/your-blog.git";
+            # PANKAT_JWT_TOKEN=... (`openssl rand -hex 32`) and PANKAT_ADMIN_PASSWORD=...,
+            # without it the admin login is disabled
+            environmentFile = "/etc/pankat.env";
+            nginx.virtualHost = "lastlog.de";
+          };
 
-services.nginx = {
-  enable = true;
-  recommendedGzipSettings = true;
-  recommendedOptimisation = true;
-  virtualHosts = {
-    lastlogblog = {
-      serverName = "lastlog.de";
-      serverAliases = [ "www.lastlog.de" ];
-      forceSSL = true;
-      enableACME = true;
-      extraConfig = ''
-        location /blog/api/ws {
-          proxy_pass http://127.0.0.1:5000;
-          proxy_set_header Host $host;
-          proxy_http_version 1.1;
-          proxy_set_header Upgrade $http_upgrade;
-          proxy_set_header Connection "upgrade";
-          proxy_read_timeout 86400;
+          services.nginx.virtualHosts."lastlog.de" = {
+            serverAliases = [ "www.lastlog.de" ];
+            forceSSL = true;
+            enableACME = true;
+          };
+          security.acme = {
+            acceptTerms = true;
+            defaults.email = "info@nixcloud.io";
+          };
+          networking.firewall.allowedTCPPorts = [ 80 443 ];
         }
-        # admin login, drafts, special pages and the session state for the navbar are
-        # served by pankat, longer prefixes than ^~ /blog/ below so they win
-        location ^~ /blog/login { proxy_pass http://127.0.0.1:5000; proxy_set_header Host $host; }
-        location ^~ /blog/logout { proxy_pass http://127.0.0.1:5000; proxy_set_header Host $host; }
-        location ^~ /blog/draft { proxy_pass http://127.0.0.1:5000; proxy_set_header Host $host; }
-        location ^~ /blog/specialpages { proxy_pass http://127.0.0.1:5000; proxy_set_header Host $host; }
-        location = /blog/api/session { proxy_pass http://127.0.0.1:5000; proxy_set_header Host $host; }
-        # written by pankat to the output directory
-        error_page 404 /blog/404.html;
-        location ^~ /blog/posts/ {
-          alias /pankat-app/documents/blog.lastlog.de/posts/;
-          autoindex on;
-        }
-        location ^~ /blog/media/ {
-          alias /pankat-app/documents/blog.lastlog.de/media/;
-          autoindex on;
-        }
-        location ^~ /blog/assets/ {
-          alias /pankat-app/documents/assets/;
-          autoindex on;
-        }
-        location ^~ /blog/wasm/ {
-          alias /pankat-app/documents/wasm/;
-          autoindex on;
-        }
-        location ^~ /blog/ {
-          alias /pankat-app/documents/output/;
-          autoindex on;
-        }
-        location = / {
-          return 301 https://lastlog.de/blog/index.html;
-        }
-        location = /blog {
-          return 301 https://lastlog.de/blog/index.html;
-        }
-      '';
+      ];
     };
   };
-};
+}
 ```
+
+* data: `/var/lib/pankat` (`dataDir`) holds `pankat.sqlite`, `input/` (posts/, media/) and
+  `output/`; nginx is added to the `pankat` group to read them
+* without `git.url`, put the documents into `/var/lib/pankat/input` yourself (owned by `pankat`)
+* `/` redirects to `/blog/index.html` (`nginx.redirectRoot`, on when `subdir` isn't "")
+* pankat listens on port 5000 (`port`) on all interfaces, keep it closed in the firewall
+* all options: [nixos-module.nix](nixos-module.nix)
 
 # commands
 
