@@ -1,6 +1,6 @@
 //! pankat has a single user, the admin: logging in compares the password with `admin_password`
 //! and stores a session token, a JWT signed with `jwt_token`, in an http-only cookie
-use crate::config;
+use crate::config::{self, NOT_SET};
 use axum::extract::{FromRequestParts, OriginalUri};
 use axum::http::{header, request::Parts, HeaderMap};
 use axum::response::{IntoResponse, Redirect, Response};
@@ -11,7 +11,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub const SESSION_COOKIE: &str = "pankat_session";
 pub const SESSION_TTL_SECS: u64 = 50 * 24 * 60 * 60;
 const ADMIN: &str = "admin";
-const NOT_SET: &str = "not set";
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {

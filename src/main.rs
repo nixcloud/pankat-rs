@@ -6,6 +6,7 @@ mod db;
 mod error;
 mod file_monitor;
 mod fingerprint;
+mod github_webhook;
 mod handlers;
 mod registry;
 mod renderer;
@@ -35,7 +36,7 @@ fn create_router(pool: db::DbPool, subdir: &str) -> Router {
             subdir,
             Router::new()
                 .route("/posts/*path", get(handlers::serve_input))
-                .route("/github-webhook", post(handlers::github_webhook))
+                .route("/github-webhook", post(github_webhook::github_webhook))
                 .route("/media/*path", get(handlers::serve_input))
                 .route("/assets/*path", get(handlers::serve_internals))
                 .route("/wasm/*path", get(handlers::serve_internals))
@@ -139,6 +140,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 .long("admin_password")
                 .value_name("STRING")
                 .help("Password of the admin, the only user, for the /login page")
+                .required(false)
+        )
+        .arg(
+            Arg::new("github_webhook_secret")
+                .long("github_webhook_secret")
+                .value_name("STRING")
+                .help("Secret of the github webhook, a push to the documents repository runs git pull in the input directory")
                 .required(false)
         )
         .arg(
@@ -288,6 +296,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     );
 
     config_values.insert(
+        "github_webhook_secret".to_string(),
+        ConfigValue {
+            value: ConfigValueType::String(
+                matches
+                    .get_one::<String>("github_webhook_secret")
+                    .map(|v| v.into()),
+            ),
+            is_default: Some(clap::parser::ValueSource::DefaultValue)
+                == matches.value_source("github_webhook_secret"),
+        },
+    );
+
+    config_values.insert(
         "port".to_string(),
         ConfigValue {
             value: ConfigValueType::Number(
@@ -338,6 +359,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         "*".repeat(cfg.jwt_token.len().saturating_sub(2))
     );
     println!("Admin password: {}", "*".repeat(cfg.admin_password.len()));
+    println!(
+        "GitHub webhook: {}",
+        if github_webhook::enabled() { "enabled" } else { "disabled (github_webhook_secret not set)" }
+    );
     println!("Flat filename structure: {}", cfg.flat);
     println!("-------------------------------------------------");
 

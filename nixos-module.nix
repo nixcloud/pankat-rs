@@ -12,7 +12,7 @@
 #         siteUrl = "https://lastlog.de/blog";
 #         subdir = "/blog";
 #         git.url = "https://github.com/you/your-blog.git";
-#         # PANKAT_JWT_TOKEN=... and PANKAT_ADMIN_PASSWORD=..., outside of the nix store
+#         # PANKAT_JWT_TOKEN=..., PANKAT_ADMIN_PASSWORD=... and PANKAT_GITHUB_WEBHOOK_SECRET=..., outside of the nix store
 #         environmentFile = "/etc/pankat.env";
 #         nginx.virtualHost = "lastlog.de";
 #       };
@@ -123,7 +123,9 @@ in
       example = "/etc/pankat.env";
       description = ''
         File with PANKAT_JWT_TOKEN=... (`openssl rand -hex 32`) and PANKAT_ADMIN_PASSWORD=..., kept out of the
-        nix store. Without it the admin login (drafts, special pages) is disabled.
+        nix store. Without it the admin login (drafts, special pages) is disabled. With
+        PANKAT_GITHUB_WEBHOOK_SECRET=... a github webhook (push events, application/json) to <siteUrl>/github-webhook
+        runs git pull in `input`, which has to be a git checkout (git.url).
       '';
     };
 
@@ -203,7 +205,8 @@ in
         wantedBy = [ "multi-user.target" ];
         after = [ "network.target" ] ++ lib.optional (cfg.git.url != null) "pankat-git.service";
         wants = lib.optional (cfg.git.url != null) "pankat-git.service";
-        path = [ pkgs.pandoc ];
+        # git for the github webhook (git pull in input)
+        path = [ pkgs.pandoc pkgs.git pkgs.openssh ];
         # everything but the secrets (environmentFile), pankat.toml isn't needed
         environment = {
           RUST_LOG = "info";
@@ -279,6 +282,7 @@ in
         "^~ ${s}/draft" = proxy;
         "^~ ${s}/specialpages" = proxy;
         "= ${s}/api/session" = proxy;
+        "= ${s}/github-webhook" = proxy;
         "^~ ${s}/posts/" = static "${cfg.input}/posts";
         "^~ ${s}/media/" = static "${cfg.input}/media";
         "^~ ${s}/assets/" = static cfg.assets;

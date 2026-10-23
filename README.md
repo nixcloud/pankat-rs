@@ -147,6 +147,42 @@ before answering.
 opening `/drafts/` or `/specialpages/` without a session redirects to the login and back to the
 requested page afterwards.
 
+## github webhook
+
+when the documents (the input directory) are a git checkout, a push to that repository can update
+the blog: add a webhook in the repository settings on github
+
+* payload URL: `https://lastlog.de/blog/github-webhook` (`<site_url>/github-webhook`)
+* content type: `application/json`
+* secret: `github_webhook_secret` (or `PANKAT_GITHUB_WEBHOOK_SECRET`), e.g. `openssl rand -hex 32`
+* events: just the push event
+
+pankat checks the signature (`X-Hub-Signature-256`), answers the push with `202` and runs
+`git pull --ff-only` in the input directory, the file monitor rebuilds what changed. the ping
+github sends when the webhook is created gets `200`, other events `204`, a wrong signature `401`.
+while `github_webhook_secret` is "not set" the webhook is disabled (`404`).
+
+to test it without github, sign a body with the secret like github does (`curl` and `openssl`):
+
+```bash
+URL=https://lastlog.de/blog/github-webhook   # or http://localhost:5000/blog/github-webhook
+SECRET=...                                   # github_webhook_secret
+BODY='{"zen":"testing the webhook"}'
+SIGNATURE="sha256=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$SECRET" | sed 's/^.*= //')"
+
+# ping, changes nothing: expect 200 (401: wrong secret, 404: webhook disabled)
+curl -s -o /dev/null -w '%{http_code}\n' -X POST "$URL" \
+  -H 'Content-Type: application/json' -H 'X-GitHub-Event: ping' \
+  -H "X-Hub-Signature-256: $SIGNATURE" --data-binary "$BODY"
+
+# push, runs git pull in the input directory: expect 202, the result is in pankat's log
+curl -s -o /dev/null -w '%{http_code}\n' -X POST "$URL" \
+  -H 'Content-Type: application/json' -H 'X-GitHub-Event: push' \
+  -H "X-Hub-Signature-256: $SIGNATURE" --data-binary "$BODY"
+```
+
+github lists the deliveries of a webhook (request, response, "Redeliver") in the webhook settings.
+
 ## urls
 
 below `subdir`:
@@ -163,6 +199,7 @@ below `subdir`:
 | `/specialpages/` | list of the special pages, admin only |
 | `/api/ws` | websocket for live updates |
 | `/api/session` | `{"admin": true/false}`, used by the navbar |
+| `/github-webhook` | `POST` from github on a push, runs `git pull` in the input directory |
 
 everything else answers with the 404 page.
 
@@ -265,7 +302,8 @@ html documents in the output directory on file system changes.
             # optional: clone the documents to /var/lib/pankat/input and pull them every 10 minutes
             git.url = "https://github.com/you/your-blog.git";
             # PANKAT_JWT_TOKEN=... (`openssl rand -hex 32`) and PANKAT_ADMIN_PASSWORD=...,
-            # without it the admin login is disabled
+            # without it the admin login is disabled; PANKAT_GITHUB_WEBHOOK_SECRET=... enables
+            # the github webhook (git pull on push, see "github webhook")
             environmentFile = "/etc/pankat.env";
             nginx.virtualHost = "lastlog.de";
           };

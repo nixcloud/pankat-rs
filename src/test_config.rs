@@ -3,6 +3,7 @@ use crate::config::{self, Config, ConfigValue, ConfigValueType};
 use std::collections::HashMap;
 
 pub const ADMIN_PASSWORD: &str = "test-password";
+pub const GITHUB_WEBHOOK_SECRET: &str = "test-webhook-secret";
 
 pub fn init() {
     let mut config_values: HashMap<String, ConfigValue> = HashMap::new();
@@ -27,6 +28,7 @@ pub fn init() {
     );
     set("jwt_token", ConfigValueType::String(Some("test-signing-secret".to_string())));
     set("admin_password", ConfigValueType::String(Some(ADMIN_PASSWORD.to_string())));
+    set("github_webhook_secret", ConfigValueType::String(Some(GITHUB_WEBHOOK_SECRET.to_string())));
     set("port", ConfigValueType::Number(Some(5000)));
     set("static", ConfigValueType::Bool(Some(false)));
     set("flat", ConfigValueType::Bool(Some(false)));

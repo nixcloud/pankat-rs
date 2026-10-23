@@ -36,5 +36,11 @@ jwt_token = "not set"
 # the login is disabled while this or jwt_token is "not set"; or use PANKAT_ADMIN_PASSWORD
 admin_password = "not set"
 
+# secret of the github webhook of the documents repository: on `git push` github sends a notification
+# to <site_url>/github-webhook (content type application/json, this secret, just the push event)
+# and pankat runs `git pull --ff-only` in the input directory, which then gets rebuilt; disabled
+# while "not set"; or use PANKAT_GITHUB_WEBHOOK_SECRET
+github_webhook_secret = "not set"
+
 # documents/mydir/myarticle.mdwn -> documents/output/myarticle.html with flat being true
 flat = true

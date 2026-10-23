@@ -8,6 +8,13 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 
+/// value of a secret which disables what needs it (login, github webhook), also when it isn't configured
+pub const NOT_SET: &str = "not set";
+
+fn not_set() -> String {
+    NOT_SET.to_string()
+}
+
 pub enum ConfigValueType {
     Path(Option<std::path::PathBuf>),
     String(Option<String>),
@@ -41,6 +48,8 @@ pub struct CliConfig {
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub admin_password: Option<String>,
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub github_webhook_secret: Option<String>,
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub port: Option<u16>,
     #[serde(skip_serializing_if = "::std::option::Option::is_none")]
     pub static_build_only: Option<bool>,
@@ -57,8 +66,12 @@ pub struct Config {
     pub database: PathBuf,
     pub subdir: PathBuf,
     pub site_url: String,
+    #[serde(default = "not_set")]
     pub jwt_token: String,
+    #[serde(default = "not_set")]
     pub admin_password: String,
+    #[serde(default = "not_set")]
+    pub github_webhook_secret: String,
     pub port: u16,
     pub static_build_only: bool,
     pub flat: bool,
@@ -144,6 +157,16 @@ fn create_config(
             }),
         admin_password: config_values
             .get("admin_password")
+            .and_then(|cv| match &cv.value {
+                ConfigValueType::String(p) => match creation_mode {
+                    OnlyDefaultValues::OnlyDefaultValues if cv.is_default => p.clone(),
+                    OnlyDefaultValues::OnlySetValues if !cv.is_default => p.clone(),
+                    _ => None,
+                },
+                _ => None,
+            }),
+        github_webhook_secret: config_values
+            .get("github_webhook_secret")
             .and_then(|cv| match &cv.value {
                 ConfigValueType::String(p) => match creation_mode {
                     OnlyDefaultValues::OnlyDefaultValues if cv.is_default => p.clone(),

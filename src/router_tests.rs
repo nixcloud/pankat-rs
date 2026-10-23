@@ -223,3 +223,35 @@ async fn test_special_pages() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(index, body);
 }
+
+async fn webhook(app: &Router, event: &str, signature: Option<&str>) -> StatusCode {
+    let body = r#"{"zen":"Keep it logically awesome.","hook_id":1}"#;
+    let mut builder = Request::builder()
+        .method("POST")
+        .uri("/github-webhook")
+        .header(header::CONTENT_TYPE, "application/json")
+        .header("X-GitHub-Event", event);
+    let signature = signature
+        .map(str::to_string)
+        .unwrap_or_else(|| crate::github_webhook::sign(crate::test_config::GITHUB_WEBHOOK_SECRET, body.as_bytes()));
+    if !signature.is_empty() {
+        builder = builder.header("X-Hub-Signature-256", signature);
+    }
+    let response = app.clone().oneshot(builder.body(Body::from(body)).unwrap()).await.unwrap();
+    response.status()
+}
+
+// a push runs git pull in the input directory, documents/blog.lastlog.de, it isn't sent here
+// (git_pull is tested in github_webhook.rs)
+#[tokio::test]
+async fn test_github_webhook() {
+    let app = app();
+    assert_eq!(webhook(&app, "ping", None).await, StatusCode::OK);
+    assert_eq!(webhook(&app, "issues", None).await, StatusCode::NO_CONTENT);
+    assert_eq!(webhook(&app, "push", Some("")).await, StatusCode::UNAUTHORIZED);
+    let other_secret = crate::github_webhook::sign("another secret", b"{}");
+    assert_eq!(webhook(&app, "push", Some(&other_secret)).await, StatusCode::UNAUTHORIZED);
+    // only POST
+    let (status, _, _) = request(&app, "GET", "/github-webhook", None, None).await;
+    assert_ne!(status, StatusCode::OK);
+}

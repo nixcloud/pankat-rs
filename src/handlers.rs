@@ -160,10 +160,6 @@ pub async fn special_pages_index(
     Ok(html_response(StatusCode::OK, html))
 }
 
-pub async fn github_webhook(Json(payload): Json<Value>) {
-    println!("GitHub event: {}", payload);
-}
-
 /// `uri_path` below `base`, None if it would leave `base` (e.g. /../../pankat.toml)
 fn safe_join(base: &Path, uri_path: &str) -> Option<PathBuf> {
     let mut path = base.to_path_buf();
