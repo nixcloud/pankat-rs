@@ -2,12 +2,11 @@
 with pkgs;
 {
     deps = {
-        #"openssl-sys" = [ pkg-config openssl ];
-        #"cargo" = [ git ];
+        #"pankat" = [ git ];
     };
     envs = {};
     project_src = {
-        #include = [ ".git" ];
-        #exclude = [ "nix" "nix_" "nix__" ];
+        # include = [ ".git" ];
+        exclude = [ "pankat-wasm" ];
     };
 }

@@ -3,26 +3,23 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     cargo-libnix.url = "github:nixcloud/cargo";
-    fenix.url   = "github:nix-community/fenix";
+    libfenix.url = "github:nixcloud/libfenix";
+    libfenix.inputs.nixpkgs.follows = "nixpkgs";
+    flake-utils.url = "github:numtide/flake-utils";
   };
   outputs =
-  { self, nixpkgs, flake-utils, fenix, cargo-libnix }:
+  { self, nixpkgs, flake-utils, libfenix, cargo-libnix }:
     (flake-utils.lib.eachDefaultSystem
       (system:
         let
-          overlays = [
-            fenix.overlays.default
-          ];
           pkgs = import nixpkgs {
-            inherit system overlays;
+            inherit system;
           };
 
-          fp = fenix.packages.${system};
-          # host std is already inside stable.rustc; listing it again is harmless
-          rust_toolchain = fp.combine [
-            cargo-libnix.packages.${system}.rust-1_99
-            #fp.targets.wasm32-unknown-unknown.stable.rust-std
-          ];
+          lf = import libfenix { inherit system pkgs; };
+          # rustc 1.99.0 + cargo (libnix) 1.99.0+v2 + the host std
+          rust_toolchain = lf.rust-1_99.minimalToolchain;
+          #lf.targets.wasm32-unknown-unknown.rust-1_99.rust-std
 
           project_root = ./.;
 
@@ -40,10 +37,10 @@
             })
             (builtins.filter (p: (p.source or "") == "registry+https://github.com/rust-lang/crates.io-index") lock.package);
 
-          generated = pkgs.runCommand "cargo-nix-generated" { inherit crateTarballs; nativeBuildInputs = [ cargo-libnix.packages.${system}.rust-1_99 ]; } ''
+          generated = pkgs.runCommand "cargo-nix-generated" { inherit crateTarballs; nativeBuildInputs = [ rust_toolchain ]; } ''
             export HOME=$TMPDIR CARGO_BACKEND=nix
             cp -r ${src} project && chmod -R u+w project && cd project
-            ${cargo-libnix.packages.${system}.rust-1_99}/bin/cargo build --release --offline write-nix-buildsystem --out-dir $out
+            ${rust_toolchain}/bin/cargo build --release --offline write-nix-buildsystem --out-dir $out
           '';
 
           # the cargo binary unit of a generated build system; its hash isn't known in advance
@@ -82,7 +79,7 @@
           devShells.default = mkShell {
             buildInputs = [
               # pankat-rs requires those (build)
-              cargo-libnix.packages.${system}.rust-1_99
+              rust_toolchain
 
               patchelf
               just
